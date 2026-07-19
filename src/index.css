@@ -1,0 +1,84 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #ffffff;
+  color: #1f2937;
+  -webkit-font-smoothing: antialiased;
+}
+
+html.dark body {
+  background: #0a0f14;
+  color: #e6edf3;
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-sage-200;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold text-white bg-coral-500 hover:bg-coral-600 transition-all duration-200 shadow-glow hover:scale-[1.02];
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold text-slate-700 hover:text-coral-600 border border-slate-200 hover:border-coral-300 hover:bg-coral-50 transition-all duration-200;
+  }
+  .btn-soft {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition;
+  }
+  .card {
+    @apply rounded-2xl bg-white border border-slate-200/70 shadow-card backdrop-blur-sm;
+  }
+  .input {
+    @apply w-full rounded-xl bg-white border border-slate-200 px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-coral-400/50 focus:border-transparent transition;
+  }
+  .label {
+    @apply block text-sm font-medium text-slate-700 mb-1.5;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium;
+  }
+  .section {
+    @apply max-w-7xl mx-auto px-6;
+  }
+}
+
+html.dark {
+  @layer components {
+    .glass {
+      @apply bg-white/5 backdrop-blur-xl border border-white/10;
+    }
+    .btn-ghost {
+      @apply text-white/90 hover:text-coral-300 border-white/15 hover:border-coral-400/40 hover:bg-white/5;
+    }
+    .btn-soft {
+      @apply text-white/80 bg-white/5 hover:bg-white/10;
+    }
+    .card {
+      @apply bg-ink-800/80 border-white/10 shadow-card-dark;
+    }
+    .input {
+      @apply bg-ink-700/60 border-white/10 text-white placeholder-white/40 focus:ring-coral-400/50;
+    }
+    .label {
+      @apply text-white/80;
+    }
+  }
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(100,116,139,0.25); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(100,116,139,0.45); }

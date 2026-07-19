@@ -1,0 +1,196 @@
+import { useState, type FormEvent } from 'react';
+import { useI18n } from '../lib/i18n';
+import { useAuth } from '../lib/auth';
+import { Link, navigate, useRoute } from '../lib/router';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { Spinner } from './ui';
+import { ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
+
+function Logo() {
+  return (
+    <Link to="/" className="flex items-center gap-2.5">
+      <div className="w-9 h-9 rounded-xl bg-coral-500 flex items-center justify-center shadow-glow">
+        <span className="text-white font-bold text-lg">F</span>
+      </div>
+      <span className="font-display text-xl font-bold text-slate-900 dark:text-white">Faka</span>
+    </Link>
+  );
+}
+
+function parseQuery(hash: string): Record<string, string> {
+  const q = hash.split('?')[1];
+  if (!q) return {};
+  const out: Record<string, string> = {};
+  for (const pair of q.split('&')) {
+    const [k, v] = pair.split('=');
+    if (k) out[k] = decodeURIComponent(v ?? '');
+  }
+  return out;
+}
+
+export function AuthScreen() {
+  const route = useRoute();
+  const isSignup = route.startsWith('/signup');
+  const query = parseQuery(route);
+  const prefilledPlan = query.plan;
+
+  const { t } = useI18n();
+  const { signIn, signUp } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      if (isSignup) {
+        const { error, user } = await signUp(email, password, fullName);
+        if (error) {
+          setError(error);
+        } else if (user) {
+          // Stash the selected plan so onboarding can use it
+          if (prefilledPlan) sessionStorage.setItem('faka_signup_plan', prefilledPlan);
+          navigate('/onboarding');
+        }
+      } else {
+        const { error } = await signIn(email, password);
+        if (error) setError(error);
+        else navigate('/dashboard');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-sage-50 dark:bg-ink-900 relative overflow-hidden">
+      <div className="absolute inset-0 opacity-70 dark:opacity-40" style={{
+        backgroundImage: 'radial-gradient(ellipse at 20% 0%, rgba(255,107,53,0.18), transparent 50%), radial-gradient(ellipse at 80% 100%, rgba(45,212,191,0.15), transparent 50%)',
+      }} />
+      <div className="relative section py-8">
+        <Logo />
+      </div>
+      <div className="relative section flex items-center justify-center py-12">
+        <div className="card w-full max-w-md p-8 animate-scale-in">
+          <div className="inline-flex items-center gap-2 rounded-full bg-coral-50 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 px-3 py-1 text-xs text-coral-700 dark:text-coral-300 mb-5">
+            <Sparkles size={14} /> {isSignup ? t('auth.signup') : t('auth.signin')}
+          </div>
+          <h1 className="font-display text-2xl font-bold text-slate-900 dark:text-white">
+            {isSignup ? t('auth.signup') : t('auth.signin')}
+          </h1>
+          <p className="mt-2 text-sm text-slate-600 dark:text-white/60">
+            {isSignup ? t('auth.noaccount') : t('auth.haveaccount')}{' '}
+            <Link to={isSignup ? '/signin' : '/signup'} className="text-coral-600 hover:text-coral-500 font-medium">
+              {isSignup ? t('auth.signin.here') : t('auth.signup.here')}
+            </Link>
+          </p>
+
+          {!isSupabaseConfigured && (
+            <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
+              Mode démo : Supabase n'est pas configuré. L'inscription crée un compte local simulé.
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            {isSignup && (
+              <div>
+                <label className="label">{t('auth.fullname')}</label>
+                <input className="input" required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Aïssa Bello" />
+              </div>
+            )}
+            <div>
+              <label className="label">{t('auth.email')}</label>
+              <input type="email" className="input" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="aissa@entreprise.com" />
+            </div>
+            <div>
+              <label className="label">{t('auth.password')}</label>
+              <input type="password" className="input" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+            </div>
+            {error && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                {error}
+              </div>
+            )}
+            <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-60">
+              {loading ? <Spinner /> : (isSignup ? t('auth.signup.cta') : t('auth.signin.cta'))}
+              {!loading && <ArrowRight size={18} />}
+            </button>
+          </form>
+
+          <div className="mt-6 flex items-center gap-2 text-xs text-slate-400 dark:text-white/40">
+            <ShieldCheck size={14} className="text-coral-500" />
+            Isolation multi-tenant via Supabase RLS (tenant_id)
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Create a tenant + admin membership via the `create-tenant` edge function,
+// which runs as service_role and bypasses RLS. This avoids the
+// "new row violates row-level security policy" error that occurs when the
+// session isn't fully propagated to the client after signUp.
+//
+// Throws a translated error key (e.g. "tenant.error.create") that the caller
+// can map to a user-facing message — never the raw Postgres/Supabase text.
+export async function createTenantForUser(userId: string, data: {
+  name: string; subdomain: string; industry: string; company_size: string;
+  country: string; region: string; city: string; region_custom?: string | null; city_custom?: string | null;
+  currency: string; timezone: string; phone_code: string; sales_code?: string;
+  payment_methods: string[]; plan: string;
+}) {
+  const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-tenant`;
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData?.session?.access_token;
+
+  const res = await fetch(fnUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken ?? import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({
+      name: data.name,
+      subdomain: data.subdomain,
+      industry: data.industry,
+      company_size: data.company_size,
+      country: data.country,
+      region: data.region,
+      city: data.city,
+      region_custom: data.region_custom ?? null,
+      city_custom: data.city_custom ?? null,
+      currency: data.currency,
+      timezone: data.timezone,
+      phone_code: data.phone_code,
+      sales_code: data.sales_code, // optional — never blocks
+      payment_methods: data.payment_methods,
+      plan: data.plan,
+    }),
+  });
+
+  let json: any = null;
+  try { json = await res.json(); } catch { /* non-JSON body */ }
+
+  if (!res.ok || !json || json.ok === false) {
+    const code = json?.error ?? 'UNKNOWN';
+    throw new Error(`tenant.error.${mapErrorCode(code)}`);
+  }
+
+  return json;
+}
+
+function mapErrorCode(code: string): string {
+  switch (code) {
+    case 'UNAUTHORIZED': return 'unauthorized';
+    case 'MISSING_FIELDS': return 'missing';
+    case 'TENANT_CREATE_FAILED': return 'create';
+    case 'MEMBERSHIP_CREATE_FAILED': return 'membership';
+    default: return 'unknown';
+  }
+}
