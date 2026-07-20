@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Building2, Users, Wallet, BarChart3, MessageSquare, ShieldCheck, Globe2,
   Check, Star, Menu, X, ArrowRight, Sparkles, Moon, Sun,
@@ -8,13 +8,16 @@ import { Link, navigate } from '../lib/router';
 import { PLANS, recommendPlan, type PlanId } from '../lib/plans';
 
 function useTheme() {
-  const [dark, setDark] = useState(() => localStorage.getItem('faka_theme') === 'dark');
-  const toggle = () => setDark((d) => {
-    const next = !d;
-    document.documentElement.classList.toggle('dark', next);
-    localStorage.setItem('faka_theme', next ? 'dark' : 'light');
-    return next;
+  const [dark, setDark] = useState(() => {
+    const saved = localStorage.getItem('faka_theme');
+    if (saved) return saved === 'dark';
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
   });
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', dark);
+    localStorage.setItem('faka_theme', dark ? 'dark' : 'light');
+  }, [dark]);
+  const toggle = () => setDark((d) => !d);
   return { dark, toggle };
 }
 

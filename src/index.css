@@ -26,11 +26,12 @@ html.dark body {
 }
 
 @layer components {
+  /* ── Light mode defaults ── */
   .glass {
     @apply bg-white/70 backdrop-blur-xl border border-sage-200;
   }
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold text-white bg-coral-500 hover:bg-coral-600 transition-all duration-200 shadow-glow hover:scale-[1.02];
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold text-white bg-coral-500 hover:bg-coral-600 transition-all duration-200 shadow-glow hover:scale-[1.02] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100;
   }
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold text-slate-700 hover:text-coral-600 border border-slate-200 hover:border-coral-300 hover:bg-coral-50 transition-all duration-200;
@@ -53,28 +54,25 @@ html.dark body {
   .section {
     @apply max-w-7xl mx-auto px-6;
   }
-}
 
-html.dark {
-  @layer components {
-    .glass {
-      @apply bg-white/5 backdrop-blur-xl border border-white/10;
-    }
-    .btn-ghost {
-      @apply text-white/90 hover:text-coral-300 border-white/15 hover:border-coral-400/40 hover:bg-white/5;
-    }
-    .btn-soft {
-      @apply text-white/80 bg-white/5 hover:bg-white/10;
-    }
-    .card {
-      @apply bg-ink-800/80 border-white/10 shadow-card-dark;
-    }
-    .input {
-      @apply bg-ink-700/60 border-white/10 text-white placeholder-white/40 focus:ring-coral-400/50;
-    }
-    .label {
-      @apply text-white/80;
-    }
+  /* ── Dark mode overrides — MUST be inside @layer, never in a nested @layer ── */
+  html.dark .glass {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10;
+  }
+  html.dark .btn-ghost {
+    @apply text-white/90 hover:text-coral-300 border-white/15 hover:border-coral-400/40 hover:bg-white/5;
+  }
+  html.dark .btn-soft {
+    @apply text-white/80 bg-white/5 hover:bg-white/10;
+  }
+  html.dark .card {
+    @apply bg-ink-800/80 border-white/10 shadow-card-dark;
+  }
+  html.dark .input {
+    @apply bg-ink-700/60 border-white/10 text-white placeholder-white/40 focus:ring-coral-400/50;
+  }
+  html.dark .label {
+    @apply text-white/80;
   }
 }
 
