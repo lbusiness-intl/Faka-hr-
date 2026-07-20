@@ -95,7 +95,7 @@ function Hero() {
           <div className="inline-flex items-center gap-2 rounded-full bg-coral-50 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 px-3 py-1.5 text-xs text-coral-700 dark:text-coral-300 mb-6">
             <Sparkles size={14} /> {t('app.badge')}
           </div>
-          <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-extrababold text-slate-900 dark:text-white leading-[1.1] tracking-tight">
+          <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-extrabold text-slate-900 dark:text-white leading-[1.1] tracking-tight">
             {t('hero.title')}
           </h1>
           <p className="mt-6 text-lg text-slate-600 dark:text-white/70 leading-relaxed max-w-xl">

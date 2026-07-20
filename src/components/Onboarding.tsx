@@ -147,7 +147,7 @@ export default function Onboarding() {
                 <label className="label">{t('onboarding.company.subdomain')}</label>
                 <div className="flex items-center">
                   <input className="input rounded-r-none" value={form.subdomain} onChange={(e) => update('subdomain', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} placeholder="bandjoun" />
-                  <span className="px-3 py-3 rounded-r-xl border border-l-0 border-white/10 bg-white/5 text-white/50 text-sm">.faka.app</span>
+                  <span className="px-3 py-3 rounded-r-xl border border-l-0 border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-white/50 text-sm">.faka.app</span>
                 </div>
               </div>
               <div className="grid sm:grid-cols-2 gap-4">
@@ -222,7 +222,7 @@ export default function Onboarding() {
                 <div>
                   <label className="label">{t('onboarding.currency')}</label>
                   <input className="input opacity-70" value={form.currency} disabled />
-                  <p className="text-[11px] text-white/40 mt-1">{t('onboarding.currency.locked')}</p>
+                  <p className="text-[11px] text-slate-400 dark:text-white/40 mt-1">{t('onboarding.currency.locked')}</p>
                 </div>
                 <div>
                   <label className="label">{t('onboarding.timezone')}</label>

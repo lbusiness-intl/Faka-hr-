@@ -106,6 +106,8 @@ function Employees() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [offboarding, setOffboarding] = useState<Employee | null>(null);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [inviting, setInviting] = useState(false);
   const [form, setForm] = useState({
     first_name: '', last_name: '', email: '', phone: '', position: '', department: '', salary: 0, contract_type: 'cdi',
   });
@@ -121,10 +123,37 @@ function Employees() {
 
   async function add() {
     if (!tenant) return;
-    await supabase.from('employees').insert({ ...form, tenant_id: tenant.id, currency: tenant.currency, status: 'active', hire_date: new Date().toISOString().slice(0, 10) });
+    const { data } = await supabase.from('employees').insert({ ...form, tenant_id: tenant.id, currency: tenant.currency, status: 'active', hire_date: new Date().toISOString().slice(0, 10) }).select().single();
     setModal(false);
     setForm({ first_name: '', last_name: '', email: '', phone: '', position: '', department: '', salary: 0, contract_type: 'cdi' });
     load();
+    // Auto-invite after creating the employee record
+    if (data && form.email) {
+      inviteEmployee(data.id, form.email);
+    }
+  }
+
+  async function inviteEmployee(employeeId: string, email: string) {
+    if (!tenant || !email) return;
+    setInviting(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-employee`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionData?.session?.access_token ?? ''}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ action: 'create', tenant_id: tenant.id, employee_id: employeeId, email, role: 'employee' }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        const url = `${window.location.origin}/accept-invite?token=${json.token}`;
+        setInviteLink(url);
+      }
+    } catch { /* ignore */ }
+    setInviting(false);
   }
 
   async function offboard(reason: string, notes: string) {
@@ -143,7 +172,7 @@ function Employees() {
       <PageHeader title={t('dash.employees')} icon={<Users size={20} />}
         action={<button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> {t('common.add')}</button>} />
       {loading ? <Spinner /> : items.length === 0 ? (
-        <EmptyState icon={<Users size={48} />} title="Aucun employé" hint="Ajoutez votre premier employé." />
+        <EmptyState icon={<Users size={48} />} title="Aucun employé" hint="Ajoutez votre premier employé — il recevra une invitation par email." />
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
@@ -170,9 +199,14 @@ function Employees() {
                   <td className="p-4">
                     <Badge color={e.status === 'active' ? 'emerald' : 'rose'}>{e.status}</Badge>
                   </td>
-                  <td className="p-4">
+                  <td className="p-4 flex gap-2">
+                    {e.status === 'active' && e.email && (
+                      <button onClick={() => inviteEmployee(e.id, e.email)} disabled={inviting} className="text-coral-600 hover:text-coral-500 text-xs font-medium">
+                        Inviter
+                      </button>
+                    )}
                     {e.status === 'active' && (
-                      <button onClick={() => setOffboarding(e)} className="text-rose-300 hover:text-rose-200 text-xs">Offboarder</button>
+                      <button onClick={() => setOffboarding(e)} className="text-rose-500 hover:text-rose-400 text-xs">Offboarder</button>
                     )}
                   </td>
                 </tr>
@@ -207,6 +241,19 @@ function Employees() {
       </Modal>
 
       <OffboardModal employee={offboarding} onClose={() => setOffboarding(null)} onConfirm={offboard} />
+
+      <Modal open={inviteLink !== null} onClose={() => setInviteLink(null)} title="Invitation envoyée">
+        <p className="text-slate-600 dark:text-white/70 text-sm mb-3">
+          L'employé recevra un email d'invitation. Partagez aussi ce lien sécurisé (valide 72h) :
+        </p>
+        <div className="rounded-xl bg-slate-100 dark:bg-white/5 p-3 font-mono text-xs text-slate-700 dark:text-white/70 break-all">
+          {inviteLink}
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <button onClick={() => { if (inviteLink) navigator.clipboard?.writeText(inviteLink); }} className="btn-ghost text-sm">Copier</button>
+          <button onClick={() => setInviteLink(null)} className="btn-primary text-sm">Fermer</button>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -331,8 +378,8 @@ function RequestList({ table, title, icon, amountKey }: {
                   <td className="p-4">
                     {it.status === 'pending' && (
                       <div className="flex gap-2">
-                        <button onClick={() => update(it.id, 'approved')} className="text-emerald-300 hover:text-emerald-200"><Check size={16} /></button>
-                        <button onClick={() => update(it.id, 'rejected')} className="text-rose-300 hover:text-rose-200"><X size={16} /></button>
+                        <button onClick={() => update(it.id, 'approved')} className="text-emerald-600 hover:text-emerald-500"><Check size={16} /></button>
+                        <button onClick={() => update(it.id, 'rejected')} className="text-rose-500 hover:text-rose-400"><X size={16} /></button>
                       </div>
                     )}
                   </td>
@@ -886,6 +933,253 @@ function Settings() {
 }
 
 // ============================================================
+// Documents — HR uploads for employees (contracts, payslips, etc.)
+// ============================================================
+function Documents() {
+  const { t } = useI18n();
+  const tenant = useTenant();
+  const { user } = useAuth();
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [docs, setDocs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({ employee_id: '', name: '', type: 'contract' });
+  const [file, setFile] = useState<File | null>(null);
+
+  async function load() {
+    if (!tenant) return;
+    const [e, d] = await Promise.all([
+      supabase.from('employees').select('*').eq('tenant_id', tenant.id).eq('status', 'active').order('created_at', { ascending: false }),
+      supabase.from('documents').select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false }),
+    ]);
+    setEmployees((e.data as Employee[]) ?? []);
+    setDocs(d.data ?? []);
+    setLoading(false);
+  }
+  useEffect(() => { load(); }, [tenant]);
+
+  async function upload() {
+    if (!tenant || !file || !form.employee_id || !form.name) return;
+    const path = `${tenant.id}/${form.employee_id}/${Date.now()}-${file.name}`;
+    const { error: upErr } = await supabase.storage.from('documents').upload(path, file);
+    if (upErr) { alert('Upload failed'); return; }
+    await supabase.from('documents').insert({
+      tenant_id: tenant.id,
+      employee_id: form.employee_id,
+      name: form.name,
+      type: form.type,
+      storage_path: path,
+      size_bytes: file.size,
+      mime_type: file.type || 'application/pdf',
+      uploaded_by: user?.id,
+      uploaded_by_role: 'hr',
+    });
+    setModal(false);
+    setForm({ employee_id: '', name: '', type: 'contract' });
+    setFile(null);
+    load();
+  }
+
+  async function remove(id: string, path: string) {
+    await supabase.storage.from('documents').remove([path]);
+    await supabase.from('documents').delete().eq('id', id);
+    load();
+  }
+
+  if (!tenant) return null;
+  const empName = (id: string) => { const e = employees.find((x) => x.id === id); return e ? `${e.first_name} ${e.last_name}` : '—'; };
+
+  return (
+    <div>
+      <PageHeader title="Documents" icon={<FileText size={20} />}
+        action={<button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> Téléverser</button>} />
+      {loading ? <Spinner /> : docs.length === 0 ? (
+        <EmptyState icon={<FileText size={48} />} title="Aucun document" hint="Téléversez un contrat, bulletin, attestation..." />
+      ) : (
+        <div className="card overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-slate-400 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+              <tr>
+                <th className="text-left p-4">Nom</th>
+                <th className="text-left p-4">Employé</th>
+                <th className="text-left p-4">Type</th>
+                <th className="text-left p-4">Ajouté par</th>
+                <th className="text-left p-4">Date</th>
+                <th className="text-left p-4"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {docs.map((d) => (
+                <tr key={d.id} className="border-b border-slate-100 dark:border-white/5">
+                  <td className="p-4 text-slate-900 dark:text-white font-medium">{d.name}</td>
+                  <td className="p-4 text-slate-700 dark:text-white/70">{empName(d.employee_id)}</td>
+                  <td className="p-4 text-slate-700 dark:text-white/70 capitalize">{d.type}</td>
+                  <td className="p-4"><Badge color={d.uploaded_by_role === 'hr' ? 'coral' : 'indigo'}>{d.uploaded_by_role}</Badge></td>
+                  <td className="p-4 text-slate-400 text-xs">{new Date(d.created_at).toLocaleDateString()}</td>
+                  <td className="p-4 flex gap-2">
+                    <button onClick={async () => { const { data } = await supabase.storage.from('documents').createSignedUrl(d.storage_path, 60); if (data) window.open(data.signedUrl, '_blank'); }} className="text-coral-600 hover:text-coral-500 text-xs">Voir</button>
+                    <button onClick={() => remove(d.id, d.storage_path)} className="text-rose-500 hover:text-rose-400 text-xs">Suppr.</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <Modal open={modal} onClose={() => setModal(false)} title="Téléverser un document">
+        <div className="space-y-3">
+          <div>
+            <label className="label">Employé</label>
+            <select className="input" value={form.employee_id} onChange={(e) => setForm({ ...form, employee_id: e.target.value })}>
+              <option value="" className="bg-white dark:bg-ink-700">—</option>
+              {employees.map((e) => <option key={e.id} value={e.id} className="bg-white dark:bg-ink-700">{e.first_name} {e.last_name}</option>)}
+            </select>
+          </div>
+          <div><label className="label">Nom du document</label><input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Contrat CDI 2026" /></div>
+          <div>
+            <label className="label">Type</label>
+            <select className="input" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+              <option value="contract" className="bg-white dark:bg-ink-700">Contrat</option>
+              <option value="payslip" className="bg-white dark:bg-ink-700">Bulletin de paie</option>
+              <option value="attestation" className="bg-white dark:bg-ink-700">Attestation</option>
+              <option value="id" className="bg-white dark:bg-ink-700">Pièce d'identité</option>
+              <option value="diploma" className="bg-white dark:bg-ink-700">Diplôme</option>
+              <option value="other" className="bg-white dark:bg-ink-700">Autre</option>
+            </select>
+          </div>
+          <div><label className="label">Fichier (PDF)</label><input type="file" accept=".pdf,image/*" className="input" onChange={(e) => setFile(e.target.files?.[0] ?? null)} /></div>
+        </div>
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={() => setModal(false)} className="btn-ghost text-sm">{t('common.cancel')}</button>
+          <button onClick={upload} className="btn-primary text-sm">{t('common.save')}</button>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ============================================================
+// Overtime
+// ============================================================
+function Overtime() {
+  const { t } = useI18n();
+  const tenant = useTenant();
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({ employee_id: '', date: new Date().toISOString().slice(0, 10), hours: 1, rate: 1.5, notes: '' });
+
+  async function load() {
+    if (!tenant) return;
+    const [e, o] = await Promise.all([
+      supabase.from('employees').select('*').eq('tenant_id', tenant.id).eq('status', 'active'),
+      supabase.from('overtime').select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false }),
+    ]);
+    setEmployees((e.data as Employee[]) ?? []);
+    setItems(o.data ?? []);
+    setLoading(false);
+  }
+  useEffect(() => { load(); }, [tenant]);
+
+  async function add() {
+    if (!tenant || !form.employee_id) return;
+    const emp = employees.find((x) => x.id === form.employee_id);
+    const amount = Number(form.hours) * Number(form.rate) * (emp?.salary ?? 0) / 173.33; // hourly rate from monthly
+    await supabase.from('overtime').insert({
+      tenant_id: tenant.id,
+      employee_id: form.employee_id,
+      date: form.date,
+      hours: Number(form.hours),
+      rate: Number(form.rate),
+      amount,
+      currency: tenant.currency,
+      status: 'pending',
+      notes: form.notes,
+    });
+    setModal(false);
+    setForm({ employee_id: '', date: new Date().toISOString().slice(0, 10), hours: 1, rate: 1.5, notes: '' });
+    load();
+  }
+
+  async function setStatus(id: string, status: string) {
+    await supabase.from('overtime').update({ status }).eq('id', id);
+    load();
+  }
+
+  if (!tenant) return null;
+  const empName = (id: string) => { const e = employees.find((x) => x.id === id); return e ? `${e.first_name} ${e.last_name}` : '—'; };
+  const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(Math.round(n));
+
+  return (
+    <div>
+      <PageHeader title="Heures supplémentaires" icon={<Clock size={20} />}
+        action={<button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> {t('common.add')}</button>} />
+      {loading ? <Spinner /> : items.length === 0 ? (
+        <EmptyState icon={<Clock size={48} />} title="Aucune heure supplémentaire" />
+      ) : (
+        <div className="card overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-slate-400 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+              <tr>
+                <th className="text-left p-4">Employé</th>
+                <th className="text-left p-4">Date</th>
+                <th className="text-left p-4">Heures</th>
+                <th className="text-left p-4">Taux</th>
+                <th className="text-left p-4">Montant</th>
+                <th className="text-left p-4">Statut</th>
+                <th className="text-left p-4"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((o) => (
+                <tr key={o.id} className="border-b border-slate-100 dark:border-white/5">
+                  <td className="p-4 text-slate-900 dark:text-white font-medium">{empName(o.employee_id)}</td>
+                  <td className="p-4 text-slate-700 dark:text-white/70">{o.date}</td>
+                  <td className="p-4 text-slate-700 dark:text-white/70">{o.hours}h</td>
+                  <td className="p-4 text-slate-700 dark:text-white/70">x{o.rate}</td>
+                  <td className="p-4 text-slate-700 dark:text-white/70">{fmt(o.amount)} {o.currency}</td>
+                  <td className="p-4"><Badge color={o.status === 'approved' ? 'emerald' : o.status === 'rejected' ? 'rose' : 'amber'}>{o.status}</Badge></td>
+                  <td className="p-4 flex gap-2">
+                    {o.status === 'pending' && <>
+                      <button onClick={() => setStatus(o.id, 'approved')} className="text-emerald-600 hover:text-emerald-500 text-xs">Approuver</button>
+                      <button onClick={() => setStatus(o.id, 'rejected')} className="text-rose-500 hover:text-rose-400 text-xs">Refuser</button>
+                    </>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <Modal open={modal} onClose={() => setModal(false)} title="Nouvelle heure supplémentaire">
+        <div className="space-y-3">
+          <div>
+            <label className="label">Employé</label>
+            <select className="input" value={form.employee_id} onChange={(e) => setForm({ ...form, employee_id: e.target.value })}>
+              <option value="" className="bg-white dark:bg-ink-700">—</option>
+              {employees.map((e) => <option key={e.id} value={e.id} className="bg-white dark:bg-ink-700">{e.first_name} {e.last_name}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div><label className="label">Date</label><input type="date" className="input" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
+            <div><label className="label">Heures</label><input type="number" step="0.5" className="input" value={form.hours} onChange={(e) => setForm({ ...form, hours: Number(e.target.value) })} /></div>
+            <div><label className="label">Taux</label><input type="number" step="0.5" className="input" value={form.rate} onChange={(e) => setForm({ ...form, rate: Number(e.target.value) })} /></div>
+          </div>
+          <div><label className="label">Notes</label><textarea className="input" rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+        </div>
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={() => setModal(false)} className="btn-ghost text-sm">{t('common.cancel')}</button>
+          <button onClick={add} className="btn-primary text-sm">{t('common.save')}</button>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ============================================================
 // Main admin dashboard router
 // ============================================================
 export default function AdminDashboard() {
@@ -930,6 +1224,8 @@ export default function AdminDashboard() {
     case 'compliance': content = <Compliance />; break;
     case 'communication': content = <Communication />; break;
     case 'events': content = <Events />; break;
+    case 'documents': content = <Documents />; break;
+    case 'overtime': content = <Overtime />; break;
     case 'subscription': content = <SubscriptionEmbed />; break;
     case 'settings': content = <Settings />; break;
     default: content = <Overview />;

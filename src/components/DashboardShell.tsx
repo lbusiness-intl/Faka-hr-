@@ -44,6 +44,8 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
     { key: 'advances', icon: Banknote, label: t('dash.advances') },
     { key: 'claims', icon: Receipt, label: t('dash.claims') },
     { key: 'attendance', icon: Clock, label: t('dash.attendance') },
+    { key: 'overtime', icon: Clock, label: 'Heures sup.' },
+    { key: 'documents', icon: FileText, label: 'Documents' },
     { key: 'recruitment', icon: UserPlus, label: t('dash.recruitment') },
     { key: 'training', icon: GraduationCap, label: t('dash.training') },
     { key: 'performance', icon: Target, label: t('dash.performance') },
@@ -60,9 +62,11 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
   const employeeNav: NavItem[] = [
     { key: 'dashboard', icon: LayoutDashboard, label: t('emp.my_space') },
     { key: 'attendance', icon: Clock, label: t('dash.attendance') },
+    { key: 'overtime', icon: Clock, label: 'Heures sup.' },
     { key: 'leaves', icon: CalendarClock, label: t('emp.leaves') },
     { key: 'advances', icon: Banknote, label: t('emp.advances') },
     { key: 'claims', icon: Receipt, label: t('emp.claims') },
+    { key: 'documents', icon: FileText, label: 'Mes documents' },
     { key: 'assets', icon: Package, label: t('dash.assets') },
     { key: 'events', icon: CalendarDays, label: t('dash.events') },
     { key: 'communication', icon: MessageSquare, label: t('emp.whatsapp') },
@@ -145,7 +149,7 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
                   <item.icon size={16} />
                   {item.label}
                 </span>
-                {!unlocked && <Lock size={12} className="text-slate-300" />}
+                {!unlocked && <Lock size={12} className="text-slate-400 dark:text-white/30" />}
               </button>
             );
           })}

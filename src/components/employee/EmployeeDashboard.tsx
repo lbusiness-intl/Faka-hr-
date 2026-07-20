@@ -8,7 +8,7 @@ import { useRoute, navigate } from '../../lib/router';
 import {
   Clock, CalendarClock, Banknote, Receipt, CalendarDays, MessageSquare,
   CreditCard, Play, Pause, Square, Camera, Send, TrendingUp, Target,
-  FileText, Package, Plus, Check, X, Wallet, Users, Sparkles, Bell,
+  FileText, Package, Plus, Check, X, Wallet, Users, Sparkles, Bell, Download, Upload,
 } from 'lucide-react';
 
 type Employee = {
@@ -520,6 +520,183 @@ function EventsView() {
   );
 }
 
+// ============================================================
+// Documents — employee sees HR uploads + own uploads + signed contracts
+// ============================================================
+function MyDocuments() {
+  const { t } = useI18n();
+  const tenant = useTenant();
+  const { user } = useAuth();
+  const { me } = useMe(tenant?.id, user?.email);
+  const [docs, setDocs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({ name: '', type: 'other' });
+  const [file, setFile] = useState<File | null>(null);
+
+  async function load() {
+    if (!tenant || !me) return;
+    const { data } = await supabase.from('documents').select('*').eq('tenant_id', tenant.id).eq('employee_id', me.id).order('created_at', { ascending: false });
+    setDocs(data ?? []);
+    setLoading(false);
+  }
+  useEffect(() => { load(); }, [tenant, me]);
+
+  async function upload() {
+    if (!tenant || !me || !file || !form.name) return;
+    const path = `${tenant.id}/${me.id}/${Date.now()}-${file.name}`;
+    const { error: upErr } = await supabase.storage.from('documents').upload(path, file);
+    if (upErr) { alert('Upload failed'); return; }
+    await supabase.from('documents').insert({
+      tenant_id: tenant.id,
+      employee_id: me.id,
+      name: form.name,
+      type: form.type,
+      storage_path: path,
+      size_bytes: file.size,
+      mime_type: file.type || 'application/pdf',
+      uploaded_by: user?.id,
+      uploaded_by_role: 'employee',
+    });
+    setModal(false);
+    setForm({ name: '', type: 'other' });
+    setFile(null);
+    load();
+  }
+
+  if (!tenant || !me) return null;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <PageHeader title="Mes documents" icon={<FileText size={20} />} />
+        <button onClick={() => setModal(true)} className="btn-primary text-sm"><Upload size={16} /> Téléverser</button>
+      </div>
+      {loading ? <Spinner /> : docs.length === 0 ? (
+        <EmptyState icon={<FileText size={48} />} title="Aucun document" hint="Votre RH peut téléverser vos documents ici, ils apparaîtront automatiquement." />
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {docs.map((d) => (
+            <div key={d.id} className="card p-5">
+              <div className="flex items-start justify-between">
+                <div className="w-10 h-10 rounded-lg bg-coral-100 dark:bg-coral-500/10 text-coral-600 flex items-center justify-center">
+                  <FileText size={18} />
+                </div>
+                {d.signed && <Badge color="emerald">Signé</Badge>}
+              </div>
+              <h3 className="mt-3 text-slate-900 dark:text-white font-semibold text-sm">{d.name}</h3>
+              <div className="text-slate-400 dark:text-white/40 text-xs mt-1 capitalize">{d.type} · {new Date(d.created_at).toLocaleDateString()}</div>
+              <div className="mt-1"><Badge color={d.uploaded_by_role === 'hr' ? 'coral' : 'indigo'}>{d.uploaded_by_role === 'hr' ? 'par RH' : 'par moi'}</Badge></div>
+              <button
+                onClick={async () => { const { data } = await supabase.storage.from('documents').createSignedUrl(d.storage_path, 60); if (data) window.open(data.signedUrl, '_blank'); }}
+                className="mt-3 btn-ghost text-xs w-full"
+              >
+                <Download size={14} /> Télécharger
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Modal open={modal} onClose={() => setModal(false)} title="Téléverser un document">
+        <div className="space-y-3">
+          <div><label className="label">Nom</label><input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Pièce d'identité" /></div>
+          <div>
+            <label className="label">Type</label>
+            <select className="input" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+              <option value="id" className="bg-white dark:bg-ink-700">Pièce d'identité</option>
+              <option value="diploma" className="bg-white dark:bg-ink-700">Diplôme</option>
+              <option value="attestation" className="bg-white dark:bg-ink-700">Attestation</option>
+              <option value="other" className="bg-white dark:bg-ink-700">Autre</option>
+            </select>
+          </div>
+          <div><label className="label">Fichier</label><input type="file" accept=".pdf,image/*" className="input" onChange={(e) => setFile(e.target.files?.[0] ?? null)} /></div>
+        </div>
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={() => setModal(false)} className="btn-ghost text-sm">{t('common.cancel')}</button>
+          <button onClick={upload} className="btn-primary text-sm">{t('common.save')}</button>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ============================================================
+// Overtime (employee view — submit + see own)
+// ============================================================
+function MyOvertime() {
+  const { t } = useI18n();
+  const tenant = useTenant();
+  const { user } = useAuth();
+  const { me } = useMe(tenant?.id, user?.email);
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), hours: 1, notes: '' });
+
+  async function load() {
+    if (!tenant || !me) return;
+    const { data } = await supabase.from('overtime').select('*').eq('tenant_id', tenant.id).eq('employee_id', me.id).order('created_at', { ascending: false });
+    setItems(data ?? []);
+    setLoading(false);
+  }
+  useEffect(() => { load(); }, [tenant, me]);
+
+  async function submit() {
+    if (!tenant || !me) return;
+    await supabase.from('overtime').insert({
+      tenant_id: tenant.id, employee_id: me.id, date: form.date, hours: Number(form.hours), rate: 1.5, amount: 0, currency: tenant.currency, status: 'pending', notes: form.notes,
+    });
+    setModal(false);
+    setForm({ date: new Date().toISOString().slice(0, 10), hours: 1, notes: '' });
+    load();
+  }
+
+  if (!tenant || !me) return null;
+  const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(Math.round(n));
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <PageHeader title="Heures supplémentaires" icon={<Clock size={20} />} />
+        <button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> Demander</button>
+      </div>
+      {loading ? <Spinner /> : items.length === 0 ? (
+        <EmptyState icon={<Clock size={48} />} title="Aucune heure supplémentaire" />
+      ) : (
+        <div className="card overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-slate-400 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+              <tr><th className="text-left p-4">Date</th><th className="text-left p-4">Heures</th><th className="text-left p-4">Montant</th><th className="text-left p-4">Statut</th></tr>
+            </thead>
+            <tbody>
+              {items.map((o) => (
+                <tr key={o.id} className="border-b border-slate-100 dark:border-white/5">
+                  <td className="p-4 text-slate-700 dark:text-white/70">{o.date}</td>
+                  <td className="p-4 text-slate-700 dark:text-white/70">{o.hours}h</td>
+                  <td className="p-4 text-slate-700 dark:text-white/70">{fmt(o.amount)} {o.currency}</td>
+                  <td className="p-4"><Badge color={o.status === 'approved' ? 'emerald' : o.status === 'rejected' ? 'rose' : 'amber'}>{o.status}</Badge></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <Modal open={modal} onClose={() => setModal(false)} title="Déclarer des heures supplémentaires">
+        <div className="space-y-3">
+          <div><label className="label">Date</label><input type="date" className="input" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
+          <div><label className="label">Heures</label><input type="number" step="0.5" className="input" value={form.hours} onChange={(e) => setForm({ ...form, hours: Number(e.target.value) })} /></div>
+          <div><label className="label">Notes</label><textarea className="input" rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+        </div>
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={() => setModal(false)} className="btn-ghost text-sm">{t('common.cancel')}</button>
+          <button onClick={submit} className="btn-primary text-sm">{t('common.submit')}</button>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
 function WhatsApp() {
   const { t } = useI18n();
   const [messages, setMessages] = useState<{ from: 'me' | 'bot'; text: string }[]>([
@@ -611,6 +788,8 @@ export default function EmployeeDashboard() {
     case 'assets': content = <StaffAssets />; break;
     case 'events': content = <EventsView />; break;
     case 'communication': content = <WhatsApp />; break;
+    case 'documents': content = <MyDocuments />; break;
+    case 'overtime': content = <MyOvertime />; break;
     case 'subscription': content = <SubscriptionEmbed />; break;
     default: content = <Overview />;
   }

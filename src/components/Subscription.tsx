@@ -100,7 +100,7 @@ export default function Subscription() {
         <div className="card p-6 mb-6">
           <div className="grid sm:grid-cols-3 gap-6">
             <div>
-              <div className="text-xs uppercase tracking-wide text-white/40">{t('sub.status')}</div>
+              <div className="text-xs uppercase tracking-wide text-slate-400 dark:text-white/40">{t('sub.status')}</div>
               <div className="mt-1 flex items-center gap-2">
                 {isTrial && <Badge color="amber">{t('sub.trial')}</Badge>}
                 {activeTenant.status === 'active' && <Badge color="emerald">{t('sub.active')}</Badge>}
@@ -108,13 +108,13 @@ export default function Subscription() {
               </div>
             </div>
             <div>
-              <div className="text-xs uppercase tracking-wide text-white/40">{t('sub.plan')}</div>
-              <div className="mt-1 text-white font-semibold">{plan.name}</div>
-              <div className="text-white/50 text-xs">{plan.employeeLimit ?? '∞'} {t('pricing.employees').toLowerCase()}</div>
+              <div className="text-xs uppercase tracking-wide text-slate-400 dark:text-white/40">{t('sub.plan')}</div>
+              <div className="mt-1 text-slate-900 dark:text-white font-semibold">{plan.name}</div>
+              <div className="text-slate-500 dark:text-white/50 text-xs">{plan.employeeLimit ?? '∞'} {t('pricing.employees').toLowerCase()}</div>
             </div>
             <div>
-              <div className="text-xs uppercase tracking-wide text-white/40">{isTrial ? t('sub.trial.ends') : t('sub.renewal')}</div>
-              <div className="mt-1 text-white font-semibold">
+              <div className="text-xs uppercase tracking-wide text-slate-400 dark:text-white/40">{isTrial ? t('sub.trial.ends') : t('sub.renewal')}</div>
+              <div className="mt-1 text-slate-900 dark:text-white font-semibold">
                 {isTrial
                   ? (trialEnds ? `${daysLeft} jour${daysLeft > 1 ? 's' : ''}` : '—')
                   : (activeTenant.current_period_end ? new Date(activeTenant.current_period_end).toLocaleDateString() : '—')}

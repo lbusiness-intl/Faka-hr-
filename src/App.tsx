@@ -9,6 +9,7 @@ import Subscription from './components/Subscription';
 import AdminDashboard from './components/admin/AdminDashboard';
 import EmployeeDashboard from './components/employee/EmployeeDashboard';
 import SuperAdminDashboard from './components/superadmin/SuperAdminDashboard';
+import AcceptInvite from './components/AcceptInvite';
 import { Spinner } from './components/ui';
 import { getPlan, type PlanId } from './lib/plans';
 
@@ -45,6 +46,9 @@ function Router() {
   if (path === '/onboarding') {
     if (!user) { navigate('/signin'); return null; }
     return <Onboarding />;
+  }
+  if (path === '/accept-invite') {
+    return <AcceptInvite />;
   }
 
   // Super admin route — requires super_admin role

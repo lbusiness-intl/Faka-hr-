@@ -19,7 +19,7 @@ export const PLANS: Plan[] = [
     priceYearly: 86,
     employeeLimit: 15,
     features: ['Core HR', 'Contrats', 'Paie de base', 'Portail employé', 'Support email'],
-    modules: ['dashboard', 'employees', 'payroll', 'leaves', 'attendance', 'subscription'],
+    modules: ['dashboard', 'employees', 'payroll', 'leaves', 'attendance', 'documents', 'overtime', 'subscription'],
   },
   {
     id: 'pro',
@@ -69,6 +69,7 @@ export function recommendPlan(employeeCount: number): Plan {
 // All module keys that can appear in the sidebar
 export const ALL_MODULES = [
   'dashboard', 'employees', 'payroll', 'leaves', 'advances', 'claims', 'attendance',
+  'overtime', 'documents',
   'recruitment', 'training', 'performance', 'goals', 'reviews', 'assets',
   'compliance', 'communication', 'events', 'subscription', 'settings',
 ] as const;
