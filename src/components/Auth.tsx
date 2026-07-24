@@ -4,7 +4,7 @@ import { useAuth } from '../lib/auth';
 import { Link, navigate, useRoute } from '../lib/router';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Spinner } from './ui';
-import { ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Sparkles, Building2, Mail } from 'lucide-react';
 
 function Logo() {
   return (
@@ -41,6 +41,7 @@ export function AuthScreen() {
   const [fullName, setFullName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showGate, setShowGate] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -52,9 +53,8 @@ export function AuthScreen() {
         if (error) {
           setError(error);
         } else if (user) {
-          // Stash the selected plan so onboarding can use it
           if (prefilledPlan) sessionStorage.setItem('faka_signup_plan', prefilledPlan);
-          navigate('/onboarding');
+          setShowGate(true);
         }
       } else {
         const { error } = await signIn(email, password);
@@ -64,6 +64,52 @@ export function AuthScreen() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (showGate) {
+    return (
+      <div className="min-h-screen bg-sage-50 dark:bg-ink-900 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-70 dark:opacity-40" style={{
+          backgroundImage: 'radial-gradient(ellipse at 20% 0%, rgba(255,107,53,0.18), transparent 50%), radial-gradient(ellipse at 80% 100%, rgba(45,212,191,0.15), transparent 50%)',
+        }} />
+        <div className="relative section py-8"><Logo /></div>
+        <div className="relative section flex items-center justify-center py-12">
+          <div className="card w-full max-w-lg p-8 animate-scale-in text-center">
+            <div className="w-16 h-16 rounded-2xl bg-coral-100 dark:bg-coral-500/15 border border-coral-200 dark:border-coral-500/30 flex items-center justify-center text-coral-600 dark:text-coral-400 mx-auto mb-5">
+              <Sparkles size={28} />
+            </div>
+            <h1 className="font-display text-2xl font-bold text-slate-900 dark:text-white mb-2">{t('gate.title')}</h1>
+            <p className="text-slate-600 dark:text-white/60 text-sm mb-8">{t('gate.subtitle')}</p>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => navigate('/onboarding')}
+                className="group card p-6 flex flex-col items-center gap-3 hover:border-coral-400 hover:shadow-glow transition cursor-pointer"
+              >
+                <div className="w-12 h-12 rounded-xl bg-coral-100 dark:bg-coral-500/15 flex items-center justify-center text-coral-600 dark:text-coral-400 group-hover:scale-110 transition">
+                  <Building2 size={24} />
+                </div>
+                <div>
+                  <div className="text-slate-900 dark:text-white font-semibold text-sm">{t('gate.company')}</div>
+                  <div className="text-slate-400 dark:text-white/40 text-xs mt-1">Créez votre espace RH</div>
+                </div>
+              </button>
+              <button
+                onClick={() => navigate('/accept-invite')}
+                className="group card p-6 flex flex-col items-center gap-3 hover:border-teal-400 hover:shadow-md transition cursor-pointer"
+              >
+                <div className="w-12 h-12 rounded-xl bg-teal-100 dark:bg-teal-500/15 flex items-center justify-center text-teal-600 dark:text-teal-400 group-hover:scale-110 transition">
+                  <Mail size={24} />
+                </div>
+                <div>
+                  <div className="text-slate-900 dark:text-white font-semibold text-sm">{t('gate.invited')}</div>
+                  <div className="text-slate-400 dark:text-white/40 text-xs mt-1">Entrez votre code d'accès</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -111,7 +157,7 @@ export function AuthScreen() {
               <input type="password" className="input" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
             </div>
             {error && (
-              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+              <div className="rounded-xl border border-rose-200 bg-rose-50 dark:bg-rose-500/10 dark:border-rose-500/30 p-3 text-sm text-rose-700 dark:text-rose-300">
                 {error}
               </div>
             )}
@@ -131,14 +177,7 @@ export function AuthScreen() {
   );
 }
 
-// Create a tenant + admin membership via the `create-tenant` edge function,
-// which runs as service_role and bypasses RLS. This avoids the
-// "new row violates row-level security policy" error that occurs when the
-// session isn't fully propagated to the client after signUp.
-//
-// Throws a translated error key (e.g. "tenant.error.create") that the caller
-// can map to a user-facing message — never the raw Postgres/Supabase text.
-export async function createTenantForUser(userId: string, data: {
+export async function createTenantForUser(_userId: string, data: {
   name: string; subdomain: string; industry: string; company_size: string;
   country: string; region: string; city: string; region_custom?: string | null; city_custom?: string | null;
   currency: string; timezone: string; phone_code: string; sales_code?: string;
@@ -156,21 +195,12 @@ export async function createTenantForUser(userId: string, data: {
       apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
     },
     body: JSON.stringify({
-      name: data.name,
-      subdomain: data.subdomain,
-      industry: data.industry,
-      company_size: data.company_size,
-      country: data.country,
-      region: data.region,
-      city: data.city,
-      region_custom: data.region_custom ?? null,
-      city_custom: data.city_custom ?? null,
-      currency: data.currency,
-      timezone: data.timezone,
-      phone_code: data.phone_code,
-      sales_code: data.sales_code, // optional — never blocks
-      payment_methods: data.payment_methods,
-      plan: data.plan,
+      name: data.name, subdomain: data.subdomain, industry: data.industry,
+      company_size: data.company_size, country: data.country, region: data.region,
+      city: data.city, region_custom: data.region_custom ?? null,
+      city_custom: data.city_custom ?? null, currency: data.currency,
+      timezone: data.timezone, phone_code: data.phone_code,
+      sales_code: data.sales_code, payment_methods: data.payment_methods, plan: data.plan,
     }),
   });
 

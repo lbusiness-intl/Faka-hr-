@@ -12,95 +12,141 @@ Deno.serve(async (req: Request) => {
     return new Response(null, { status: 200, headers: corsHeaders });
   }
 
+  const json = (data: unknown, status = 200) =>
+    new Response(JSON.stringify(data), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
   try {
-    const userClient = createClient(
+    const body = await req.json();
+    const { action, token, tenantId } = body ?? {};
+
+    const adminClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } },
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { auth: { persistSession: false } },
     );
 
-    const { data: { user }, error: userErr } = await userClient.auth.getUser();
-    if (userErr || !user) {
-      return new Response(JSON.stringify({ ok: false, error: "UNAUTHORIZED" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // ── verify ──────────────────────────────────────────────────────────────
+    if (action === "verify") {
+      if (!token) return json({ ok: false, error: "MISSING_TOKEN" }, 400);
+      const { data: inv, error } = await adminClient
+        .from("invitations")
+        .select("email, role, tenant_id, status, expires_at")
+        .eq("token", token)
+        .maybeSingle();
+      if (error || !inv) return json({ ok: false, error: "INVALID_TOKEN" }, 404);
+      if (inv.status === "used") return json({ ok: false, error: "ALREADY_USED" }, 410);
+      if (new Date(inv.expires_at) < new Date()) return json({ ok: false, error: "EXPIRED" }, 410);
+      return json({ ok: true, email: inv.email, role: inv.role, tenant_id: inv.tenant_id });
     }
 
-    const body = await req.json();
-    const { action } = body;
-
-    // Create an invitation (HR invites an employee)
+    // ── create ───────────────────────────────────────────────────────────────
     if (action === "create") {
-      const { tenant_id, email, role, employee_id, custom_role } = body;
-      if (!tenant_id || !email || !employee_id) {
-        return new Response(JSON.stringify({ ok: false, error: "MISSING_FIELDS" }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // Verify caller is an admin of this tenant
-      const adminClient = createClient(
+      // Auth the caller
+      const userClient = createClient(
         Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-        { auth: { persistSession: false } },
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } },
       );
+      const { data: { user }, error: authErr } = await userClient.auth.getUser();
+      if (authErr || !user) return json({ ok: false, error: "UNAUTHORIZED" }, 401);
 
+      const {
+        email, first_name, last_name, position, role,
+        branch_id, department_id,
+      } = body ?? {};
+
+      if (!email || !tenantId) return json({ ok: false, error: "MISSING_FIELDS" }, 400);
+
+      // Check caller is admin of this tenant
       const { data: membership } = await adminClient
         .from("tenant_memberships")
         .select("role")
-        .eq("tenant_id", tenant_id)
+        .eq("tenant_id", tenantId)
         .eq("user_id", user.id)
         .eq("status", "active")
         .maybeSingle();
-
-      const isSuper = (user.app_metadata?.role ?? user.user_metadata?.role) === "super_admin";
-      if (!isSuper && (!membership || !["admin", "super_admin"].includes(membership.role))) {
-        return new Response(JSON.stringify({ ok: false, error: "FORBIDDEN" }), {
-          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      if (!membership || !["admin","hr_manager","hr_assistant"].includes(membership.role)) {
+        return json({ ok: false, error: "FORBIDDEN" }, 403);
       }
 
-      // Generate a unique token
-      const token = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+      // Create or update employee record (pending)
+      let employeeId: string | null = null;
+      const { data: existing } = await adminClient
+        .from("employees")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .eq("email", email.toLowerCase())
+        .maybeSingle();
+
+      if (existing) {
+        employeeId = existing.id;
+        await adminClient.from("employees").update({
+          first_name: first_name || existing.first_name,
+          last_name: last_name || existing.last_name,
+          position: position || null,
+          branch_id: branch_id || null,
+          department_id: department_id || null,
+          status: "pending_invite",
+        }).eq("id", employeeId);
+      } else {
+        const { data: emp } = await adminClient.from("employees").insert({
+          tenant_id: tenantId,
+          email: email.toLowerCase(),
+          first_name: first_name || "",
+          last_name: last_name || "",
+          position: position || null,
+          branch_id: branch_id || null,
+          department_id: department_id || null,
+          salary: 0,
+          currency: "XAF",
+          contract_type: "cdi",
+          status: "pending_invite",
+        }).select("id").single();
+        employeeId = emp?.id ?? null;
+      }
+
+      // Generate invitation token
+      const invToken =
+        crypto.randomUUID().replace(/-/g, "") +
+        crypto.randomUUID().replace(/-/g, "");
+
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 72);
 
       const { error: invErr } = await adminClient.from("invitations").insert({
-        tenant_id,
-        email,
+        tenant_id: tenantId,
+        email: email.toLowerCase(),
         role: role ?? "employee",
-        custom_role: custom_role ?? null,
-        token,
+        token: invToken,
+        expires_at: expiresAt.toISOString(),
         created_by: user.id,
         status: "pending",
+        custom_role: employeeId ? { employee_id: employeeId, branch_id, department_id } : null,
       });
 
       if (invErr) {
-        return new Response(JSON.stringify({ ok: false, error: "INVITE_CREATE_FAILED", detail: invErr.message }), {
-          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return json({ ok: false, error: "INVITATION_FAILED", detail: invErr.message }, 500);
       }
 
-      // Link the employee record to this email so the employee dashboard can find it
-      await adminClient.from("employees").update({ email }).eq("id", employee_id);
+      const inviteUrl = `${Deno.env.get("SITE_URL") ?? "https://faka.app"}/#/accept-invite?token=${invToken}`;
 
-      return new Response(JSON.stringify({ ok: true, token, invite_url: `/accept-invite?token=${token}` }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      await adminClient.from("audit_logs").insert({
+        tenant_id: tenantId,
+        actor: user.id,
+        action: "invitation.created",
+        details: { email, role, branch_id, department_id },
       });
+
+      return json({ ok: true, token: invToken, invite_url: inviteUrl });
     }
 
-    // Accept an invitation (employee sets password and joins tenant)
+    // ── accept ───────────────────────────────────────────────────────────────
     if (action === "accept") {
-      const { token, password, full_name } = body;
-      if (!token || !password) {
-        return new Response(JSON.stringify({ ok: false, error: "MISSING_FIELDS" }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      const adminClient = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-        { auth: { persistSession: false } },
-      );
+      const { password, full_name } = body ?? {};
+      if (!token || !password) return json({ ok: false, error: "MISSING_FIELDS" }, 400);
 
       const { data: inv, error: invErr } = await adminClient
         .from("invitations")
@@ -108,102 +154,85 @@ Deno.serve(async (req: Request) => {
         .eq("token", token)
         .maybeSingle();
 
-      if (invErr || !inv) {
-        return new Response(JSON.stringify({ ok: false, error: "INVALID_TOKEN" }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      if (invErr || !inv) return json({ ok: false, error: "INVALID_TOKEN" }, 404);
+      if (inv.status === "used") return json({ ok: false, error: "ALREADY_USED" }, 410);
+      if (new Date(inv.expires_at) < new Date()) return json({ ok: false, error: "EXPIRED" }, 410);
+
+      const nameParts = (full_name ?? "").trim().split(" ");
+      const firstName = nameParts[0] ?? "";
+      const lastName = nameParts.slice(1).join(" ") || "";
+
+      // Create or update auth user
+      let authUserId: string;
+      const { data: { users: existingUsers } } = await adminClient.auth.admin.listUsers();
+      const existingUser = existingUsers.find((u: any) => u.email === inv.email);
+
+      if (existingUser) {
+        authUserId = existingUser.id;
+        await adminClient.auth.admin.updateUserById(authUserId, {
+          password,
+          email_confirm: true,
+          user_metadata: { full_name },
         });
-      }
-
-      if (inv.status === "used" || inv.used_at) {
-        return new Response(JSON.stringify({ ok: false, error: "ALREADY_USED" }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      if (new Date(inv.expires_at) < new Date()) {
-        await adminClient.from("invitations").update({ status: "expired" }).eq("id", inv.id);
-        return new Response(JSON.stringify({ ok: false, error: "EXPIRED" }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // Create the auth user (or update if exists)
-      const { data: existingUser } = await adminClient.auth.admin.listUsers();
-      const found = (existingUser.users ?? []).find((u: any) => u.email === inv.email);
-
-      let userId: string;
-      if (found) {
-        userId = found.id;
-        await adminClient.auth.admin.updateUserById(found.id, { password });
       } else {
         const { data: newUser, error: createErr } = await adminClient.auth.admin.createUser({
           email: inv.email,
           password,
           email_confirm: true,
-          user_metadata: { full_name: full_name ?? "" },
+          user_metadata: { full_name },
         });
         if (createErr || !newUser.user) {
-          return new Response(JSON.stringify({ ok: false, error: "USER_CREATE_FAILED", detail: createErr?.message }), {
-            status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+          return json({ ok: false, error: "USER_CREATE_FAILED", detail: createErr?.message }, 500);
         }
-        userId = newUser.user.id;
+        authUserId = newUser.user.id;
       }
 
       // Create membership
-      const { error: mErr } = await adminClient.from("tenant_memberships").upsert({
+      const { error: memErr } = await adminClient.from("tenant_memberships").upsert({
         tenant_id: inv.tenant_id,
-        user_id: userId,
-        role: inv.role,
-        custom_role: inv.custom_role,
+        user_id: authUserId,
+        role: inv.role ?? "employee",
         status: "active",
       }, { onConflict: "tenant_id,user_id" });
 
-      if (mErr) {
-        return new Response(JSON.stringify({ ok: false, error: "MEMBERSHIP_FAILED", detail: mErr.message }), {
-          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      if (memErr) return json({ ok: false, error: "MEMBERSHIP_FAILED", detail: memErr.message }, 500);
 
-      // Link employee record to the auth user
-      await adminClient.from("employees")
-        .update({ user_id: userId, status: "active" })
-        .eq("tenant_id", inv.tenant_id)
-        .eq("email", inv.email);
+      // Link employee record
+      const meta = (inv.custom_role ?? {}) as any;
+      if (meta?.employee_id) {
+        await adminClient.from("employees").update({
+          user_id: authUserId,
+          first_name: firstName || undefined,
+          last_name: lastName || undefined,
+          status: "active",
+        }).eq("id", meta.employee_id);
+      } else {
+        // Find by email
+        await adminClient.from("employees").update({
+          user_id: authUserId,
+          status: "active",
+        }).eq("tenant_id", inv.tenant_id).eq("email", inv.email);
+      }
 
       // Mark invitation used
       await adminClient.from("invitations").update({
         status: "used",
         used_at: new Date().toISOString(),
-        used_by: userId,
+        used_by: authUserId,
       }).eq("id", inv.id);
 
-      return new Response(JSON.stringify({ ok: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      await adminClient.from("audit_logs").insert({
+        tenant_id: inv.tenant_id,
+        actor: authUserId,
+        action: "invitation.accepted",
+        details: { email: inv.email, role: inv.role },
       });
+
+      return json({ ok: true, user_id: authUserId });
     }
 
-    // Verify a token (for the accept-invite page)
-    if (action === "verify") {
-      const { token } = body;
-      const adminClient = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-        { auth: { persistSession: false } },
-      );
-      const { data: inv } = await adminClient.from("invitations").select("*").eq("token", token).maybeSingle();
-      if (!inv) return new Response(JSON.stringify({ ok: false, error: "INVALID_TOKEN" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (inv.status === "used" || inv.used_at) return new Response(JSON.stringify({ ok: false, error: "ALREADY_USED" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (new Date(inv.expires_at) < new Date()) return new Response(JSON.stringify({ ok: false, error: "EXPIRED" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      return new Response(JSON.stringify({ ok: true, email: inv.email, role: inv.role, tenant_id: inv.tenant_id }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    return new Response(JSON.stringify({ ok: false, error: "UNKNOWN_ACTION" }), {
-      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (err) {
-    return new Response(JSON.stringify({ ok: false, error: "INTERNAL_ERROR", detail: err.message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json({ ok: false, error: "UNKNOWN_ACTION" }, 400);
+  } catch (err: any) {
+    return json({ ok: false, error: "INTERNAL_ERROR", detail: err?.message }, 500);
   }
 });

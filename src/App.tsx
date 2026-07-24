@@ -109,11 +109,12 @@ function Router() {
 
     // Route to admin or employee based on active role
     const role = activeRole ?? 'admin';
+    // Only pure 'employee' role gets the employee dashboard
     if (role === 'employee') {
-      // If user navigates to /dashboard (no /employee suffix), redirect
       if (path === '/dashboard') { navigate('/dashboard/employee/dashboard'); return null; }
       return <EmployeeDashboard />;
     }
+    // All admin-like roles (admin, hr_manager, recruiter, etc.) get the admin shell
     if (path === '/dashboard') { navigate('/dashboard/admin/dashboard'); return null; }
     return <AdminDashboard />;
   }

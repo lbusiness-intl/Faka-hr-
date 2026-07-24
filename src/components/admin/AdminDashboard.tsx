@@ -9,8 +9,13 @@ import { getPlan, type PlanId } from '../../lib/plans';
 import {
   Users, Wallet, CalendarClock, BanknoteIcon, Receipt, Clock, UserPlus, GraduationCap,
   Target, Star, Package, ShieldCheck, MessageSquare, CalendarDays, Settings as SettingsIcon,
-  Plus, Trash2, Check, X, Download, Upload, FileText, TrendingUp,
+  Plus, Trash2, Check, X, Download, Upload, FileText, TrendingUp, GitBranch, Layers, Shield,
 } from 'lucide-react';
+import BranchManager from './BranchManager';
+import DepartmentManager from './DepartmentManager';
+import RoleManager from './RoleManager';
+import CommunicationsPanel from './CommunicationsPanel';
+import InviteWizard from './InviteWizard';
 
 type Employee = {
   id: string; first_name: string; last_name: string; email: string; phone: string;
@@ -108,6 +113,7 @@ function Employees() {
   const [offboarding, setOffboarding] = useState<Employee | null>(null);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
+  const [inviteWizard, setInviteWizard] = useState(false);
   const [form, setForm] = useState({
     first_name: '', last_name: '', email: '', phone: '', position: '', department: '', salary: 0, contract_type: 'cdi',
   });
@@ -170,9 +176,11 @@ function Employees() {
   return (
     <div>
       <PageHeader title={t('dash.employees')} icon={<Users size={20} />}
-        action={<button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> {t('common.add')}</button>} />
+        action={
+          <button onClick={() => setInviteWizard(true)} className="btn-primary text-sm"><UserPlus size={16} /> Inviter</button>
+        } />
       {loading ? <Spinner /> : items.length === 0 ? (
-        <EmptyState icon={<Users size={48} />} title="Aucun employé" hint="Ajoutez votre premier employé — il recevra une invitation par email." />
+        <EmptyState icon={<Users size={48} />} title="Aucun employé" hint="Invitez votre premier employé — il recevra un lien d'activation sécurisé." />
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
@@ -254,6 +262,8 @@ function Employees() {
           <button onClick={() => setInviteLink(null)} className="btn-primary text-sm">Fermer</button>
         </div>
       </Modal>
+
+      <InviteWizard open={inviteWizard} onClose={() => setInviteWizard(false)} onDone={() => { setInviteWizard(false); load(); }} />
     </div>
   );
 }
@@ -1222,12 +1232,15 @@ export default function AdminDashboard() {
     case 'reviews': content = <SimpleList table="reviews" title="Évaluations 360°" icon={<Star size={20} />} fields={[{ key: 'period', label: 'Période' }, { key: 'rating', label: 'Note /5', type: 'number' }]} extraInsert={() => ({ status: 'draft' })} />; break;
     case 'assets': content = <SimpleList table="assets" title="Actifs" icon={<Package size={20} />} fields={[{ key: 'name', label: 'Nom' }, { key: 'category', label: 'Catégorie' }, { key: 'serial', label: 'Série' }]} extraInsert={() => ({ status: 'available' })} />; break;
     case 'compliance': content = <Compliance />; break;
-    case 'communication': content = <Communication />; break;
+    case 'communication': content = <CommunicationsPanel />; break;
     case 'events': content = <Events />; break;
     case 'documents': content = <Documents />; break;
     case 'overtime': content = <Overtime />; break;
     case 'subscription': content = <SubscriptionEmbed />; break;
     case 'settings': content = <Settings />; break;
+    case 'settings/branches': content = <BranchManager />; break;
+    case 'settings/departments': content = <DepartmentManager />; break;
+    case 'settings/roles': content = <RoleManager />; break;
     default: content = <Overview />;
   }
 

@@ -4,12 +4,14 @@ import {
   UserPlus, GraduationCap, Target, Star, Package, ShieldCheck,
   MessageSquare, CalendarDays, CreditCard, Settings as SettingsIcon, LogOut, Lock, Menu, X,
   Building2, ChevronDown, Moon, Sun, FileText, Home, AlertTriangle,
+  GitBranch, Layers, Shield,
 } from 'lucide-react';
 import { useI18n } from '../lib/i18n';
 import { useAuth } from '../lib/auth';
-import { Link, navigate } from '../lib/router';
+import { Link, navigate, useRoute } from '../lib/router';
 import { ALL_MODULES, getPlan, isModuleUnlocked, type ModuleKey, type PlanId } from '../lib/plans';
 import { Modal, Badge } from './ui';
+import { ROLE_COLORS } from '../lib/permissions';
 
 type NavItem = { key: ModuleKey; icon: typeof LayoutDashboard; label: string };
 
@@ -49,8 +51,8 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
     { key: 'advances', icon: Banknote, label: t('dash.advances') },
     { key: 'claims', icon: Receipt, label: t('dash.claims') },
     { key: 'attendance', icon: Clock, label: t('dash.attendance') },
-    { key: 'overtime', icon: Clock, label: 'Heures sup.' },
-    { key: 'documents', icon: FileText, label: 'Documents' },
+    { key: 'overtime', icon: Clock, label: t('dash.overtime') },
+    { key: 'documents', icon: FileText, label: t('dash.documents') },
     { key: 'recruitment', icon: UserPlus, label: t('dash.recruitment') },
     { key: 'training', icon: GraduationCap, label: t('dash.training') },
     { key: 'performance', icon: Target, label: t('dash.performance') },
@@ -67,11 +69,11 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
   const employeeNav: NavItem[] = [
     { key: 'dashboard', icon: LayoutDashboard, label: t('emp.my_space') },
     { key: 'attendance', icon: Clock, label: t('dash.attendance') },
-    { key: 'overtime', icon: Clock, label: 'Heures sup.' },
+    { key: 'overtime', icon: Clock, label: t('dash.overtime') },
     { key: 'leaves', icon: CalendarClock, label: t('emp.leaves') },
     { key: 'advances', icon: Banknote, label: t('emp.advances') },
     { key: 'claims', icon: Receipt, label: t('emp.claims') },
-    { key: 'documents', icon: FileText, label: 'Mes documents' },
+    { key: 'documents', icon: FileText, label: t('dash.documents') },
     { key: 'assets', icon: Package, label: t('dash.assets') },
     { key: 'events', icon: CalendarDays, label: t('dash.events') },
     { key: 'communication', icon: MessageSquare, label: t('emp.whatsapp') },
@@ -80,6 +82,8 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
 
   const nav = role === 'employee' ? employeeNav : adminNav;
   const plan = getPlan(planId);
+  const currentRoute = useRoute();
+  const currentModule = currentRoute.split(role === 'employee' ? '/dashboard/employee/' : '/dashboard/admin/')[1]?.split('?')[0] ?? '';
 
   function handleNav(key: ModuleKey) {
     if (!isModuleUnlocked(planId, key)) {
@@ -96,9 +100,15 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
     navigate('/');
   }
 
+  const settingsSubs = [
+    { sub: 'settings', icon: SettingsIcon, label: t('settings.company') },
+    { sub: 'settings/branches', icon: GitBranch, label: t('settings.branches') },
+    { sub: 'settings/departments', icon: Layers, label: t('settings.departments') },
+    { sub: 'settings/roles', icon: Shield, label: t('settings.roles') },
+  ];
+
   return (
     <div className="min-h-screen bg-white flex dark:bg-ink-900">
-      {/* Sidebar — sage in light, deep sage in dark */}
       <aside className={`fixed lg:static inset-y-0 left-0 z-40 w-64 border-r flex flex-col transition-transform ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} bg-sage-100 border-sage-200 dark:bg-sage-950 dark:border-white/10`}>
         <div className="h-16 flex items-center justify-between px-5 border-b border-sage-200 dark:border-white/10">
           <Link to="/" className="flex items-center gap-2.5">
@@ -140,22 +150,44 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
         <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
           {nav.map((item) => {
             const unlocked = isModuleUnlocked(planId, item.key);
+            const isSettingsItem = item.key === 'settings' && role !== 'employee';
+            const isActive = currentModule === item.key || (isSettingsItem && currentModule.startsWith('settings'));
             return (
-              <button
-                key={item.key}
-                onClick={() => handleNav(item.key)}
-                className={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm transition group ${
-                  unlocked
-                    ? 'text-slate-700 hover:text-coral-600 hover:bg-white dark:text-white/80 dark:hover:bg-white/5'
-                    : 'text-slate-400 dark:text-white/35 hover:text-slate-500'
-                }`}
-              >
-                <span className="flex items-center gap-3">
-                  <item.icon size={16} />
-                  {item.label}
-                </span>
-                {!unlocked && <Lock size={12} className="text-slate-400 dark:text-white/30" />}
-              </button>
+              <div key={item.key}>
+                <button
+                  onClick={() => handleNav(item.key)}
+                  className={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm transition ${
+                    isActive
+                      ? 'bg-coral-100 dark:bg-coral-500/15 text-coral-700 dark:text-coral-300 font-medium'
+                      : unlocked
+                      ? 'text-slate-700 hover:text-coral-600 hover:bg-white dark:text-white/80 dark:hover:bg-white/5'
+                      : 'text-slate-400 dark:text-white/35'
+                  }`}
+                >
+                  <span className="flex items-center gap-3">
+                    <item.icon size={16} />
+                    {item.label}
+                  </span>
+                  {!unlocked && <Lock size={12} className="text-slate-400 dark:text-white/30" />}
+                </button>
+                {isSettingsItem && isActive && (
+                  <div className="ml-6 mt-0.5 space-y-0.5">
+                    {settingsSubs.map(({ sub, icon: Icon, label }) => (
+                      <button
+                        key={sub}
+                        onClick={() => { navigate(`/dashboard/admin/${sub}`); setOpen(false); }}
+                        className={`w-full flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs transition ${
+                          currentModule === sub
+                            ? 'text-coral-600 dark:text-coral-400 font-medium'
+                            : 'text-slate-600 dark:text-white/60 hover:text-coral-600 hover:bg-white dark:hover:bg-white/5'
+                        }`}
+                      >
+                        <Icon size={13} /> {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             );
           })}
         </nav>
@@ -178,7 +210,6 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
 
       {open && <div className="fixed inset-0 bg-slate-900/40 z-30 lg:hidden" onClick={() => setOpen(false)} />}
 
-      {/* Main — white in light */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-16 border-b border-slate-200 dark:border-white/10 bg-white/80 dark:bg-ink-800/60 backdrop-blur-xl flex items-center justify-between px-5">
           <button className="lg:hidden text-slate-600 dark:text-slate-300" onClick={() => setOpen(true)}><Menu size={20} /></button>
@@ -236,7 +267,6 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
 
 function TrialBlocked() {
   const { t } = useI18n();
-  const { activeTenant } = useAuth();
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="card p-8 max-w-lg text-center">

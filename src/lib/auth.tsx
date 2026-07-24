@@ -2,7 +2,15 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from './supabase';
 
-export type AppRole = 'super_admin' | 'admin' | 'employee';
+export type AppRole =
+  | 'super_admin' | 'admin' | 'employee'
+  | 'hr_manager' | 'hr_assistant' | 'recruiter'
+  | 'payroll_officer' | 'finance' | 'manager' | 'team_lead';
+
+export const ADMIN_LIKE_ROLES: AppRole[] = [
+  'admin', 'hr_manager', 'hr_assistant', 'recruiter',
+  'payroll_officer', 'finance', 'manager', 'team_lead',
+];
 
 export type Tenant = {
   id: string;
@@ -21,11 +29,19 @@ export type Tenant = {
   default_payment_methods: string[];
 };
 
+export type CustomRoleInfo = {
+  name: string;
+  color: string;
+  permissions: string[];
+};
+
 export type Membership = {
   id: string;
   tenant_id: string;
   role: AppRole;
   status: string;
+  custom_role_id: string | null;
+  custom_role: CustomRoleInfo | null;
   tenant: Tenant | null;
 };
 
@@ -34,7 +50,9 @@ type AuthContextValue = {
   session: Session | null;
   memberships: Membership[];
   activeTenant: Tenant | null;
+  activeMembership: Membership | null;
   activeRole: AppRole | null;
+  isAdminLike: boolean;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: string | null; user: User | null }>;
@@ -55,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!isSupabaseConfigured) return;
     const { data } = await supabase
       .from('tenant_memberships')
-      .select('id, tenant_id, role, status, tenant:tenants(*)')
+      .select('id, tenant_id, role, status, custom_role_id, custom_role:custom_roles(name, color, permissions), tenant:tenants(*)')
       .eq('user_id', userId)
       .eq('status', 'active');
     const list = (data ?? []) as unknown as Membership[];
@@ -83,7 +101,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       })();
     });
-    // Initial load
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
       setSession(data.session);
@@ -102,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const activeTenant = memberships.find((m) => m.tenant_id === activeTenantId)?.tenant ?? null;
   const activeMembership = memberships.find((m) => m.tenant_id === activeTenantId) ?? null;
   const activeRole = activeMembership?.role ?? null;
+  const isAdminLike = activeRole ? ADMIN_LIKE_ROLES.includes(activeRole) : false;
 
   async function signIn(email: string, password: string) {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -138,7 +156,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     memberships,
     activeTenant,
+    activeMembership,
     activeRole,
+    isAdminLike,
     loading,
     signIn,
     signUp,
