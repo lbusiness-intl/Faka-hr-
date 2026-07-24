@@ -1,4 +1,4 @@
-const CACHE = 'faka-v1';
+const CACHE = 'faka-v2';
 const ASSETS = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg'];
 
 self.addEventListener('install', (event) => {

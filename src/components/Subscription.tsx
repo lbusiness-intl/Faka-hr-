@@ -47,6 +47,8 @@ export default function Subscription() {
   const daysLeft = trialEnds ? Math.max(0, Math.ceil((trialEnds.getTime() - Date.now()) / 86400000)) : 0;
   const isTrial = activeTenant.status === 'trial';
   const isSuspended = activeTenant.status === 'suspended';
+  const trialExpired = isTrial && trialEnds ? trialEnds.getTime() < Date.now() : false;
+  const isBlocked = isSuspended || trialExpired;
 
   async function simulateCheckout(newPlan: PlanId) {
     if (!activeTenant || !user) return;
@@ -97,7 +99,12 @@ export default function Subscription() {
         </div>
 
         {/* Status card */}
-        <div className="card p-6 mb-6">
+        <div className={`card p-6 mb-6 ${isBlocked ? 'border-amber-300 dark:border-amber-500/40' : ''}`}>
+          {isBlocked && (
+            <div className="mb-4 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+              {t('sub.trial.expired')}
+            </div>
+          )}
           <div className="grid sm:grid-cols-3 gap-6">
             <div>
               <div className="text-xs uppercase tracking-wide text-slate-400 dark:text-white/40">{t('sub.status')}</div>

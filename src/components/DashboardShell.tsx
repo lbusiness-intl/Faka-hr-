@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, Wallet, CalendarClock, Banknote, Receipt, Clock,
   UserPlus, GraduationCap, Target, Star, Package, ShieldCheck,
   MessageSquare, CalendarDays, CreditCard, Settings as SettingsIcon, LogOut, Lock, Menu, X,
-  Building2, ChevronDown, Moon, Sun, FileText,
+  Building2, ChevronDown, Moon, Sun, FileText, Home, AlertTriangle,
 } from 'lucide-react';
 import { useI18n } from '../lib/i18n';
 import { useAuth } from '../lib/auth';
@@ -35,6 +35,11 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
   const [tenantMenu, setTenantMenu] = useState(false);
 
   const planId = (activeTenant?.plan ?? 'starter') as PlanId;
+
+  const trialEnded = activeTenant?.status === 'trial' && activeTenant?.trial_ends_at
+    ? new Date(activeTenant.trial_ends_at).getTime() < Date.now()
+    : false;
+  const isBlocked = activeTenant?.status === 'suspended' || trialEnded;
 
   const adminNav: NavItem[] = [
     { key: 'dashboard', icon: LayoutDashboard, label: t('dash.dashboard') },
@@ -176,7 +181,10 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
       {/* Main — white in light */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-16 border-b border-slate-200 dark:border-white/10 bg-white/80 dark:bg-ink-800/60 backdrop-blur-xl flex items-center justify-between px-5">
-          <button className="lg:hidden text-slate-600" onClick={() => setOpen(true)}><Menu size={20} /></button>
+          <button className="lg:hidden text-slate-600 dark:text-slate-300" onClick={() => setOpen(true)}><Menu size={20} /></button>
+          <Link to="/" className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-white/50 hover:text-coral-600 dark:hover:text-coral-300 transition">
+            <Home size={15} /> <span className="hidden sm:inline">{t('nav.home')}</span>
+          </Link>
           <div className="hidden sm:block text-sm text-slate-500 dark:text-white/50">
             {role === 'super' ? 'LIYAH GROUP — Super Admin' : activeTenant?.name}
           </div>
@@ -200,7 +208,11 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
         </header>
 
         <main className="flex-1 overflow-y-auto p-5 lg:p-8 bg-slate-50 dark:bg-ink-900">
-          {children}
+          {isBlocked && role !== 'super' ? (
+            <TrialBlocked />
+          ) : (
+            children
+          )}
         </main>
       </div>
 
@@ -218,6 +230,25 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
           </button>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+function TrialBlocked() {
+  const { t } = useI18n();
+  const { activeTenant } = useAuth();
+  return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="card p-8 max-w-lg text-center">
+        <div className="w-14 h-14 rounded-xl bg-amber-100 dark:bg-amber-500/15 border border-amber-200 dark:border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400 mx-auto mb-5">
+          <AlertTriangle size={28} />
+        </div>
+        <h2 className="font-display text-xl font-bold text-slate-900 dark:text-white mb-3">{t('sub.paynow.title')}</h2>
+        <p className="text-slate-600 dark:text-white/60 text-sm mb-6">{t('sub.paynow.desc')}</p>
+        <button onClick={() => navigate('/subscription')} className="btn-primary">
+          {t('sub.paynow')} →
+        </button>
+      </div>
     </div>
   );
 }

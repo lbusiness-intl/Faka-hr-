@@ -10,8 +10,10 @@ import AdminDashboard from './components/admin/AdminDashboard';
 import EmployeeDashboard from './components/employee/EmployeeDashboard';
 import SuperAdminDashboard from './components/superadmin/SuperAdminDashboard';
 import AcceptInvite from './components/AcceptInvite';
+import SimplePage from './components/SimplePage';
 import { Spinner } from './components/ui';
 import { getPlan, type PlanId } from './lib/plans';
+import { AlertTriangle } from 'lucide-react';
 
 function Router() {
   const route = useRoute();
@@ -49,6 +51,11 @@ function Router() {
   }
   if (path === '/accept-invite') {
     return <AcceptInvite />;
+  }
+
+  // Static footer pages
+  if (path.startsWith('/page/')) {
+    return <SimplePage />;
   }
 
   // Super admin route — requires super_admin role
@@ -121,8 +128,8 @@ function ExpiredPaywall({ status, trialEnds }: { status: string; trialEnds: Date
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-ink-900 flex items-center justify-center px-6">
       <div className="card p-10 max-w-lg text-center animate-scale-in">
-        <div className="w-16 h-16 rounded-2xl bg-amber-100 border border-amber-200 flex items-center justify-center mx-auto mb-5">
-          <span className="text-3xl">⚠</span>
+        <div className="w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-500/15 border border-amber-200 dark:border-amber-500/30 flex items-center justify-center mx-auto mb-5">
+          <AlertTriangle size={32} className="text-amber-600 dark:text-amber-400" />
         </div>
         <h1 className="font-display text-2xl font-bold text-slate-900 dark:text-white">
           {status === 'suspended' ? t('sub.suspended') : t('sub.expired')}

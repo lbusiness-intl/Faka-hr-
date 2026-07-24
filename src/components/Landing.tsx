@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Building2, Users, Wallet, BarChart3, MessageSquare, ShieldCheck, Globe2,
   Check, Star, Menu, X, ArrowRight, Sparkles, Moon, Sun,
+  Briefcase, CalendarClock, FileText, UserCog, HeartHandshake,
 } from 'lucide-react';
 import { useI18n } from '../lib/i18n';
 import { Link, navigate } from '../lib/router';
@@ -161,11 +162,11 @@ function Hero() {
 function Features() {
   const { t } = useI18n();
   const items = [
-    { icon: Building2, title: 'Core HR', desc: 'Contrats, onboarding, offboarding, documents signés.' },
+    { icon: Briefcase, title: 'Core HR', desc: 'Contrats, onboarding, offboarding, documents signés.' },
     { icon: Wallet, title: 'Paie multicanal', desc: 'Virement, Orange Money, MTN, Wave, M-Pesa — non-custodial.' },
     { icon: MessageSquare, title: 'Self-service WhatsApp', desc: 'Congés, avances, bulletins — via un assistant simulé.' },
     { icon: BarChart3, title: 'Analytics RH', desc: 'Coûts, absentéisme, performance, exports PDF/CSV.' },
-    { icon: Users, title: 'Recrutement & LMS', desc: 'Pipeline Kanban, formations, certificats, 360°.' },
+    { icon: UserCog, title: 'Recrutement & LMS', desc: 'Pipeline Kanban, formations, certificats, 360°.' },
     { icon: ShieldCheck, title: 'Conformité & RLS', desc: 'Isolation multi-tenant stricte, lettres RH, audits.' },
   ];
   return (
@@ -304,21 +305,24 @@ function Footer() {
             <li><a href="#features" className="hover:text-coral-600 transition">{t('nav.features')}</a></li>
             <li><a href="#pricing" className="hover:text-coral-600 transition">{t('nav.pricing')}</a></li>
             <li><Link to="/signin" className="hover:text-coral-600 transition">{t('nav.login')}</Link></li>
+            <li><Link to="/signup" className="hover:text-coral-600 transition">{t('nav.cta')}</Link></li>
           </ul>
         </div>
         <div>
-          <div className="text-slate-900 dark:text-white/80 font-semibold text-sm mb-3">Légal</div>
+          <div className="text-slate-900 dark:text-white/80 font-semibold text-sm mb-3">Entreprise</div>
           <ul className="space-y-2 text-sm text-slate-500 dark:text-white/50">
-            <li><a href="#" className="hover:text-coral-600 transition">Mentions légales</a></li>
-            <li><a href="#" className="hover:text-coral-600 transition">Confidentialité</a></li>
-            <li><a href="#" className="hover:text-coral-600 transition">RGPD</a></li>
+            <li><Link to="/page/about" className="hover:text-coral-600 transition">{t('footer.about')}</Link></li>
+            <li><Link to="/page/contact" className="hover:text-coral-600 transition">{t('footer.contact')}</Link></li>
+            <li><Link to="/page/privacy" className="hover:text-coral-600 transition">{t('footer.privacy')}</Link></li>
+            <li><Link to="/page/terms" className="hover:text-coral-600 transition">{t('footer.terms')}</Link></li>
+            <li><Link to="/page/security" className="hover:text-coral-600 transition">{t('footer.security')}</Link></li>
+            <li><Link to="/page/status" className="hover:text-coral-600 transition">{t('footer.status')}</Link></li>
           </ul>
         </div>
       </div>
       <div className="border-t border-slate-200 dark:border-white/10">
-        <div className="section py-5 flex flex-col md:flex-row items-center justify-between gap-3 text-sm text-slate-400 dark:text-white/40">
-          <div>© {new Date().getFullYear()} LIYAH GROUP. {t('footer.rights')}</div>
-          <div className="text-slate-500 dark:text-white/50">{t('footer.developed')}</div>
+        <div className="section py-5 flex flex-col md:flex-row items-center justify-between gap-3 text-sm text-slate-500 dark:text-white/50">
+          <div>{t('footer.tagline')}</div>
         </div>
       </div>
     </footer>

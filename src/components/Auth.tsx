@@ -191,6 +191,7 @@ function mapErrorCode(code: string): string {
     case 'MISSING_FIELDS': return 'missing';
     case 'TENANT_CREATE_FAILED': return 'create';
     case 'MEMBERSHIP_CREATE_FAILED': return 'membership';
+    case 'INTERNAL_ERROR': return 'unknown';
     default: return 'unknown';
   }
 }

@@ -74,6 +74,15 @@ html.dark body {
   html.dark .label {
     @apply text-white/80;
   }
+  html.dark select,
+  html.dark option {
+    background-color: #1e293b;
+    color: #fff;
+  }
+  html.dark select option {
+    background-color: #1e293b;
+    color: #fff;
+  }
 }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }

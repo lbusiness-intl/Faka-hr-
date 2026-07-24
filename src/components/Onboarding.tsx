@@ -98,9 +98,16 @@ export default function Onboarding() {
       navigate('/dashboard');
     } catch (err) {
       const raw = err instanceof Error ? err.message : String(err);
-      // The edge function throws keys like "tenant.error.create"; translate
-      // them. Never surface the raw Postgres/Supabase message.
-      const key = raw.startsWith('tenant.error.') ? raw : 'tenant.error.unknown';
+      let key: string;
+      if (raw.startsWith('tenant.error.')) {
+        key = raw;
+      } else if (raw === 'No authenticated user') {
+        key = 'tenant.error.unauthorized';
+      } else if (raw === 'Region and city are required') {
+        key = 'tenant.error.missing';
+      } else {
+        key = 'tenant.error.unknown';
+      }
       setError(t(key));
     } finally {
       setLoading(false);
