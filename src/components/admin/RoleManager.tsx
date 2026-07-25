@@ -3,8 +3,10 @@ import { useI18n } from '../../lib/i18n';
 import { useAuth } from '../../lib/auth';
 import { supabase } from '../../lib/supabase';
 import { Badge, EmptyState, Modal, Spinner } from '../ui';
-import { Shield, Plus, Pencil, Trash2, Check } from 'lucide-react';
-import { PERMISSION_DEFAULTS, ROLE_COLORS } from '../../lib/permissions';
+import { Shield, Plus, Pencil, Trash2, Check, Search, History, UserCog } from 'lucide-react';
+import { PERMISSION_DEFAULTS, ROLE_COLORS, ALL_STANDARD_ROLES } from '../../lib/permissions';
+import type { AppRole } from '../../lib/auth';
+import { notify } from '../../lib/notifications';
 
 type CustomRole = { id: string; name: string; color: string; permissions: string[]; created_at: string };
 
@@ -46,6 +48,13 @@ export default function RoleManager() {
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<CustomRole | null>(null);
   const [form, setForm] = useState({ name: '', color: COLORS[0], permissions: [] as string[] });
+  // Role assignment state
+  const [members, setMembers] = useState<any[]>([]);
+  const [membersLoading, setMembersLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [history, setHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   async function load() {
     if (!activeTenant) return;
@@ -55,6 +64,85 @@ export default function RoleManager() {
   }
 
   useEffect(() => { load(); }, [activeTenant]);
+
+  // Load members with their roles
+  async function loadMembers() {
+    if (!activeTenant || !user) return;
+    setMembersLoading(true);
+    const { data } = await supabase
+      .from('tenant_memberships')
+      .select('id, user_id, role, status, employee:employees(first_name, last_name, department, email)')
+      .eq('tenant_id', activeTenant.id)
+      .eq('status', 'active');
+    // Get emails from auth.users is not possible via RLS, so use employee emails
+    const enriched = (data ?? []).map((m: any) => ({
+      ...m,
+      email: m.employee?.email ?? '—',
+      originalRole: m.role,
+    }));
+    setMembers(enriched);
+    setMembersLoading(false);
+  }
+  useEffect(() => { loadMembers(); }, [activeTenant]);
+
+  const filteredMembers = members.filter((m) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      (m.employee?.first_name?.toLowerCase().includes(q) ?? false) ||
+      (m.employee?.last_name?.toLowerCase().includes(q) ?? false) ||
+      (m.email?.toLowerCase().includes(q) ?? false) ||
+      (m.employee?.department?.toLowerCase().includes(q) ?? false)
+    );
+  });
+
+  async function assignRole(membership: any, newRole: AppRole) {
+    if (!activeTenant || !user) return;
+    if (membership.role === newRole) return;
+    const oldRole = membership.role;
+    // Update membership
+    await supabase.from('tenant_memberships').update({ role: newRole }).eq('id', membership.id);
+    // Insert history record
+    await supabase.from('role_history').insert({
+      tenant_id: activeTenant.id,
+      user_id: membership.user_id,
+      employee_id: membership.employee?.id ?? null,
+      old_role: oldRole,
+      new_role: newRole,
+      changed_by: user.id,
+      reason: 'Changement manuel par admin',
+    });
+    // Audit log
+    await supabase.from('audit_logs').insert({
+      tenant_id: activeTenant.id, actor: user.id,
+      action: 'role.changed',
+      details: { user_id: membership.user_id, old_role: oldRole, new_role: newRole },
+    });
+    // Notify the user
+    await notify({
+      tenantId: activeTenant.id,
+      userId: membership.user_id,
+      category: 'role',
+      title: 'Rôle modifié',
+      body: `Votre rôle est maintenant: ${t(`role.${newRole}` as any) ?? newRole}`,
+      priority: 'high',
+    });
+    loadMembers();
+  }
+
+  async function loadHistory() {
+    if (!activeTenant) return;
+    setHistoryLoading(true);
+    const { data } = await supabase
+      .from('role_history')
+      .select('id, old_role, new_role, reason, created_at, employee:employees(first_name, last_name)')
+      .eq('tenant_id', activeTenant.id)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    setHistory(data ?? []);
+    setHistoryLoading(false);
+  }
+  useEffect(() => { if (historyOpen) loadHistory(); }, [historyOpen]);
 
   function openAdd() {
     setEditing(null);
@@ -204,6 +292,114 @@ export default function RoleManager() {
           <button onClick={save} className="btn-primary text-sm">{t('common.save')}</button>
         </div>
       </Modal>
+
+      {/* Role Assignment Section */}
+      <div className="mt-10">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+              <UserCog size={20} />
+            </div>
+            <div>
+              <h2 className="font-display text-lg font-bold text-slate-900 dark:text-white">Attribution des rôles</h2>
+              <p className="text-slate-500 dark:text-white/50 text-xs">Assignez et modifiez les rôles des membres</p>
+            </div>
+          </div>
+          <button onClick={() => setHistoryOpen(!historyOpen)} className="btn-ghost text-sm flex items-center gap-1.5">
+            <History size={15} /> Historique
+          </button>
+        </div>
+
+        {/* Search bar */}
+        <div className="relative mb-4">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            className="input pl-9"
+            placeholder="Rechercher par nom, email, département…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+
+        {/* Members table */}
+        <div className="card overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-slate-500 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+              <tr>
+                <th className="text-left p-4 font-medium">Employé</th>
+                <th className="text-left p-4 font-medium">Email</th>
+                <th className="text-left p-4 font-medium">Département</th>
+                <th className="text-left p-4 font-medium">Rôle actuel</th>
+                <th className="text-left p-4 font-medium">Nouveau rôle</th>
+                <th className="text-left p-4 font-medium"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {membersLoading ? (
+                <tr><td colSpan={6} className="p-8 text-center"><Spinner className="mx-auto" /></td></tr>
+              ) : filteredMembers.length === 0 ? (
+                <tr><td colSpan={6} className="p-8 text-center text-slate-400">Aucun membre trouvé</td></tr>
+              ) : filteredMembers.map((m: any) => (
+                <tr key={m.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5">
+                  <td className="p-4 text-slate-900 dark:text-white font-medium">
+                    {m.employee?.first_name ?? m.email} {m.employee?.last_name ?? ''}
+                  </td>
+                  <td className="p-4 text-slate-500 dark:text-white/50 text-xs">{m.email ?? '—'}</td>
+                  <td className="p-4 text-slate-700 dark:text-white/70">{m.employee?.department ?? '—'}</td>
+                  <td className="p-4">
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold text-white" style={{ backgroundColor: ROLE_COLORS[m.role as string] ?? '#6b7280' }}>
+                      {t(`role.${m.role}` as any) ?? m.role}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    <select
+                      className="input py-1 text-xs"
+                      value={m.role}
+                      onChange={(e) => assignRole(m, e.target.value as AppRole)}
+                    >
+                      {ALL_STANDARD_ROLES.map((r) => (
+                        <option key={r} value={r} className="bg-white dark:bg-ink-700">{t(`role.${r}` as any) ?? r}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="p-4 text-slate-400 text-xs">
+                    {m.role !== m.originalRole && <span className="text-emerald-600 dark:text-emerald-400">Mis à jour</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* History modal */}
+        <Modal open={historyOpen} onClose={() => setHistoryOpen(false)} title="Historique des rôles" maxWidth="max-w-2xl">
+          {historyLoading ? <Spinner className="mx-auto" /> : history.length === 0 ? (
+            <EmptyState icon={<History size={40} />} title="Aucun historique" hint="Les changements de rôles apparaîtront ici." />
+          ) : (
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {history.map((h: any) => (
+                <div key={h.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-white/5">
+                  <div className="w-8 h-8 rounded-full bg-coral-100 dark:bg-coral-500/15 flex items-center justify-center text-coral-600 dark:text-coral-400 text-xs font-bold">
+                    {(h.employee?.first_name?.[0] ?? '?').toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-slate-900 dark:text-white text-sm font-medium">
+                      {h.employee?.first_name ?? 'Utilisateur'} {h.employee?.last_name ?? ''}
+                    </div>
+                    <div className="flex items-center gap-2 text-xs mt-0.5">
+                      <span className="text-slate-400">{h.old_role ? t(`role.${h.old_role}` as any) ?? h.old_role : '—'}</span>
+                      <span className="text-slate-400">→</span>
+                      <span className="text-coral-600 dark:text-coral-400 font-medium">{t(`role.${h.new_role}` as any) ?? h.new_role}</span>
+                    </div>
+                    {h.reason && <div className="text-xs text-slate-400 mt-0.5">{h.reason}</div>}
+                  </div>
+                  <div className="text-xs text-slate-400 shrink-0">{new Date(h.created_at).toLocaleDateString()}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Modal>
+      </div>
     </div>
   );
 }

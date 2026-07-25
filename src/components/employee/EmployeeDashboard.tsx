@@ -5,11 +5,13 @@ import { supabase } from '../../lib/supabase';
 import { DashboardShell } from '../DashboardShell';
 import { Badge, Spinner, EmptyState, Modal, StatCard } from '../ui';
 import { useRoute, navigate } from '../../lib/router';
+import { notifyHR } from '../../lib/notifications';
 import {
   Clock, CalendarClock, Banknote, Receipt, CalendarDays, MessageSquare,
   CreditCard, Play, Pause, Square, Camera, Send, TrendingUp, Target,
   FileText, Package, Plus, Check, X, Wallet, Users, Sparkles, Bell, Download, Upload,
 } from 'lucide-react';
+import CommunicationsPanel from '../admin/CommunicationsPanel';
 
 type Employee = {
   id: string; first_name: string; last_name: string; email: string;
@@ -299,6 +301,15 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
   }
   useEffect(() => { load(); }, [tenant, me]);
 
+  // Real-time subscription
+  useEffect(() => {
+    if (!tenant || !me) return;
+    const ch = supabase.channel(`emp_${table}:${tenant.id}:${me.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table, filter: `tenant_id=eq.${tenant.id}` }, () => load())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [tenant, me, table]);
+
   async function submit() {
     if (!tenant || !me) return;
     const payload: any = { ...form, tenant_id: tenant.id, employee_id: me.id, currency: tenant.currency, status: 'pending' };
@@ -306,6 +317,10 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
       payload.days = 1;
     }
     await supabase.from(table).insert(payload);
+    // Notify HR
+    const cat = table === 'leave_requests' ? 'leave' : table === 'advances' ? 'advance' : 'claim';
+    const label = table === 'leave_requests' ? 'Congé' : table === 'advances' ? 'Avance' : 'Note de frais';
+    await notifyHR(tenant.id, { category: cat as any, title: `Nouvelle demande — ${label}`, body: `${me.first_name} ${me.last_name} a soumis une demande.`, priority: 'normal' });
     setModal(false);
     setForm({});
     load();
@@ -647,6 +662,8 @@ function MyOvertime() {
     await supabase.from('overtime').insert({
       tenant_id: tenant.id, employee_id: me.id, date: form.date, hours: Number(form.hours), rate: 1.5, amount: 0, currency: tenant.currency, status: 'pending', notes: form.notes,
     });
+    // Notify HR
+    await notifyHR(tenant.id, { category: 'attendance', title: 'Demande d\'heures sup.', body: `${me.first_name} ${me.last_name} a soumis ${form.hours}h sup.`, priority: 'normal' });
     setModal(false);
     setForm({ date: new Date().toISOString().slice(0, 10), hours: 1, notes: '' });
     load();

@@ -10,17 +10,27 @@ import {
   Users, Wallet, CalendarClock, BanknoteIcon, Receipt, Clock, UserPlus, GraduationCap,
   Target, Star, Package, ShieldCheck, MessageSquare, CalendarDays, Settings as SettingsIcon,
   Plus, Trash2, Check, X, Download, Upload, FileText, TrendingUp, GitBranch, Layers, Shield,
+  Send,
 } from 'lucide-react';
 import BranchManager from './BranchManager';
 import DepartmentManager from './DepartmentManager';
 import RoleManager from './RoleManager';
 import CommunicationsPanel from './CommunicationsPanel';
 import InviteWizard from './InviteWizard';
+import { notify } from '../../lib/notifications';
 
 type Employee = {
   id: string; first_name: string; last_name: string; email: string; phone: string;
   position: string; department: string; salary: number; currency: string;
   contract_type: string; status: string; hire_date: string | null;
+  employee_id: string | null; employment_type: string; manager_id: string | null;
+  start_date: string | null; branch_id: string | null; department_id: string | null;
+  avatar_url: string | null; user_id: string | null;
+};
+
+type Invitation = {
+  id: string; email: string; role: string; status: string; token: string;
+  expires_at: string; created_at: string; used_at: string | null;
 };
 
 function PageHeader({ title, action, icon }: { title: string; action?: ReactNode; icon?: ReactNode }) {
@@ -107,35 +117,109 @@ function Overview() {
 function Employees() {
   const { t } = useI18n();
   const tenant = useTenant();
+  const { user } = useAuth();
   const [items, setItems] = useState<Employee[]>([]);
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [offboarding, setOffboarding] = useState<Employee | null>(null);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
   const [inviteWizard, setInviteWizard] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
-    first_name: '', last_name: '', email: '', phone: '', position: '', department: '', salary: 0, contract_type: 'cdi',
+    first_name: '', last_name: '', email: '', employee_id: '', phone: '', position: '',
+    department: '', branch_id: '', department_id: '', employment_type: 'cdi',
+    salary: 0, manager_id: '', start_date: new Date().toISOString().slice(0, 10),
   });
 
   async function load() {
     if (!tenant) return;
     setLoading(true);
-    const { data } = await supabase.from('employees').select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false });
-    setItems((data as Employee[]) ?? []);
+    const [emps, invs, brs, depts] = await Promise.all([
+      supabase.from('employees').select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false }),
+      supabase.from('invitations').select('id, email, role, status, token, expires_at, created_at, used_at').eq('tenant_id', tenant.id).order('created_at', { ascending: false }),
+      supabase.from('branches').select('id, name').eq('tenant_id', tenant.id).order('name'),
+      supabase.from('departments').select('id, name').eq('tenant_id', tenant.id).order('name'),
+    ]);
+    setItems((emps.data as Employee[]) ?? []);
+    setInvitations((invs.data as Invitation[]) ?? []);
+    setBranches(brs.data ?? []);
+    setDepartments(depts.data ?? []);
     setLoading(false);
   }
   useEffect(() => { load(); }, [tenant]);
 
+  // Real-time subscription
+  useEffect(() => {
+    if (!tenant) return;
+    const channel = supabase.channel(`employees_invitations:${tenant.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'employees', filter: `tenant_id=eq.${tenant.id}` }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'invitations', filter: `tenant_id=eq.${tenant.id}` }, () => load())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [tenant]);
+
+  function validateForm(): string | null {
+    if (!form.first_name.trim()) return 'Le prénom est obligatoire';
+    if (!form.last_name.trim()) return 'Le nom est obligatoire';
+    if (!form.email.trim()) return 'L\'email est obligatoire';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return 'Email invalide';
+    if (!form.position.trim()) return 'Le poste est obligatoire';
+    if (!form.start_date) return 'La date de début est obligatoire';
+    return null;
+  }
+
   async function add() {
     if (!tenant) return;
-    const { data } = await supabase.from('employees').insert({ ...form, tenant_id: tenant.id, currency: tenant.currency, status: 'active', hire_date: new Date().toISOString().slice(0, 10) }).select().single();
-    setModal(false);
-    setForm({ first_name: '', last_name: '', email: '', phone: '', position: '', department: '', salary: 0, contract_type: 'cdi' });
-    load();
-    // Auto-invite after creating the employee record
-    if (data && form.email) {
-      inviteEmployee(data.id, form.email);
+    const err = validateForm();
+    if (err) { setError(err); return; }
+    setError(null);
+    setSaving(true);
+    try {
+      const { data, error: insErr } = await supabase.from('employees').insert({
+        tenant_id: tenant.id,
+        first_name: form.first_name.trim(),
+        last_name: form.last_name.trim(),
+        email: form.email.trim().toLowerCase(),
+        employee_id: form.employee_id || null,
+        phone: form.phone,
+        position: form.position,
+        department: form.department,
+        branch_id: form.branch_id || null,
+        department_id: form.department_id || null,
+        employment_type: form.employment_type,
+        salary: Number(form.salary) || 0,
+        currency: tenant.currency,
+        contract_type: form.employment_type,
+        manager_id: form.manager_id || null,
+        start_date: form.start_date,
+        status: 'pending_invite',
+        hire_date: form.start_date,
+      }).select().single();
+
+      if (insErr) { setError(insErr.message); setSaving(false); return; }
+
+      // Auto-invite after creating the employee record
+      if (data && form.email) {
+        await inviteEmployee(data.id, form.email.trim().toLowerCase());
+      }
+
+      // Audit log
+      await supabase.from('audit_logs').insert({
+        tenant_id: tenant.id, actor: user?.id,
+        action: 'employee.created',
+        details: { employee_id: data.id, name: `${form.first_name} ${form.last_name}`, email: form.email },
+      });
+
+      setModal(false);
+      setForm({ first_name: '', last_name: '', email: '', employee_id: '', phone: '', position: '', department: '', branch_id: '', department_id: '', employment_type: 'cdi', salary: 0, manager_id: '', start_date: new Date().toISOString().slice(0, 10) });
+      load();
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -151,15 +235,27 @@ function Employees() {
           Authorization: `Bearer ${sessionData?.session?.access_token ?? ''}`,
           apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
-        body: JSON.stringify({ action: 'create', tenant_id: tenant.id, employee_id: employeeId, email, role: 'employee' }),
+        body: JSON.stringify({ action: 'create', tenantId: tenant.id, email, role: 'employee' }),
       });
       const json = await res.json();
       if (json.ok) {
-        const url = `${window.location.origin}/accept-invite?token=${json.token}`;
+        const url = `${window.location.origin}/#/accept-invite?token=${json.token}`;
         setInviteLink(url);
+        // Update invitation status to 'sent'
+        await supabase.from('invitations').update({ status: 'sent' }).eq('token', json.token);
+        load();
       }
     } catch { /* ignore */ }
     setInviting(false);
+  }
+
+  async function cancelInvitation(token: string) {
+    await supabase.from('invitations').update({ status: 'cancelled' }).eq('token', token);
+    load();
+  }
+
+  async function resendInvitation(inv: Invitation) {
+    await inviteEmployee('', inv.email);
   }
 
   async function offboard(reason: string, notes: string) {
@@ -167,10 +263,18 @@ function Employees() {
     await supabase.from('employees').update({
       status: 'exited', exit_date: new Date().toISOString().slice(0, 10), exit_reason: reason, exit_notes: notes,
     }).eq('id', offboarding.id);
-    await supabase.from('audit_logs').insert({ tenant_id: tenant.id, action: 'employee.offboarded', details: { employee_id: offboarding.id, reason } });
+    await supabase.from('audit_logs').insert({ tenant_id: tenant.id, actor: user?.id, action: 'employee.offboarded', details: { employee_id: offboarding.id, reason } });
+    // Notify the employee
+    if (offboarding.user_id) {
+      await notify({ tenantId: tenant.id, userId: offboarding.user_id, category: 'system', title: 'Offboarding', body: `Votre départ a été enregistré: ${reason}`, priority: 'high' });
+    }
     setOffboarding(null);
     load();
   }
+
+  const inviteStatusForEmail = (email: string): Invitation | null => {
+    return invitations.find((i) => i.email === email.toLowerCase());
+  };
 
   if (!tenant) return null;
   return (
@@ -186,65 +290,135 @@ function Employees() {
           <table className="w-full text-sm">
             <thead className="text-slate-500 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
               <tr>
-                <th className="text-left p-4 font-medium">Nom</th>
+                <th className="text-left p-4 font-medium">Employé</th>
                 <th className="text-left p-4 font-medium">Poste</th>
                 <th className="text-left p-4 font-medium">Dépt.</th>
                 <th className="text-left p-4 font-medium">Salaire</th>
                 <th className="text-left p-4 font-medium">Statut</th>
+                <th className="text-left p-4 font-medium">Invitation</th>
                 <th className="text-left p-4 font-medium"></th>
               </tr>
             </thead>
             <tbody>
-              {items.map((e) => (
-                <tr key={e.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5">
-                  <td className="p-4">
-                    <div className="text-slate-900 dark:text-white font-medium">{e.first_name} {e.last_name}</div>
-                    <div className="text-slate-400 dark:text-white/40 text-xs">{e.email}</div>
-                  </td>
-                  <td className="p-4 text-slate-700 dark:text-white/70">{e.position || '—'}</td>
-                  <td className="p-4 text-slate-700 dark:text-white/70">{e.department || '—'}</td>
-                  <td className="p-4 text-slate-700 dark:text-white/70">{new Intl.NumberFormat('fr-FR').format(e.salary)} {e.currency}</td>
-                  <td className="p-4">
-                    <Badge color={e.status === 'active' ? 'emerald' : 'rose'}>{e.status}</Badge>
-                  </td>
-                  <td className="p-4 flex gap-2">
-                    {e.status === 'active' && e.email && (
-                      <button onClick={() => inviteEmployee(e.id, e.email)} disabled={inviting} className="text-coral-600 hover:text-coral-500 text-xs font-medium">
-                        Inviter
-                      </button>
-                    )}
-                    {e.status === 'active' && (
-                      <button onClick={() => setOffboarding(e)} className="text-rose-500 hover:text-rose-400 text-xs">Offboarder</button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {items.map((e) => {
+                const inv = inviteStatusForEmail(e.email);
+                return (
+                  <tr key={e.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5">
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-coral-100 dark:bg-coral-500/15 flex items-center justify-center text-coral-600 dark:text-coral-400 font-bold text-sm shrink-0">
+                          {(e.first_name?.[0] ?? '?').toUpperCase()}{(e.last_name?.[0] ?? '').toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="text-slate-900 dark:text-white font-medium">{e.first_name} {e.last_name}</div>
+                          <div className="text-slate-400 dark:text-white/40 text-xs">{e.email}</div>
+                          {e.employee_id && <div className="text-slate-400 dark:text-white/40 text-xs">ID: {e.employee_id}</div>}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-4 text-slate-700 dark:text-white/70">{e.position || '—'}</td>
+                    <td className="p-4 text-slate-700 dark:text-white/70">{e.department || '—'}</td>
+                    <td className="p-4 text-slate-700 dark:text-white/70">{new Intl.NumberFormat('fr-FR').format(e.salary)} {e.currency}</td>
+                    <td className="p-4">
+                      <Badge color={e.status === 'active' ? 'emerald' : e.status === 'pending_invite' ? 'amber' : e.status === 'exited' ? 'slate' : 'rose'}>
+                        {e.status === 'pending_invite' ? 'En attente' : e.status === 'active' ? 'Actif' : e.status === 'exited' ? 'Sorti' : e.status}
+                      </Badge>
+                    </td>
+                    <td className="p-4">
+                      {inv ? (
+                        <div className="flex items-center gap-2">
+                          <Badge color={
+                            inv.status === 'accepted' ? 'emerald' :
+                            inv.status === 'sent' ? 'indigo' :
+                            inv.status === 'pending' ? 'amber' :
+                            inv.status === 'expired' ? 'rose' :
+                            inv.status === 'cancelled' ? 'slate' : 'slate'
+                          }>
+                            {inv.status === 'accepted' ? 'Acceptée' :
+                             inv.status === 'sent' ? 'Envoyée' :
+                             inv.status === 'pending' ? 'En attente' :
+                             inv.status === 'expired' ? 'Expirée' :
+                             inv.status === 'cancelled' ? 'Annulée' : inv.status}
+                          </Badge>
+                          {(inv.status === 'pending' || inv.status === 'sent' || inv.status === 'expired') && (
+                            <button onClick={() => resendInvitation(inv)} className="text-coral-600 hover:text-coral-500 text-xs" title="Renvoyer">
+                              <Send size={13} />
+                            </button>
+                          )}
+                          {(inv.status === 'pending' || inv.status === 'sent') && (
+                            <button onClick={() => cancelInvitation(inv.token)} className="text-rose-500 hover:text-rose-400 text-xs" title="Annuler">
+                              <X size={13} />
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 dark:text-white/40 text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="p-4 flex gap-2">
+                      {e.status !== 'exited' && e.email && !inv && (
+                        <button onClick={() => inviteEmployee(e.id, e.email)} disabled={inviting} className="text-coral-600 hover:text-coral-500 text-xs font-medium">
+                          Inviter
+                        </button>
+                      )}
+                      {e.status !== 'exited' && (
+                        <button onClick={() => setOffboarding(e)} className="text-rose-500 hover:text-rose-400 text-xs">Offboarder</button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
 
-      <Modal open={modal} onClose={() => setModal(false)} title="Nouvel employé">
+      <Modal open={modal} onClose={() => setModal(false)} title="Nouvel employé" maxWidth="max-w-2xl">
         <div className="grid sm:grid-cols-2 gap-3">
-          <div><label className="label">Prénom</label><input className="input" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} /></div>
-          <div><label className="label">Nom</label><input className="input" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} /></div>
-          <div><label className="label">Email</label><input className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+          <div><label className="label">Prénom *</label><input className="input" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} /></div>
+          <div><label className="label">Nom *</label><input className="input" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} /></div>
+          <div><label className="label">Email professionnel *</label><input type="email" className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+          <div><label className="label">ID Employé</label><input className="input" value={form.employee_id} onChange={(e) => setForm({ ...form, employee_id: e.target.value })} placeholder="EMP-001" /></div>
+          <div><label className="label">Poste / Titre *</label><input className="input" value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} /></div>
           <div><label className="label">Téléphone</label><input className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-          <div><label className="label">Poste</label><input className="input" value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} /></div>
-          <div><label className="label">Département</label><input className="input" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} /></div>
-          <div><label className="label">Salaire ({tenant.currency})</label><input type="number" className="input" value={form.salary} onChange={(e) => setForm({ ...form, salary: Number(e.target.value) })} /></div>
-          <div><label className="label">Contrat</label>
-            <select className="input" value={form.contract_type} onChange={(e) => setForm({ ...form, contract_type: e.target.value })}>
+          <div>
+            <label className="label">Agence</label>
+            <select className="input" value={form.branch_id} onChange={(e) => setForm({ ...form, branch_id: e.target.value })}>
+              <option value="">— Aucune —</option>
+              {branches.map((b) => <option key={b.id} value={b.id} className="bg-white dark:bg-ink-700">{b.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Département</label>
+            <select className="input" value={form.department_id} onChange={(e) => setForm({ ...form, department_id: e.target.value })}>
+              <option value="">— Aucun —</option>
+              {departments.map((d) => <option key={d.id} value={d.id} className="bg-white dark:bg-ink-700">{d.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Type d'emploi</label>
+            <select className="input" value={form.employment_type} onChange={(e) => setForm({ ...form, employment_type: e.target.value })}>
               <option value="cdi" className="bg-white dark:bg-ink-700">CDI</option>
               <option value="cdd" className="bg-white dark:bg-ink-700">CDD</option>
               <option value="stage" className="bg-white dark:bg-ink-700">Stage</option>
               <option value="freelance" className="bg-white dark:bg-ink-700">Freelance</option>
+              <option value="consultant" className="bg-white dark:bg-ink-700">Consultant</option>
             </select>
           </div>
+          <div><label className="label">Salaire ({tenant.currency})</label><input type="number" className="input" value={form.salary} onChange={(e) => setForm({ ...form, salary: Number(e.target.value) })} /></div>
+          <div>
+            <label className="label">Manager</label>
+            <select className="input" value={form.manager_id} onChange={(e) => setForm({ ...form, manager_id: e.target.value })}>
+              <option value="">— Aucun —</option>
+              {items.filter((e) => e.status === 'active').map((e) => <option key={e.id} value={e.id} className="bg-white dark:bg-ink-700">{e.first_name} {e.last_name}</option>)}
+            </select>
+          </div>
+          <div><label className="label">Date de début *</label><input type="date" className="input" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></div>
         </div>
+        {error && <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 dark:bg-rose-500/10 dark:border-rose-500/30 p-3 text-sm text-rose-700 dark:text-rose-300">{error}</div>}
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={() => setModal(false)} className="btn-ghost text-sm">{t('common.cancel')}</button>
-          <button onClick={add} className="btn-primary text-sm">{t('common.save')}</button>
+          <button onClick={add} disabled={saving} className="btn-primary text-sm">{saving ? <Spinner /> : 'Créer & Inviter'}</button>
         </div>
       </Modal>
 
@@ -324,7 +498,7 @@ function RequestList({ table, title, icon, amountKey }: {
     setLoading(true);
     const [r, emps] = await Promise.all([
       supabase.from(table).select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false }),
-      supabase.from('employees').select('id, first_name, last_name').eq('tenant_id', tenant.id),
+      supabase.from('employees').select('id, first_name, last_name, user_id').eq('tenant_id', tenant.id),
     ]);
     setItems(r.data ?? []);
     const map: Record<string, Employee> = {};
@@ -334,15 +508,47 @@ function RequestList({ table, title, icon, amountKey }: {
   }
   useEffect(() => { load(); }, [tenant]);
 
+  // Real-time subscription
+  useEffect(() => {
+    if (!tenant) return;
+    const ch = supabase.channel(`${table}:${tenant.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table, filter: `tenant_id=eq.${tenant.id}` }, () => load())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [tenant, table]);
+
   async function add() {
     if (!tenant) return;
     await supabase.from(table).insert({ ...form, tenant_id: tenant.id, currency: tenant.currency, status: 'pending' });
+    // Notify HR that a new request was submitted
+    const emp = employees[form.employee_id];
+    if (emp) {
+      const { notifyHR } = await import('../../lib/notifications');
+      await notifyHR(tenant.id, {
+        category: table === 'leave_requests' ? 'leave' : table === 'advances' ? 'advance' : 'claim',
+        title: `Nouvelle demande — ${title}`,
+        body: `${emp.first_name} ${emp.last_name} a soumis une demande.`,
+        priority: 'normal',
+      });
+    }
     setModal(false);
     setForm({});
     load();
   }
   async function update(id: string, status: string) {
     await supabase.from(table).update({ status }).eq('id', id);
+    // Notify the employee
+    const item = items.find((it) => it.id === id);
+    const emp = item ? employees[item.employee_id] : null;
+    if (emp?.user_id && tenant) {
+      const cat = table === 'leave_requests' ? 'leave' : table === 'advances' ? 'advance' : 'claim';
+      const titleText = table === 'leave_requests'
+        ? (status === 'approved' ? 'Congé approuvé' : 'Congé refusé')
+        : table === 'advances'
+        ? (status === 'approved' ? 'Avance approuvée' : 'Avance refusée')
+        : (status === 'approved' ? 'Note de frais approuvée' : 'Note de frais refusée');
+      await notify({ tenantId: tenant.id, userId: emp.user_id, employeeId: emp.id, category: cat, title: titleText, body: `Votre demande a été ${status === 'approved' ? 'approuvée' : 'refusée'}.`, priority: status === 'approved' ? 'normal' : 'high' });
+    }
     load();
   }
 
@@ -447,43 +653,116 @@ function RequestList({ table, title, icon, amountKey }: {
 function Payroll() {
   const { t } = useI18n();
   const tenant = useTenant();
+  const { user } = useAuth();
   const [runs, setRuns] = useState<any[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [editModal, setEditModal] = useState(false);
+  const [editingEmp, setEditingEmp] = useState<Employee | null>(null);
+  const [adjustForm, setAdjustForm] = useState({ field: 'salary', old_value: 0, new_value: 0, reason: '' });
 
   async function load() {
     if (!tenant) return;
     setLoading(true);
-    const [r, e] = await Promise.all([
+    const [r, e, b, d] = await Promise.all([
       supabase.from('payroll_runs').select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false }),
       supabase.from('employees').select('*').eq('tenant_id', tenant.id).eq('status', 'active'),
+      supabase.from('branches').select('id, name').eq('tenant_id', tenant.id),
+      supabase.from('departments').select('id, name').eq('tenant_id', tenant.id),
     ]);
     setRuns(r.data ?? []);
     setEmployees((e.data as Employee[]) ?? []);
+    setBranches(b.data ?? []);
+    setDepartments(d.data ?? []);
     setLoading(false);
   }
   useEffect(() => { load(); }, [tenant]);
+
+  // Real-time
+  useEffect(() => {
+    if (!tenant) return;
+    const ch = supabase.channel(`payroll:${tenant.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payroll_runs', filter: `tenant_id=eq.${tenant.id}` }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payslips', filter: `tenant_id=eq.${tenant.id}` }, () => load())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [tenant]);
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+  function selectAll() { setSelected(new Set(employees.map((e) => e.id))); }
+  function selectNone() { setSelected(new Set()); }
+
+  function openEdit(emp: Employee) {
+    setEditingEmp(emp);
+    setAdjustForm({ field: 'salary', old_value: Number(emp.salary), new_value: Number(emp.salary), reason: '' });
+    setEditModal(true);
+  }
+
+  async function saveAdjustment() {
+    if (!tenant || !editingEmp || !adjustForm.reason.trim()) return;
+    const field = adjustForm.field as 'salary' | 'bonus' | 'allowances' | 'deductions' | 'overtime' | 'taxes';
+    // Audit trail
+    await supabase.from('payroll_adjustments').insert({
+      tenant_id: tenant.id,
+      employee_id: editingEmp.id,
+      field,
+      old_value: adjustForm.old_value,
+      new_value: adjustForm.new_value,
+      reason: adjustForm.reason.trim(),
+      changed_by: user?.id,
+    });
+    // Update employee salary if salary field changed
+    if (field === 'salary') {
+      await supabase.from('employees').update({ salary: adjustForm.new_value }).eq('id', editingEmp.id);
+    }
+    await supabase.from('audit_logs').insert({
+      tenant_id: tenant.id, actor: user?.id,
+      action: 'payroll.adjustment',
+      details: { employee_id: editingEmp.id, field, old: adjustForm.old_value, new: adjustForm.new_value, reason: adjustForm.reason },
+    });
+    setEditModal(false);
+    load();
+  }
 
   async function runPayroll() {
     if (!tenant || employees.length === 0) return;
     setRunning(true);
     const period = new Date().toISOString().slice(0, 7);
-    const gross = employees.reduce((s, e) => s + Number(e.salary), 0);
+    const selectedEmps = selected.size > 0 ? employees.filter((e) => selected.has(e.id)) : employees;
+    const gross = selectedEmps.reduce((s, e) => s + Number(e.salary), 0);
     const deductions = gross * 0.15;
     const net = gross - deductions;
     const { data: run } = await supabase.from('payroll_runs').insert({
-      tenant_id: tenant.id, period, status: 'draft', total_gross: gross, total_net: net, currency: tenant.currency,
+      tenant_id: tenant.id, period, status: 'completed', total_gross: gross, total_net: net, currency: tenant.currency,
     }).select().single();
     if (run) {
-      const payslips = employees.map((e) => ({
+      const payslips = selectedEmps.map((e) => ({
         tenant_id: tenant.id, run_id: run.id, employee_id: e.id,
         gross: Number(e.salary), deductions: Number(e.salary) * 0.15, net: Number(e.salary) * 0.85,
+        bonus: 0, allowances: 0, overtime_pay: 0, taxes: Number(e.salary) * 0.15,
         currency: tenant.currency, status: 'pending',
       }));
       await supabase.from('payslips').insert(payslips);
+      // Notify each employee
+      await Promise.all(selectedEmps.map((e) => {
+        if (e.user_id) {
+          return notify({ tenantId: tenant.id, userId: e.user_id, employeeId: e.id, category: 'payroll', title: 'Paie disponible', body: `Votre bulletin de paie pour ${period} est disponible.`, priority: 'high', link: '/dashboard/employee/documents' });
+        }
+        return Promise.resolve();
+      }));
+      // Audit log
+      await supabase.from('audit_logs').insert({
+        tenant_id: tenant.id, actor: user?.id, action: 'payroll.run', details: { period, count: selectedEmps.length, gross, net },
+      });
     }
     setRunning(false);
+    setSelected(new Set());
     load();
   }
 
@@ -496,9 +775,11 @@ function Payroll() {
     load();
   }
 
-  if (!tenant) return null;
+  const branchName = (id: string | null) => branches.find((b) => b.id === id)?.name ?? '—';
+  const deptName = (id: string | null) => departments.find((d) => d.id === id)?.name ?? '—';
   const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(Math.round(n));
 
+  if (!tenant) return null;
   return (
     <div>
       <PageHeader title={t('dash.payroll')} icon={<Wallet size={20} />}
@@ -506,10 +787,66 @@ function Payroll() {
           <div className="flex gap-2">
             <button onClick={payAll} className="btn-ghost text-sm">Marquer tout payé</button>
             <button onClick={runPayroll} disabled={running || employees.length === 0} className="btn-primary text-sm">
-              {running ? <Spinner /> : <><Plus size={16} /> Lancer la paie</>}
+              {running ? <Spinner /> : <><Plus size={16} /> Run Payroll ({selected.size || employees.length})</>}
             </button>
           </div>
         } />
+
+      {/* Employee payroll table */}
+      <div className="card overflow-x-auto mb-6">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-white/10">
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-white/70 cursor-pointer">
+              <input type="checkbox" checked={selected.size === employees.length && employees.length > 0} onChange={() => selected.size === employees.length ? selectNone() : selectAll()} className="rounded border-slate-300" />
+              Tout sélectionner
+            </label>
+            <span className="text-xs text-slate-400">{selected.size}/{employees.length} sélectionnés</span>
+          </div>
+        </div>
+        <table className="w-full text-sm">
+          <thead className="text-slate-500 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+            <tr>
+              <th className="text-left p-3 w-10"></th>
+              <th className="text-left p-3 font-medium">Employé</th>
+              <th className="text-left p-3 font-medium">ID</th>
+              <th className="text-left p-3 font-medium">Dépt.</th>
+              <th className="text-left p-3 font-medium">Agence</th>
+              <th className="text-left p-3 font-medium">Poste</th>
+              <th className="text-right p-3 font-medium">Salaire</th>
+              <th className="text-left p-3 font-medium">Statut</th>
+              <th className="text-left p-3 font-medium"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {employees.map((e) => (
+              <tr key={e.id} className={`border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 ${selected.has(e.id) ? 'bg-coral-50/40 dark:bg-coral-500/5' : ''}`}>
+                <td className="p-3"><input type="checkbox" checked={selected.has(e.id)} onChange={() => toggleSelect(e.id)} className="rounded border-slate-300" /></td>
+                <td className="p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-coral-100 dark:bg-coral-500/15 flex items-center justify-center text-coral-600 dark:text-coral-400 font-bold text-xs shrink-0">
+                      {(e.first_name?.[0] ?? '?').toUpperCase()}{(e.last_name?.[0] ?? '').toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="text-slate-900 dark:text-white font-medium">{e.first_name} {e.last_name}</div>
+                      <div className="text-slate-400 dark:text-white/40 text-xs">{e.email}</div>
+                    </div>
+                  </div>
+                </td>
+                <td className="p-3 text-slate-500 dark:text-white/50 text-xs">{e.employee_id ?? '—'}</td>
+                <td className="p-3 text-slate-700 dark:text-white/70">{e.department_id ? deptName(e.department_id) : (e.department || '—')}</td>
+                <td className="p-3 text-slate-700 dark:text-white/70">{e.branch_id ? branchName(e.branch_id) : '—'}</td>
+                <td className="p-3 text-slate-700 dark:text-white/70">{e.position || '—'}</td>
+                <td className="p-3 text-right text-slate-900 dark:text-white font-medium">{fmt(Number(e.salary))} {e.currency}</td>
+                <td className="p-3"><Badge color={e.status === 'active' ? 'emerald' : 'amber'}>{e.status === 'active' ? 'Actif' : e.status}</Badge></td>
+                <td className="p-3"><button onClick={() => openEdit(e)} className="text-coral-600 hover:text-coral-500 text-xs font-medium">Ajuster</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Payroll history */}
+      <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white mb-4">Historique</h3>
       {loading ? <Spinner /> : runs.length === 0 ? (
         <EmptyState icon={<Wallet size={48} />} title="Aucune paie" hint="Lancez votre première paie mensuelle." />
       ) : (
@@ -521,7 +858,7 @@ function Payroll() {
                   <div className="text-slate-900 dark:text-white font-semibold">Période {r.period}</div>
                   <div className="text-slate-500 dark:text-white/50 text-xs">{new Date(r.created_at).toLocaleDateString()}</div>
                 </div>
-                <Badge color={r.status === 'draft' ? 'slate' : 'emerald'}>{r.status}</Badge>
+                <Badge color={r.status === 'draft' ? 'slate' : r.status === 'completed' ? 'emerald' : 'amber'}>{r.status}</Badge>
               </div>
               <div className="grid grid-cols-3 gap-4 mt-4">
                 <StatCard label="Brut" value={`${fmt(r.total_gross)} ${r.currency}`} icon={<Wallet size={18} />} color="teal" />
@@ -532,6 +869,41 @@ function Payroll() {
           ))}
         </div>
       )}
+
+      {/* Adjustment modal */}
+      <Modal open={editModal} onClose={() => setEditModal(false)} title="Ajustement de paie" maxWidth="max-w-md">
+        {editingEmp && (
+          <div className="space-y-3">
+            <div className="card p-3 bg-slate-50 dark:bg-ink-700/50 border-0">
+              <div className="text-slate-900 dark:text-white font-medium text-sm">{editingEmp.first_name} {editingEmp.last_name}</div>
+              <div className="text-slate-400 dark:text-white/40 text-xs">{editingEmp.position} · {editingEmp.email}</div>
+            </div>
+            <div>
+              <label className="label">Champ à ajuster</label>
+              <select className="input" value={adjustForm.field} onChange={(e) => setAdjustForm({ ...adjustForm, field: e.target.value, old_value: e.target.value === 'salary' ? Number(editingEmp.salary) : 0, new_value: e.target.value === 'salary' ? Number(editingEmp.salary) : 0 })}>
+                <option value="salary" className="bg-white dark:bg-ink-700">Salaire de base</option>
+                <option value="bonus" className="bg-white dark:bg-ink-700">Prime / Bonus</option>
+                <option value="allowances" className="bg-white dark:bg-ink-700">Indemnités</option>
+                <option value="deductions" className="bg-white dark:bg-ink-700">Déductions</option>
+                <option value="overtime" className="bg-white dark:bg-ink-700">Heures sup.</option>
+                <option value="taxes" className="bg-white dark:bg-ink-700">Taxes</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="label">Ancienne valeur</label><input type="number" className="input bg-slate-50 dark:bg-ink-700/50" value={adjustForm.old_value} readOnly /></div>
+              <div><label className="label">Nouvelle valeur</label><input type="number" className="input" value={adjustForm.new_value} onChange={(e) => setAdjustForm({ ...adjustForm, new_value: Number(e.target.value) })} /></div>
+            </div>
+            <div><label className="label">Raison de la modification *</label><textarea className="input" rows={2} value={adjustForm.reason} onChange={(e) => setAdjustForm({ ...adjustForm, reason: e.target.value })} placeholder="Augmentation annuelle, correction d'erreur…" /></div>
+            <div className="rounded-xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 px-3 py-2 text-xs text-blue-700 dark:text-blue-300">
+              Cette modification sera enregistrée dans le journal d'audit avec votre nom, la date et la raison.
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setEditModal(false)} className="btn-ghost text-sm">{t('common.cancel')}</button>
+              <button onClick={saveAdjustment} disabled={!adjustForm.reason.trim()} className="btn-primary text-sm">{t('common.save')}</button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
@@ -1093,21 +1465,27 @@ function Overtime() {
   }
   useEffect(() => { load(); }, [tenant]);
 
+  // Real-time
+  useEffect(() => {
+    if (!tenant) return;
+    const ch = supabase.channel(`overtime:${tenant.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'overtime', filter: `tenant_id=eq.${tenant.id}` }, () => load())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [tenant]);
+
   async function add() {
     if (!tenant || !form.employee_id) return;
     const emp = employees.find((x) => x.id === form.employee_id);
-    const amount = Number(form.hours) * Number(form.rate) * (emp?.salary ?? 0) / 173.33; // hourly rate from monthly
+    const amount = Number(form.hours) * Number(form.rate) * (emp?.salary ?? 0) / 173.33;
     await supabase.from('overtime').insert({
-      tenant_id: tenant.id,
-      employee_id: form.employee_id,
-      date: form.date,
-      hours: Number(form.hours),
-      rate: Number(form.rate),
-      amount,
-      currency: tenant.currency,
-      status: 'pending',
-      notes: form.notes,
+      tenant_id: tenant.id, employee_id: form.employee_id, date: form.date,
+      hours: Number(form.hours), rate: Number(form.rate), amount,
+      currency: tenant.currency, status: 'pending', notes: form.notes,
     });
+    // Notify HR
+    const { notifyHR } = await import('../../lib/notifications');
+    await notifyHR(tenant.id, { category: 'attendance', title: 'Demande d\'heures sup.', body: `${emp?.first_name} ${emp?.last_name} a soumis ${form.hours}h sup.`, priority: 'normal' });
     setModal(false);
     setForm({ employee_id: '', date: new Date().toISOString().slice(0, 10), hours: 1, rate: 1.5, notes: '' });
     load();
@@ -1115,6 +1493,12 @@ function Overtime() {
 
   async function setStatus(id: string, status: string) {
     await supabase.from('overtime').update({ status }).eq('id', id);
+    // Notify employee
+    const item = items.find((it) => it.id === id);
+    const emp = item ? employees.find((e) => e.id === item.employee_id) : null;
+    if (emp?.user_id && tenant) {
+      await notify({ tenantId: tenant.id, userId: emp.user_id, employeeId: emp.id, category: 'attendance', title: status === 'approved' ? 'Heures sup. approuvées' : 'Heures sup. refusées', body: `Votre demande de ${item?.hours}h a été ${status === 'approved' ? 'approuvée' : 'refusée'}.`, priority: status === 'approved' ? 'normal' : 'high' });
+    }
     load();
   }
 
