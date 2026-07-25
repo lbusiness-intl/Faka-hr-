@@ -55,6 +55,9 @@ export default function RoleManager() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [confirmAssign, setConfirmAssign] = useState<{ membership: any; newRole: AppRole } | null>(null);
+  const [assigning, setAssigning] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   async function load() {
     if (!activeTenant) return;
@@ -99,35 +102,45 @@ export default function RoleManager() {
   async function assignRole(membership: any, newRole: AppRole) {
     if (!activeTenant || !user) return;
     if (membership.role === newRole) return;
+    setConfirmAssign({ membership, newRole });
+  }
+
+  async function confirmAssignRole() {
+    if (!confirmAssign || !activeTenant || !user) return;
+    const { membership, newRole } = confirmAssign;
     const oldRole = membership.role;
-    // Update membership
-    await supabase.from('tenant_memberships').update({ role: newRole }).eq('id', membership.id);
-    // Insert history record
-    await supabase.from('role_history').insert({
-      tenant_id: activeTenant.id,
-      user_id: membership.user_id,
-      employee_id: membership.employee?.id ?? null,
-      old_role: oldRole,
-      new_role: newRole,
-      changed_by: user.id,
-      reason: 'Changement manuel par admin',
-    });
-    // Audit log
-    await supabase.from('audit_logs').insert({
-      tenant_id: activeTenant.id, actor: user.id,
-      action: 'role.changed',
-      details: { user_id: membership.user_id, old_role: oldRole, new_role: newRole },
-    });
-    // Notify the user
-    await notify({
-      tenantId: activeTenant.id,
-      userId: membership.user_id,
-      category: 'role',
-      title: 'Rôle modifié',
-      body: `Votre rôle est maintenant: ${t(`role.${newRole}` as any) ?? newRole}`,
-      priority: 'high',
-    });
-    loadMembers();
+    setAssigning(true);
+    try {
+      await supabase.from('tenant_memberships').update({ role: newRole }).eq('id', membership.id);
+      await supabase.from('role_history').insert({
+        tenant_id: activeTenant.id,
+        user_id: membership.user_id,
+        employee_id: membership.employee?.id ?? null,
+        old_role: oldRole,
+        new_role: newRole,
+        changed_by: user.id,
+        reason: 'Changement manuel par admin',
+      });
+      await supabase.from('audit_logs').insert({
+        tenant_id: activeTenant.id, actor: user.id,
+        action: 'role.changed',
+        details: { user_id: membership.user_id, old_role: oldRole, new_role: newRole },
+      });
+      await notify({
+        tenantId: activeTenant.id,
+        userId: membership.user_id,
+        category: 'role',
+        title: 'Rôle modifié',
+        body: `Votre rôle est maintenant: ${t(`role.${newRole}` as any) ?? newRole}`,
+        priority: 'high',
+      });
+      setSuccessMsg(`Rôle de ${membership.employee?.first_name ?? membership.email} mis à jour: ${t(`role.${newRole}` as any) ?? newRole}`);
+      setTimeout(() => setSuccessMsg(null), 4000);
+      setConfirmAssign(null);
+      loadMembers();
+    } finally {
+      setAssigning(false);
+    }
   }
 
   async function loadHistory() {
@@ -355,7 +368,7 @@ export default function RoleManager() {
                     <select
                       className="input py-1 text-xs"
                       value={m.role}
-                      onChange={(e) => assignRole(m, e.target.value as AppRole)}
+                      onChange={(e) => { assignRole(m, e.target.value as AppRole); e.target.value = m.role; }}
                     >
                       {ALL_STANDARD_ROLES.map((r) => (
                         <option key={r} value={r} className="bg-white dark:bg-ink-700">{t(`role.${r}` as any) ?? r}</option>
@@ -370,6 +383,50 @@ export default function RoleManager() {
             </tbody>
           </table>
         </div>
+
+        {/* Success toast */}
+        {successMsg && (
+          <div className="fixed bottom-6 right-6 z-50 bg-emerald-500 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-scale-in">
+            <Check size={18} /> {successMsg}
+          </div>
+        )}
+
+        {/* Role assignment confirmation modal */}
+        <Modal open={confirmAssign !== null} onClose={() => setConfirmAssign(null)} title="Confirmer l'attribution du rôle" maxWidth="max-w-md">
+          {confirmAssign && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 dark:bg-white/5">
+                <div className="w-10 h-10 rounded-full bg-coral-100 dark:bg-coral-500/15 flex items-center justify-center text-coral-600 dark:text-coral-400 font-bold">
+                  {(confirmAssign.membership.employee?.first_name?.[0] ?? '?').toUpperCase()}
+                </div>
+                <div>
+                  <div className="text-slate-900 dark:text-white font-medium text-sm">
+                    {confirmAssign.membership.employee?.first_name ?? confirmAssign.membership.email} {confirmAssign.membership.employee?.last_name ?? ''}
+                  </div>
+                  <div className="text-xs text-slate-500 dark:text-white/50">{confirmAssign.membership.email}</div>
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-3 py-2">
+                <span className="px-3 py-1 rounded-full text-xs font-semibold text-white" style={{ backgroundColor: ROLE_COLORS[confirmAssign.membership.role as string] ?? '#6b7280' }}>
+                  {t(`role.${confirmAssign.membership.role}` as any) ?? confirmAssign.membership.role}
+                </span>
+                <span className="text-slate-400">→</span>
+                <span className="px-3 py-1 rounded-full text-xs font-semibold text-white" style={{ backgroundColor: ROLE_COLORS[confirmAssign.newRole] ?? '#6b7280' }}>
+                  {t(`role.${confirmAssign.newRole}` as any) ?? confirmAssign.newRole}
+                </span>
+              </div>
+              <p className="text-sm text-slate-600 dark:text-white/60 text-center">
+                Cette action enregistrera le changement, notifiera l'employé et créera une entrée d'historique.
+              </p>
+            </div>
+          )}
+          <div className="flex justify-end gap-2 mt-5">
+            <button onClick={() => setConfirmAssign(null)} className="btn-ghost text-sm">Annuler</button>
+            <button onClick={confirmAssignRole} disabled={assigning} className="btn-primary text-sm">
+              {assigning ? <Spinner /> : <>Confirmer l'attribution</>}
+            </button>
+          </div>
+        </Modal>
 
         {/* History modal */}
         <Modal open={historyOpen} onClose={() => setHistoryOpen(false)} title="Historique des rôles" maxWidth="max-w-2xl">

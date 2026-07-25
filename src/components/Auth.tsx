@@ -94,7 +94,7 @@ export function AuthScreen() {
                 </div>
               </button>
               <button
-                onClick={() => navigate('/accept-invite')}
+                onClick={() => navigate('/activate')}
                 className="group card p-6 flex flex-col items-center gap-3 hover:border-teal-400 hover:shadow-md transition cursor-pointer"
               >
                 <div className="w-12 h-12 rounded-xl bg-teal-100 dark:bg-teal-500/15 flex items-center justify-center text-teal-600 dark:text-teal-400 group-hover:scale-110 transition">

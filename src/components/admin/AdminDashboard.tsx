@@ -130,6 +130,8 @@ function Employees() {
   const [inviteWizard, setInviteWizard] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmCreate, setConfirmCreate] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [form, setForm] = useState({
     first_name: '', last_name: '', email: '', employee_id: '', phone: '', position: '',
     department: '', branch_id: '', department_id: '', employment_type: 'cdi',
@@ -178,6 +180,11 @@ function Employees() {
     const err = validateForm();
     if (err) { setError(err); return; }
     setError(null);
+    setConfirmCreate(true);
+  }
+
+  async function confirmAndCreate() {
+    if (!tenant) return;
     setSaving(true);
     try {
       const { data, error: insErr } = await supabase.from('employees').insert({
@@ -216,7 +223,10 @@ function Employees() {
       });
 
       setModal(false);
+      setConfirmCreate(false);
       setForm({ first_name: '', last_name: '', email: '', employee_id: '', phone: '', position: '', department: '', branch_id: '', department_id: '', employment_type: 'cdi', salary: 0, manager_id: '', start_date: new Date().toISOString().slice(0, 10) });
+      setSuccessMsg(`${form.first_name} ${form.last_name} a été créé et invité.`);
+      setTimeout(() => setSuccessMsg(null), 4000);
       load();
     } finally {
       setSaving(false);
@@ -373,7 +383,15 @@ function Employees() {
         </div>
       )}
 
-      <Modal open={modal} onClose={() => setModal(false)} title="Nouvel employé" maxWidth="max-w-2xl">
+      {/* Success toast */}
+      {successMsg && (
+        <div className="fixed bottom-6 right-6 z-50 bg-emerald-500 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-scale-in">
+          <Check size={18} /> {successMsg}
+        </div>
+      )}
+
+      {/* Employee creation form modal */}
+      <Modal open={modal && !confirmCreate} onClose={() => setModal(false)} title="Nouvel employé" maxWidth="max-w-2xl">
         <div className="grid sm:grid-cols-2 gap-3">
           <div><label className="label">Prénom *</label><input className="input" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} /></div>
           <div><label className="label">Nom *</label><input className="input" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} /></div>
@@ -418,7 +436,39 @@ function Employees() {
         {error && <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 dark:bg-rose-500/10 dark:border-rose-500/30 p-3 text-sm text-rose-700 dark:text-rose-300">{error}</div>}
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={() => setModal(false)} className="btn-ghost text-sm">{t('common.cancel')}</button>
-          <button onClick={add} disabled={saving} className="btn-primary text-sm">{saving ? <Spinner /> : 'Créer & Inviter'}</button>
+          <button onClick={add} className="btn-primary text-sm">Suivant</button>
+        </div>
+      </Modal>
+
+      {/* Confirmation modal — review before creating */}
+      <Modal open={confirmCreate} onClose={() => setConfirmCreate(false)} title="Confirmer la création de l'employé" maxWidth="max-w-lg">
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 dark:bg-white/5">
+            <div className="w-12 h-12 rounded-full bg-coral-100 dark:bg-coral-500/15 flex items-center justify-center text-coral-600 dark:text-coral-400 font-bold text-lg">
+              {form.first_name?.[0]?.toUpperCase() ?? '?'}
+            </div>
+            <div>
+              <div className="text-slate-900 dark:text-white font-semibold">{form.first_name} {form.last_name}</div>
+              <div className="text-xs text-slate-500 dark:text-white/50">{form.email}</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div><span className="text-slate-400">Poste:</span> <span className="text-slate-900 dark:text-white font-medium">{form.position}</span></div>
+            <div><span className="text-slate-400">Type:</span> <span className="text-slate-900 dark:text-white font-medium uppercase">{form.employment_type}</span></div>
+            <div><span className="text-slate-400">Salaire:</span> <span className="text-slate-900 dark:text-white font-medium">{new Intl.NumberFormat('fr-FR').format(form.salary)} {tenant.currency}</span></div>
+            <div><span className="text-slate-400">Début:</span> <span className="text-slate-900 dark:text-white font-medium">{form.start_date}</span></div>
+            {form.employee_id && <div><span className="text-slate-400">ID:</span> <span className="text-slate-900 dark:text-white font-medium">{form.employee_id}</span></div>}
+            {form.department_id && <div><span className="text-slate-400">Dépt:</span> <span className="text-slate-900 dark:text-white font-medium">{departments.find((d) => d.id === form.department_id)?.name ?? '—'}</span></div>}
+          </div>
+          <div className="rounded-xl border border-coral-200 dark:border-coral-500/30 bg-coral-50 dark:bg-coral-500/10 p-3 text-sm text-coral-700 dark:text-coral-300">
+            <strong>Action:</strong> L'employé sera créé, une invitation sera générée et envoyée par email, et le tableau de bord sera mis à jour.
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={() => setConfirmCreate(false)} className="btn-ghost text-sm">Annuler</button>
+          <button onClick={confirmAndCreate} disabled={saving} className="btn-primary text-sm">
+            {saving ? <Spinner /> : <>Confirmer & Envoyer l'invitation <Send size={16} /></>}
+          </button>
         </div>
       </Modal>
 

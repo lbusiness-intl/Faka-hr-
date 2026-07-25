@@ -804,7 +804,7 @@ export default function EmployeeDashboard() {
     ); break;
     case 'assets': content = <StaffAssets />; break;
     case 'events': content = <EventsView />; break;
-    case 'communication': content = <WhatsApp />; break;
+    case 'communication': content = <CommunicationsPanel isEmployee={true} />; break;
     case 'documents': content = <MyDocuments />; break;
     case 'overtime': content = <MyOvertime />; break;
     case 'subscription': content = <SubscriptionEmbed />; break;

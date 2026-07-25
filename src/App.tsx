@@ -10,6 +10,7 @@ import AdminDashboard from './components/admin/AdminDashboard';
 import EmployeeDashboard from './components/employee/EmployeeDashboard';
 import SuperAdminDashboard from './components/superadmin/SuperAdminDashboard';
 import AcceptInvite from './components/AcceptInvite';
+import EmployeeActivation from './components/EmployeeActivation';
 import SimplePage from './components/SimplePage';
 import { Spinner } from './components/ui';
 import { getPlan, type PlanId } from './lib/plans';
@@ -51,6 +52,9 @@ function Router() {
   }
   if (path === '/accept-invite') {
     return <AcceptInvite />;
+  }
+  if (path === '/activate' || path.startsWith('/activate')) {
+    return <EmployeeActivation />;
   }
 
   // Static footer pages

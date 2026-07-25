@@ -8,8 +8,10 @@ import { PLANS, getPlan, type PlanId } from '../../lib/plans';
 import { COUNTRIES } from '../../lib/geo';
 import {
   Building2, DollarSign, TrendingDown, Globe2, Ticket, LogOut,
-  Crown, ShieldCheck, MapPin, Plus, Trash2, Mail, Trophy, Percent, Users,
+  Crown, ShieldCheck, MapPin, Plus, Trash2, Mail, Trophy, Percent, Users, Zap,
 } from 'lucide-react';
+import EmailCenter from './EmailCenter';
+import AutomationCenter from './AutomationCenter';
 
 type TenantRow = {
   id: string; name: string; country: string; currency: string; plan: string;
@@ -25,7 +27,7 @@ export default function SuperAdminDashboard() {
   const [tenants, setTenants] = useState<TenantRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [edit, setEdit] = useState<TenantRow | null>(null);
-  const [tab, setTab] = useState<'overview' | 'tenants' | 'sales' | 'invitations' | 'plans' | 'promotions' | 'geo'>('overview');
+  const [tab, setTab] = useState<'overview' | 'tenants' | 'sales' | 'invitations' | 'plans' | 'promotions' | 'geo' | 'email' | 'automation'>('overview');
 
   async function load() {
     setLoading(true);
@@ -98,6 +100,8 @@ export default function SuperAdminDashboard() {
             { id: 'plans', label: 'Plans' },
             { id: 'promotions', label: 'Promotions' },
             { id: 'geo', label: t('super.geo') },
+            { id: 'email', label: 'Email Center' },
+            { id: 'automation', label: 'Automation' },
           ] as const).map((tb) => (
             <button
               key={tb.id}
@@ -221,6 +225,8 @@ export default function SuperAdminDashboard() {
             {tab === 'invitations' && <Invitations />}
             {tab === 'plans' && <PlanEditor />}
             {tab === 'promotions' && <Promotions />}
+            {tab === 'email' && <EmailCenter />}
+            {tab === 'automation' && <AutomationCenter />}
           </>
         )}
       </div>

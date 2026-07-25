@@ -231,6 +231,122 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, user_id: authUserId });
     }
 
+    // ── activate (employee activation by email + code) ─────────────────────────
+    if (action === "activate") {
+      const { email, code, password } = body ?? {};
+      if (!email || !password) return json({ ok: false, error: "MISSING_FIELDS" }, 400);
+
+      // Find invitation by token OR by email + code
+      let inv: any = null;
+      if (token) {
+        const { data } = await adminClient
+          .from("invitations")
+          .select("*")
+          .eq("token", token)
+          .maybeSingle();
+        inv = data;
+      } else if (email) {
+        // Look up by email — find the most recent pending/sent invitation
+        const { data, error } = await adminClient
+          .from("invitations")
+          .select("*")
+          .eq("email", email.toLowerCase())
+          .in("status", ["pending", "sent"])
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (error || !data) return json({ ok: false, error: "NOT_FOUND" }, 404);
+        // If a code was provided, validate it (code = first 8 chars of token)
+        if (code && data.token && !data.token.startsWith(code)) {
+          return json({ ok: false, error: "CODE_INVALID" }, 400);
+        }
+        inv = data;
+      }
+
+      if (!inv) return json({ ok: false, error: "NOT_FOUND" }, 404);
+      if (inv.status === "used") return json({ ok: false, error: "ALREADY_USED" }, 410);
+      if (new Date(inv.expires_at) < new Date()) return json({ ok: false, error: "EXPIRED" }, 410);
+
+      // Create or update auth user
+      let authUserId: string;
+      const { data: { users: existingUsers } } = await adminClient.auth.admin.listUsers();
+      const existingUser = existingUsers.find((u: any) => u.email === inv.email);
+
+      if (existingUser) {
+        authUserId = existingUser.id;
+        await adminClient.auth.admin.updateUserById(authUserId, {
+          password,
+          email_confirm: true,
+        });
+      } else {
+        const { data: newUser, error: createErr } = await adminClient.auth.admin.createUser({
+          email: inv.email,
+          password,
+          email_confirm: true,
+        });
+        if (createErr || !newUser.user) {
+          return json({ ok: false, error: "USER_CREATE_FAILED", detail: createErr?.message }, 500);
+        }
+        authUserId = newUser.user.id;
+      }
+
+      // Create membership
+      const { error: memErr } = await adminClient.from("tenant_memberships").upsert({
+        tenant_id: inv.tenant_id,
+        user_id: authUserId,
+        role: inv.role ?? "employee",
+        status: "active",
+      }, { onConflict: "tenant_id,user_id" });
+
+      if (memErr) return json({ ok: false, error: "MEMBERSHIP_FAILED", detail: memErr.message }, 500);
+
+      // Link employee record
+      const meta = (inv.custom_role ?? {}) as any;
+      if (meta?.employee_id) {
+        await adminClient.from("employees").update({
+          user_id: authUserId,
+          status: "active",
+        }).eq("id", meta.employee_id);
+      } else {
+        await adminClient.from("employees").update({
+          user_id: authUserId,
+          status: "active",
+        }).eq("tenant_id", inv.tenant_id).eq("email", inv.email);
+      }
+
+      // Get company name for the response
+      const { data: tenant } = await adminClient
+        .from("tenants")
+        .select("name")
+        .eq("id", inv.tenant_id)
+        .maybeSingle();
+
+      // Mark invitation used
+      await adminClient.from("invitations").update({
+        status: "used",
+        used_at: new Date().toISOString(),
+        used_by: authUserId,
+      }).eq("id", inv.id);
+
+      await adminClient.from("audit_logs").insert({
+        tenant_id: inv.tenant_id,
+        actor: authUserId,
+        action: "invitation.accepted",
+        details: { email: inv.email, role: inv.role },
+      });
+
+      // Queue welcome / account activated email
+      await adminClient.from("email_queue").insert({
+        tenant_id: inv.tenant_id,
+        to_email: inv.email,
+        template_key: "account_activated",
+        subject: `Votre compte est activé — ${tenant?.name ?? "Faka HRMS"}`,
+        status: "pending",
+      });
+
+      return json({ ok: true, user_id: authUserId, company_name: tenant?.name ?? "" });
+    }
+
     return json({ ok: false, error: "UNKNOWN_ACTION" }, 400);
   } catch (err: any) {
     return json({ ok: false, error: "INTERNAL_ERROR", detail: err?.message }, 500);
