@@ -209,7 +209,13 @@ export async function createTenantForUser(_userId: string, data: {
 
   if (!res.ok || !json || json.ok === false) {
     const code = json?.error ?? 'UNKNOWN';
-    throw new Error(`tenant.error.${mapErrorCode(code)}`);
+    const mapped = mapErrorCode(code);
+    // Surface the real detail from the edge function instead of hiding it
+    const detail = json?.detail ?? '';
+    if (mapped === 'unknown' && detail) {
+      throw new Error(detail);
+    }
+    throw new Error(`tenant.error.${mapped}`);
   }
 
   return json;
@@ -221,6 +227,7 @@ function mapErrorCode(code: string): string {
     case 'MISSING_FIELDS': return 'missing';
     case 'TENANT_CREATE_FAILED': return 'create';
     case 'MEMBERSHIP_CREATE_FAILED': return 'membership';
+    case 'SUBDOMAIN_TAKEN': return 'subdomain_taken';
     case 'INTERNAL_ERROR': return 'unknown';
     default: return 'unknown';
   }

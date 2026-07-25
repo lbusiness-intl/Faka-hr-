@@ -637,6 +637,67 @@ function MyDocuments() {
 }
 
 // ============================================================
+// Payslips (employee view — see own payslips)
+// ============================================================
+function MyPayslips() {
+  const { t } = useI18n();
+  const tenant = useTenant();
+  const { user } = useAuth();
+  const { me } = useMe(tenant?.id, user?.email);
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  async function load() {
+    if (!tenant || !me) return;
+    const { data } = await supabase.from('payslips').select('*').eq('tenant_id', tenant.id).eq('employee_id', me.id).order('created_at', { ascending: false });
+    setItems(data ?? []);
+    setLoading(false);
+  }
+  useEffect(() => { load(); }, [tenant, me]);
+
+  // Real-time
+  useEffect(() => {
+    if (!tenant || !me) return;
+    const ch = supabase.channel(`payslips_emp:${me.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'payslips', filter: `employee_id=eq.${me.id}` }, () => load())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [tenant, me]);
+
+  if (!tenant || !me) return null;
+  const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(Math.round(n));
+
+  return (
+    <div>
+      <PageHeader title={t('dash.payroll')} icon={<Wallet size={20} />} />
+      {loading ? <Spinner /> : items.length === 0 ? (
+        <EmptyState icon={<Wallet size={48} />} title="Aucun bulletin" hint="Vos bulletins de paie apparaîtront ici dès qu'ils seront générés." />
+      ) : (
+        <div className="space-y-4">
+          {items.map((p) => (
+            <div key={p.id} className="card p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-slate-900 dark:text-white font-semibold">Période {p.period ?? new Date(p.created_at).toISOString().slice(0, 7)}</div>
+                  <div className="text-slate-400 dark:text-white/40 text-xs">{new Date(p.created_at).toLocaleDateString()}</div>
+                </div>
+                <Badge color={p.status === 'paid' ? 'emerald' : 'amber'}>{p.status === 'paid' ? 'Payé' : 'En attente'}</Badge>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
+                <div><div className="text-xs text-slate-400">Brut</div><div className="text-slate-900 dark:text-white font-medium">{fmt(Number(p.gross))} {p.currency}</div></div>
+                <div><div className="text-xs text-slate-400">Bonus</div><div className="text-slate-900 dark:text-white font-medium">{fmt(Number(p.bonus ?? 0))} {p.currency}</div></div>
+                <div><div className="text-xs text-slate-400">Déductions</div><div className="text-rose-600 font-medium">-{fmt(Number(p.deductions))} {p.currency}</div></div>
+                <div><div className="text-xs text-slate-400">Net</div><div className="text-emerald-600 font-bold">{fmt(Number(p.net))} {p.currency}</div></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
 // Overtime (employee view — submit + see own)
 // ============================================================
 function MyOvertime() {
@@ -806,6 +867,7 @@ export default function EmployeeDashboard() {
     case 'events': content = <EventsView />; break;
     case 'communication': content = <CommunicationsPanel isEmployee={true} />; break;
     case 'documents': content = <MyDocuments />; break;
+    case 'payslips': content = <MyPayslips />; break;
     case 'overtime': content = <MyOvertime />; break;
     case 'subscription': content = <SubscriptionEmbed />; break;
     default: content = <Overview />;

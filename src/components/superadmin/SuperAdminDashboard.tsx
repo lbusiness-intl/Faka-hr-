@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import EmailCenter from './EmailCenter';
 import AutomationCenter from './AutomationCenter';
+import { SUPER_ADMIN_EMAILS, PROTECTED_ADMIN_EMAILS } from '../../lib/auth';
 
 type TenantRow = {
   id: string; name: string; country: string; currency: string; plan: string;
@@ -19,7 +20,8 @@ type TenantRow = {
   sales_code: string | null; employee_limit: number;
 };
 
-const FOUNDERS = ['vincentnogue2@gmail.com', 'vincentnogue@yahoo.com'];
+const SUPER_ADMIN_EMAILS_LOCAL = SUPER_ADMIN_EMAILS;
+const PROTECTED_EMAILS = PROTECTED_ADMIN_EMAILS;
 
 export default function SuperAdminDashboard() {
   const { t } = useI18n();

@@ -105,6 +105,8 @@ export default function Onboarding() {
         key = 'tenant.error.unauthorized';
       } else if (raw === 'Region and city are required') {
         key = 'tenant.error.missing';
+      } else if (raw.includes('subdomain_taken') || raw.includes('SUBDOMAIN_TAKEN')) {
+        key = 'tenant.error.subdomain_taken';
       } else {
         key = 'tenant.error.unknown';
       }

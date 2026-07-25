@@ -126,6 +126,11 @@ export default function CommunicationsPanel({ isEmployee = false }: { isEmployee
 
   const scopeOptions = [
     { value: 'all', label: t('comms.scope.all') },
+    { value: 'hr', label: 'RH' },
+    { value: 'hr_assistant', label: 'Assistant RH' },
+    { value: 'managers', label: 'Managers' },
+    { value: 'payroll', label: 'Paie' },
+    { value: 'finance', label: 'Finance' },
     { value: 'branch', label: t('comms.scope.branch') },
     { value: 'department', label: t('comms.scope.department') },
     { value: 'role', label: t('comms.scope.role') },

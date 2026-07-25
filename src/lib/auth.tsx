@@ -12,6 +12,25 @@ export const ADMIN_LIKE_ROLES: AppRole[] = [
   'payroll_officer', 'finance', 'manager', 'team_lead',
 ];
 
+export const SUPER_ADMIN_EMAILS = [
+  'vincentnogue2@gmail.com',
+  'vincentnogue@yahoo.com',
+  'webdxb1@gmail.com',
+  'liyahjoha@gmail.com',
+];
+
+export const PROTECTED_ADMIN_EMAILS = ['webdxb1@gmail.com', 'liyahjoha@gmail.com'];
+
+export function isSuperAdminEmail(email: string | undefined | null): boolean {
+  if (!email) return false;
+  return SUPER_ADMIN_EMAILS.includes(email.toLowerCase());
+}
+
+export function isProtectedAdmin(email: string | undefined | null): boolean {
+  if (!email) return false;
+  return PROTECTED_ADMIN_EMAILS.includes(email.toLowerCase());
+}
+
 export type Tenant = {
   id: string;
   name: string;

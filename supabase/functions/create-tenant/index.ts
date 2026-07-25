@@ -75,9 +75,11 @@ Deno.serve(async (req: Request) => {
     }).select().single();
 
     if (tErr) {
+      const isDuplicate = tErr.code === "23505";
+      const code = isDuplicate ? "SUBDOMAIN_TAKEN" : "TENANT_CREATE_FAILED";
       return new Response(
-        JSON.stringify({ ok: false, error: "TENANT_CREATE_FAILED", detail: tErr.message }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        JSON.stringify({ ok: false, error: code, detail: tErr.message }),
+        { status: isDuplicate ? 409 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
