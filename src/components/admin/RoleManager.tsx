@@ -42,7 +42,7 @@ const COLORS = ['#f97316','#8b5cf6','#06b6d4','#10b981','#3b82f6','#f59e0b','#ec
 
 export default function RoleManager() {
   const { t } = useI18n();
-  const { activeTenant } = useAuth();
+  const { activeTenant, user } = useAuth();
   const [roles, setRoles] = useState<CustomRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
@@ -56,6 +56,7 @@ export default function RoleManager() {
   const [history, setHistory] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [confirmAssign, setConfirmAssign] = useState<{ membership: any; newRole: AppRole } | null>(null);
+  const [confirmCustomAssign, setConfirmCustomAssign] = useState<{ membership: any; customRoleId: string | null; customRoleName: string } | null>(null);
   const [assigning, setAssigning] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -74,7 +75,7 @@ export default function RoleManager() {
     setMembersLoading(true);
     const { data } = await supabase
       .from('tenant_memberships')
-      .select('id, user_id, role, status, employee:employees(first_name, last_name, department, email)')
+      .select('id, user_id, role, status, custom_role_id, custom_role:custom_roles(id, name, color), employee:employees(first_name, last_name, department, email)')
       .eq('tenant_id', activeTenant.id)
       .eq('status', 'active');
     // Get emails from auth.users is not possible via RLS, so use employee emails
@@ -137,6 +138,43 @@ export default function RoleManager() {
       setSuccessMsg(`Rôle de ${membership.employee?.first_name ?? membership.email} mis à jour: ${t(`role.${newRole}` as any) ?? newRole}`);
       setTimeout(() => setSuccessMsg(null), 4000);
       setConfirmAssign(null);
+      loadMembers();
+    } finally {
+      setAssigning(false);
+    }
+  }
+
+  function assignCustomRole(membership: any, customRoleId: string | null) {
+    if (!activeTenant || !user) return;
+    if ((membership.custom_role_id ?? null) === customRoleId) return;
+    const customRoleName = customRoleId ? (roles.find((r) => r.id === customRoleId)?.name ?? 'Rôle personnalisé') : 'Aucun (rôle standard)';
+    setConfirmCustomAssign({ membership, customRoleId, customRoleName });
+  }
+
+  async function confirmAssignCustomRoleFn() {
+    if (!confirmCustomAssign || !activeTenant || !user) return;
+    const { membership, customRoleId, customRoleName } = confirmCustomAssign;
+    setAssigning(true);
+    try {
+      await supabase.from('tenant_memberships').update({ custom_role_id: customRoleId }).eq('id', membership.id);
+      await supabase.from('audit_logs').insert({
+        tenant_id: activeTenant.id, actor: user.id,
+        action: 'custom_role.assigned',
+        details: { user_id: membership.user_id, custom_role_id: customRoleId, custom_role_name: customRoleName },
+      });
+      await notify({
+        tenantId: activeTenant.id,
+        userId: membership.user_id,
+        category: 'role',
+        title: 'Permissions mises à jour',
+        body: customRoleId
+          ? `Un rôle personnalisé (${customRoleName}) vous a été attribué.`
+          : 'Votre rôle personnalisé a été retiré ; vos permissions standard s\'appliquent à nouveau.',
+        priority: 'high',
+      });
+      setSuccessMsg(`Rôle personnalisé de ${membership.employee?.first_name ?? membership.email} mis à jour: ${customRoleName}`);
+      setTimeout(() => setSuccessMsg(null), 4000);
+      setConfirmCustomAssign(null);
       loadMembers();
     } finally {
       setAssigning(false);
@@ -344,6 +382,7 @@ export default function RoleManager() {
                 <th className="text-left p-4 font-medium">Département</th>
                 <th className="text-left p-4 font-medium">Rôle actuel</th>
                 <th className="text-left p-4 font-medium">Nouveau rôle</th>
+                <th className="text-left p-4 font-medium">Rôle personnalisé</th>
                 <th className="text-left p-4 font-medium"></th>
               </tr>
             </thead>
@@ -374,6 +413,23 @@ export default function RoleManager() {
                         <option key={r} value={r} className="bg-white dark:bg-ink-700">{t(`role.${r}` as any) ?? r}</option>
                       ))}
                     </select>
+                  </td>
+                  <td className="p-4">
+                    <select
+                      className="input py-1 text-xs"
+                      value={m.custom_role_id ?? ''}
+                      onChange={(e) => { const v = e.target.value || null; assignCustomRole(m, v); e.target.value = m.custom_role_id ?? ''; }}
+                    >
+                      <option value="">Aucun (rôle standard)</option>
+                      {roles.map((r) => (
+                        <option key={r.id} value={r.id} className="bg-white dark:bg-ink-700">{r.name}</option>
+                      ))}
+                    </select>
+                    {m.custom_role && (
+                      <span className="mt-1 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold text-white" style={{ backgroundColor: m.custom_role.color }}>
+                        {m.custom_role.name}
+                      </span>
+                    )}
                   </td>
                   <td className="p-4 text-slate-400 text-xs">
                     {m.role !== m.originalRole && <span className="text-emerald-600 dark:text-emerald-400">Mis à jour</span>}
@@ -424,6 +480,35 @@ export default function RoleManager() {
             <button onClick={() => setConfirmAssign(null)} className="btn-ghost text-sm">Annuler</button>
             <button onClick={confirmAssignRole} disabled={assigning} className="btn-primary text-sm">
               {assigning ? <Spinner /> : <>Confirmer l'attribution</>}
+            </button>
+          </div>
+        </Modal>
+
+        {/* Custom role assignment confirmation modal */}
+        <Modal open={confirmCustomAssign !== null} onClose={() => setConfirmCustomAssign(null)} title="Confirmer le rôle personnalisé" maxWidth="max-w-md">
+          {confirmCustomAssign && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 dark:bg-white/5">
+                <div className="w-10 h-10 rounded-full bg-coral-100 dark:bg-coral-500/15 flex items-center justify-center text-coral-600 dark:text-coral-400 font-bold">
+                  {(confirmCustomAssign.membership.employee?.first_name?.[0] ?? '?').toUpperCase()}
+                </div>
+                <div>
+                  <div className="text-slate-900 dark:text-white font-medium text-sm">
+                    {confirmCustomAssign.membership.employee?.first_name ?? confirmCustomAssign.membership.email} {confirmCustomAssign.membership.employee?.last_name ?? ''}
+                  </div>
+                  <div className="text-xs text-slate-500 dark:text-white/50">{confirmCustomAssign.membership.email}</div>
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 dark:text-white/60 text-center">
+                Attribuer le rôle personnalisé <strong>{confirmCustomAssign.customRoleName}</strong> à cette personne ?
+                Ses permissions précises remplaceront celles de son rôle standard ({t(`role.${confirmCustomAssign.membership.role}` as any) ?? confirmCustomAssign.membership.role}).
+              </p>
+            </div>
+          )}
+          <div className="flex justify-end gap-2 mt-5">
+            <button onClick={() => setConfirmCustomAssign(null)} className="btn-ghost text-sm">{t('common.cancel')}</button>
+            <button onClick={confirmAssignCustomRoleFn} disabled={assigning} className="btn-primary text-sm">
+              {assigning ? <Spinner /> : <>Confirmer</>}
             </button>
           </div>
         </Modal>
