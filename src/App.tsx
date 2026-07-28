@@ -102,12 +102,15 @@ function Router() {
       );
     }
 
-    // Trial expired paywall: J+7 from created_at, no active plan
+    // Trial expired paywall: J+7 from created_at, no active plan.
+    // Super admins (LIYAH GROUP internal team) never pay for a plan on
+    // any tenant they belong to — they manage the whole platform.
+    const isSuper = (user.app_metadata?.role === 'super_admin') || memberships.some((m) => m.role === 'super_admin');
     const trialEnds = activeTenant.trial_ends_at ? new Date(activeTenant.trial_ends_at) : null;
     const trialExpired = activeTenant.status === 'trial' && trialEnds && trialEnds.getTime() < Date.now();
     const isSuspended = activeTenant.status === 'suspended';
 
-    if ((trialExpired || isSuspended) && !path.includes('/subscription')) {
+    if (!isSuper && (trialExpired || isSuspended) && !path.includes('/subscription')) {
       return <ExpiredPaywall status={activeTenant.status} trialEnds={trialEnds} />;
     }
 
