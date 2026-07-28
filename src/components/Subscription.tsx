@@ -60,11 +60,14 @@ export default function Subscription() {
     // Simulate the user completing Stripe Checkout, then the webhook firing.
     const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-webhook`;
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) throw new Error('Session expirée — veuillez vous reconnecter.');
       setLog((l) => ['→ Stripe session created: ' + sessionId, ...l]);
       setLog((l) => ['→ Simulating checkout.session.completed webhook...', ...l]);
       const res = await fetch(fnUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({
           type: 'checkout.session.completed',
           tenant_id: activeTenant.id,
