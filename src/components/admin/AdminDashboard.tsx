@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import BranchManager from './BranchManager';
 import DepartmentManager from './DepartmentManager';
+import LeaveBalanceManager from './LeaveBalanceManager';
 import RoleManager from './RoleManager';
 import CommunicationsPanel from './CommunicationsPanel';
 import InviteWizard from './InviteWizard';
@@ -571,21 +572,32 @@ function RequestList({ table, title, icon, amountKey }: {
   const tenant = useTenant();
   const [items, setItems] = useState<any[]>([]);
   const [employees, setEmployees] = useState<Record<string, Employee>>({});
+  const [balances, setBalances] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState<any>({});
 
+  const isLeave = table === 'leave_requests';
+  const thisYear = new Date().getFullYear();
+
   async function load() {
     if (!tenant) return;
     setLoading(true);
-    const [r, emps] = await Promise.all([
+    const calls: Promise<any>[] = [
       supabase.from(table).select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false }),
       supabase.from('employees').select('id, first_name, last_name, user_id').eq('tenant_id', tenant.id),
-    ]);
+    ];
+    if (isLeave) calls.push(supabase.from('leave_balances').select('*').eq('tenant_id', tenant.id).eq('type', 'annual').eq('year', thisYear));
+    const [r, emps, bal] = await Promise.all(calls);
     setItems(r.data ?? []);
     const map: Record<string, Employee> = {};
     (emps.data ?? []).forEach((e: any) => { map[e.id] = e; });
     setEmployees(map);
+    if (isLeave && bal) {
+      const bmap: Record<string, any> = {};
+      (bal.data ?? []).forEach((b: any) => { bmap[b.employee_id] = b; });
+      setBalances(bmap);
+    }
     setLoading(false);
   }
   useEffect(() => { load(); }, [tenant]);
@@ -617,10 +629,45 @@ function RequestList({ table, title, icon, amountKey }: {
     setForm({});
     load();
   }
+
+  function remainingFor(employeeId: string): number | null {
+    const b = balances[employeeId];
+    if (!b) return null;
+    return Number(b.entitled) + Number(b.carried_over) - Number(b.used);
+  }
+
   async function update(id: string, status: string) {
+    const item = items.find((it) => it.id === id);
+
+    // Leave-specific: keep the employee's remaining balance accurate as
+    // requests move in and out of "approved" (previously nothing ever
+    // touched leave_balances, so quotas were never actually enforced).
+    if (isLeave && item) {
+      const days = computeLeaveDays(item.start_date, item.end_date);
+      const wasApproved = item.status === 'approved';
+      const willBeApproved = status === 'approved';
+      if (!wasApproved && willBeApproved) {
+        const b = balances[item.employee_id];
+        const remaining = b ? Number(b.entitled) + Number(b.carried_over) - Number(b.used) : null;
+        if (b && remaining !== null && remaining < days) {
+          const proceed = window.confirm(
+            `${empName(item.employee_id)} n'a que ${remaining} jour(s) restant(s) mais demande ${days} jour(s). Approuver quand même ?`
+          );
+          if (!proceed) return;
+        }
+        if (b) {
+          await supabase.from('leave_balances').update({ used: Number(b.used) + days }).eq('id', b.id);
+        }
+      } else if (wasApproved && !willBeApproved) {
+        const b = balances[item.employee_id];
+        if (b) {
+          await supabase.from('leave_balances').update({ used: Math.max(0, Number(b.used) - days) }).eq('id', b.id);
+        }
+      }
+    }
+
     await supabase.from(table).update({ status }).eq('id', id);
     // Notify the employee
-    const item = items.find((it) => it.id === id);
     const emp = item ? employees[item.employee_id] : null;
     if (emp?.user_id && tenant) {
       const cat = table === 'leave_requests' ? 'leave' : table === 'advances' ? 'advance' : 'claim';
@@ -656,6 +703,7 @@ function RequestList({ table, title, icon, amountKey }: {
                   <th className="text-left p-4 font-medium">Type</th>
                   <th className="text-left p-4 font-medium">Période</th>
                   <th className="text-left p-4 font-medium">Jours</th>
+                  <th className="text-left p-4 font-medium">Solde restant</th>
                 </>}
                 {amountKey && <th className="text-left p-4 font-medium">Montant</th>}
                 <th className="text-left p-4 font-medium">Statut</th>
@@ -670,6 +718,15 @@ function RequestList({ table, title, icon, amountKey }: {
                     <td className="p-4 text-slate-700 dark:text-white/70 capitalize">{it.type}</td>
                     <td className="p-4 text-slate-700 dark:text-white/70 text-xs">{it.start_date} → {it.end_date}</td>
                     <td className="p-4 text-slate-700 dark:text-white/70">{it.days}</td>
+                    <td className="p-4">
+                      {remainingFor(it.employee_id) === null ? (
+                        <span className="text-slate-400 text-xs">—</span>
+                      ) : (
+                        <span className={remainingFor(it.employee_id)! < it.days ? 'text-rose-500 font-medium' : 'text-slate-700 dark:text-white/70'}>
+                          {remainingFor(it.employee_id)} j.
+                        </span>
+                      )}
+                    </td>
                   </>}
                   {amountKey && <td className="p-4 text-slate-700 dark:text-white/70">{new Intl.NumberFormat('fr-FR').format(it[amountKey])} {tenant.currency}</td>}
                   <td className="p-4"><Badge color={it.status === 'approved' ? 'emerald' : it.status === 'rejected' ? 'rose' : 'amber'}>{it.status}</Badge></td>
@@ -1914,6 +1971,7 @@ export default function AdminDashboard() {
     case 'settings': content = <Settings />; break;
     case 'settings/branches': content = <BranchManager />; break;
     case 'settings/departments': content = <DepartmentManager />; break;
+    case 'settings/leave-balances': content = <LeaveBalanceManager />; break;
     case 'settings/roles': content = <RoleManager />; break;
     default: content = <Overview />;
   }
