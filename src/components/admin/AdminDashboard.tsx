@@ -58,16 +58,18 @@ function Overview() {
   const { t } = useI18n();
   const tenant = useTenant();
   const [stats, setStats] = useState({ employees: 0, leaves: 0, payroll: 0, advances: 0 });
+  const [history, setHistory] = useState<{ label: string; value: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!tenant) return;
     (async () => {
-      const [e, l, p, a] = await Promise.all([
+      const [e, l, p, a, runs] = await Promise.all([
         supabase.from('employees').select('id, salary, currency').eq('tenant_id', tenant.id).eq('status', 'active'),
         supabase.from('leave_requests').select('id').eq('tenant_id', tenant.id).eq('status', 'pending'),
         supabase.from('payslips').select('net, currency').eq('tenant_id', tenant.id).eq('status', 'paid'),
         supabase.from('advances').select('amount').eq('tenant_id', tenant.id).eq('status', 'pending'),
+        supabase.from('payroll_runs').select('period, total_net').eq('tenant_id', tenant.id).order('period', { ascending: true }),
       ]);
       const totalPayroll = ((p.data ?? []) as { net: number }[]).reduce((s, x) => s + Number(x.net), 0);
       const totalAdvances = ((a.data ?? []) as { amount: number }[]).reduce((s, x) => s + Number(x.amount), 0);
@@ -77,12 +79,29 @@ function Overview() {
         payroll: totalPayroll,
         advances: totalAdvances,
       });
+
+      // Build the real last-6-months payroll cost history from actual
+      // payroll_runs (previously this chart showed fixed, fake numbers).
+      const byPeriod = new Map<string, number>();
+      ((runs.data ?? []) as { period: string; total_net: number }[]).forEach((r) => {
+        byPeriod.set(r.period, (byPeriod.get(r.period) ?? 0) + Number(r.total_net));
+      });
+      const now = new Date();
+      const months: { label: string; value: number }[] = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const key = d.toISOString().slice(0, 7);
+        const label = d.toLocaleDateString('fr-FR', { month: 'short' });
+        months.push({ label, value: byPeriod.get(key) ?? 0 });
+      }
+      setHistory(months);
       setLoading(false);
     })();
   }, [tenant]);
 
   if (!tenant) return null;
   const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(Math.round(n));
+  const maxHistory = Math.max(1, ...history.map((h) => h.value));
 
   return (
     <div>
@@ -97,14 +116,18 @@ function Overview() {
           </div>
           <div className="card p-6">
             <h3 className="text-slate-900 dark:text-white font-semibold mb-4">Coût de paie — 6 derniers mois</h3>
-            <div className="flex items-end gap-3 h-48">
-              {[42, 55, 48, 70, 62, 85].map((h, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                  <div className="w-full rounded-t bg-gradient-to-t from-coral-500 to-coral-400" style={{ height: `${h}%` }} />
-                  <div className="text-xs text-slate-400 dark:text-white/40">M{i + 1}</div>
-                </div>
-              ))}
-            </div>
+            {history.every((h) => h.value === 0) ? (
+              <p className="text-slate-400 dark:text-white/40 text-sm">Aucune paie exécutée sur cette période pour l'instant.</p>
+            ) : (
+              <div className="flex items-end gap-3 h-48">
+                {history.map((h, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-2" title={`${fmt(h.value)} ${tenant.currency}`}>
+                    <div className="w-full rounded-t bg-gradient-to-t from-coral-500 to-coral-400" style={{ height: `${Math.max(2, (h.value / maxHistory) * 100)}%` }} />
+                    <div className="text-xs text-slate-400 dark:text-white/40 capitalize">{h.label}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </>
       )}
