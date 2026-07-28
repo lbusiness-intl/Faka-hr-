@@ -275,6 +275,15 @@ function Attendance() {
 }
 
 // ============================================================
+function computeLeaveDays(start: string, end: string): number {
+  if (!start || !end) return 1;
+  const d1 = new Date(start);
+  const d2 = new Date(end);
+  const diff = Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  return diff > 0 ? diff : 1;
+}
+
+// ============================================================
 // Generic staff request page (leaves / advances / claims)
 // with category-aware form and status tracking.
 // ============================================================
@@ -288,15 +297,22 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
   const { user } = useAuth();
   const { me } = useMe(tenant?.id, user?.email);
   const [items, setItems] = useState<any[]>([]);
+  const [balance, setBalance] = useState<{ entitled: number; used: number; carried_over: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState<any>({});
 
+  const isLeave = table === 'leave_requests';
+  const thisYear = new Date().getFullYear();
+
   async function load() {
     if (!tenant || !me) return;
     setLoading(true);
-    const { data } = await supabase.from(table).select('*').eq('tenant_id', tenant.id).eq('employee_id', me.id).order('created_at', { ascending: false });
-    setItems(data ?? []);
+    const calls: Promise<any>[] = [supabase.from(table).select('*').eq('tenant_id', tenant.id).eq('employee_id', me.id).order('created_at', { ascending: false })];
+    if (isLeave) calls.push(supabase.from('leave_balances').select('entitled, used, carried_over').eq('tenant_id', tenant.id).eq('employee_id', me.id).eq('type', 'annual').eq('year', thisYear).maybeSingle());
+    const [r, b] = await Promise.all(calls);
+    setItems(r.data ?? []);
+    if (isLeave) setBalance(b?.data ?? null);
     setLoading(false);
   }
   useEffect(() => { load(); }, [tenant, me]);
@@ -314,7 +330,15 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
     if (!tenant || !me) return;
     const payload: any = { ...form, tenant_id: tenant.id, employee_id: me.id, currency: tenant.currency, status: 'pending' };
     if (table === 'leave_requests') {
-      payload.days = 1;
+      const days = computeLeaveDays(form.start_date, form.end_date);
+      payload.days = days;
+      if (balance) {
+        const remaining = Number(balance.entitled) + Number(balance.carried_over) - Number(balance.used);
+        if (days > remaining) {
+          const proceed = window.confirm(`Vous demandez ${days} jour(s) mais il ne vous reste que ${remaining} jour(s) de solde. Soumettre quand même ? La RH pourra examiner votre demande.`);
+          if (!proceed) return;
+        }
+      }
     }
     await supabase.from(table).insert(payload);
     // Notify HR
@@ -332,6 +356,19 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
   return (
     <div>
       <PageHeader title={title} icon={icon} />
+      {isLeave && balance && (
+        <div className="card p-4 mb-4 flex items-center gap-6 max-w-md">
+          <div>
+            <div className="text-xs text-slate-400 dark:text-white/40">Solde restant {thisYear}</div>
+            <div className="text-2xl font-semibold text-slate-900 dark:text-white">
+              {Number(balance.entitled) + Number(balance.carried_over) - Number(balance.used)} <span className="text-sm font-normal text-slate-400">jours</span>
+            </div>
+          </div>
+          <div className="text-xs text-slate-500 dark:text-white/50">
+            {Number(balance.entitled)} acquis + {Number(balance.carried_over)} reportés − {Number(balance.used)} pris
+          </div>
+        </div>
+      )}
       <div className="flex justify-end mb-4">
         <button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> Nouvelle demande</button>
       </div>
@@ -377,8 +414,13 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="label">Début</label><input type="date" className="input" onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></div>
-                <div><label className="label">Fin</label><input type="date" className="input" onChange={(e) => setForm({ ...form, end_date: e.target.value, days: 1 })} /></div>
+                <div><label className="label">Fin</label><input type="date" className="input" onChange={(e) => setForm({ ...form, end_date: e.target.value })} /></div>
               </div>
+              {balance && (
+                <p className="text-xs text-slate-500 dark:text-white/50">
+                  Solde restant : <strong>{Number(balance.entitled) + Number(balance.carried_over) - Number(balance.used)} jour(s)</strong>
+                </p>
+              )}
               <div><label className="label">Notes</label><textarea className="input" rows={2} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
             </>
           )}
