@@ -487,6 +487,7 @@ function StaffAssets() {
 function EventsView() {
   const { t } = useI18n();
   const tenant = useTenant();
+  const { user } = useAuth();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -499,9 +500,9 @@ function EventsView() {
   }, [tenant]);
 
   async function rsvp(id: string, status: string) {
-    if (!tenant) return;
+    if (!tenant || !user) return;
     const { data } = await supabase.from('events').select('rsvp').eq('id', id).single();
-    const rsvp = { ...(data?.rsvp ?? {}), [tenant.id]: status };
+    const rsvp = { ...(data?.rsvp ?? {}), [user.id]: status };
     await supabase.from('events').update({ rsvp }).eq('id', id);
     setItems((prev) => prev.map((e) => e.id === id ? { ...e, rsvp } : e));
   }
