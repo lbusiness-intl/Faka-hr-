@@ -106,6 +106,7 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
     { sub: 'settings', icon: SettingsIcon, label: t('settings.company') },
     { sub: 'settings/branches', icon: GitBranch, label: t('settings.branches') },
     { sub: 'settings/departments', icon: Layers, label: t('settings.departments') },
+    { sub: 'settings/leave-balances', icon: CalendarClock, label: 'Soldes de congés' },
     { sub: 'settings/roles', icon: Shield, label: t('settings.roles') },
   ];
 
