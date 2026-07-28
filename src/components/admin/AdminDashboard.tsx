@@ -26,6 +26,7 @@ type Employee = {
   employee_id: string | null; employment_type: string; manager_id: string | null;
   start_date: string | null; branch_id: string | null; department_id: string | null;
   avatar_url: string | null; user_id: string | null;
+  allowances: number; recurring_deductions: number;
 };
 
 type Invitation = {
@@ -529,6 +530,14 @@ function OffboardModal({ employee, onClose, onConfirm }: {
 // ============================================================
 // Generic requests list (leaves, advances, claims)
 // ============================================================
+function computeLeaveDays(start: string, end: string): number {
+  if (!start || !end) return 1;
+  const d1 = new Date(start);
+  const d2 = new Date(end);
+  const diff = Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  return diff > 0 ? diff : 1;
+}
+
 function RequestList({ table, title, icon, amountKey }: {
   table: 'leave_requests' | 'advances' | 'claims';
   title: string;
@@ -676,9 +685,20 @@ function RequestList({ table, title, icon, amountKey }: {
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="label">Début</label><input type="date" className="input" onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></div>
-                <div><label className="label">Fin</label><input type="date" className="input" onChange={(e) => setForm({ ...form, end_date: e.target.value, days: 1 })} /></div>
+                <div><label className="label">Début</label><input type="date" className="input" onChange={(e) => {
+                  const start = e.target.value;
+                  const days = form.end_date ? computeLeaveDays(start, form.end_date) : form.days;
+                  setForm({ ...form, start_date: start, days });
+                }} /></div>
+                <div><label className="label">Fin</label><input type="date" className="input" onChange={(e) => {
+                  const end = e.target.value;
+                  const days = form.start_date ? computeLeaveDays(form.start_date, end) : 1;
+                  setForm({ ...form, end_date: end, days });
+                }} /></div>
               </div>
+              {form.start_date && form.end_date && (
+                <p className="text-xs text-slate-500 dark:text-white/50">Durée calculée : <strong>{form.days ?? computeLeaveDays(form.start_date, form.end_date)} jour(s)</strong></p>
+              )}
             </>
           )}
           {amountKey && (
@@ -757,7 +777,11 @@ function Payroll() {
   async function saveAdjustment() {
     if (!tenant || !editingEmp || !adjustForm.reason.trim()) return;
     const field = adjustForm.field as 'salary' | 'bonus' | 'allowances' | 'deductions' | 'overtime' | 'taxes';
-    // Audit trail
+    // Recurring fields (salary, allowances, deductions) apply immediately and every
+    // future payroll run picks them up from the employee record — so they're marked
+    // "consumed" right away. Bonus / overtime / one-off tax corrections stay pending
+    // (consumed = false) until the next payroll run actually uses them.
+    const isRecurring = field === 'salary' || field === 'allowances' || field === 'deductions';
     await supabase.from('payroll_adjustments').insert({
       tenant_id: tenant.id,
       employee_id: editingEmp.id,
@@ -766,10 +790,14 @@ function Payroll() {
       new_value: adjustForm.new_value,
       reason: adjustForm.reason.trim(),
       changed_by: user?.id,
+      consumed: isRecurring,
     });
-    // Update employee salary if salary field changed
     if (field === 'salary') {
       await supabase.from('employees').update({ salary: adjustForm.new_value }).eq('id', editingEmp.id);
+    } else if (field === 'allowances') {
+      await supabase.from('employees').update({ allowances: adjustForm.new_value }).eq('id', editingEmp.id);
+    } else if (field === 'deductions') {
+      await supabase.from('employees').update({ recurring_deductions: adjustForm.new_value }).eq('id', editingEmp.id);
     }
     await supabase.from('audit_logs').insert({
       tenant_id: tenant.id, actor: user?.id,
@@ -782,23 +810,70 @@ function Payroll() {
 
   async function runPayroll() {
     if (!tenant || employees.length === 0) return;
-    setRunning(true);
     const period = new Date().toISOString().slice(0, 7);
+    const alreadyRun = runs.some((r) => r.period === period);
+    if (alreadyRun) {
+      alert(`La paie pour ${period} a déjà été exécutée. Pour corriger un bulletin, modifiez-le individuellement plutôt que de relancer un run complet (cela créerait des doublons).`);
+      return;
+    }
+    setRunning(true);
     const selectedEmps = selected.size > 0 ? employees.filter((e) => selected.has(e.id)) : employees;
-    const gross = selectedEmps.reduce((s, e) => s + Number(e.salary), 0);
-    const deductions = gross * 0.15;
-    const net = gross - deductions;
+    const empIds = selectedEmps.map((e) => e.id);
+
+    // Pull any pending one-off adjustments (bonus / overtime / manual tax
+    // corrections) HR recorded since the last run, so they actually land on
+    // this period's payslip instead of being silently ignored.
+    const { data: pendingAdj } = await supabase
+      .from('payroll_adjustments')
+      .select('id, employee_id, field, new_value')
+      .eq('tenant_id', tenant.id)
+      .eq('consumed', false)
+      .in('employee_id', empIds)
+      .in('field', ['bonus', 'overtime', 'taxes']);
+
+    type AdjBucket = { bonus: number; overtime: number; taxAdj: number; ids: string[] };
+    const adjByEmp = new Map<string, AdjBucket>();
+    (pendingAdj ?? []).forEach((a: any) => {
+      const bucket = adjByEmp.get(a.employee_id) ?? { bonus: 0, overtime: 0, taxAdj: 0, ids: [] };
+      if (a.field === 'bonus') bucket.bonus += Number(a.new_value);
+      if (a.field === 'overtime') bucket.overtime += Number(a.new_value);
+      if (a.field === 'taxes') bucket.taxAdj += Number(a.new_value);
+      bucket.ids.push(a.id);
+      adjByEmp.set(a.employee_id, bucket);
+    });
+
+    const computed = selectedEmps.map((e) => {
+      const base = Number(e.salary);
+      const allowances = Number(e.allowances ?? 0);
+      const recurringDeductions = Number(e.recurring_deductions ?? 0);
+      const adj = adjByEmp.get(e.id) ?? { bonus: 0, overtime: 0, taxAdj: 0, ids: [] };
+      const grossPay = base + allowances + adj.bonus + adj.overtime;
+      const taxes = grossPay * 0.15 + adj.taxAdj;
+      const deductions = recurringDeductions + taxes;
+      const net = grossPay - deductions;
+      return { employee: e, gross: grossPay, deductions, net, bonus: adj.bonus, allowances, overtime_pay: adj.overtime, taxes, consumedIds: adj.ids };
+    });
+
+    const gross = computed.reduce((s, c) => s + c.gross, 0);
+    const net = computed.reduce((s, c) => s + c.net, 0);
     const { data: run } = await supabase.from('payroll_runs').insert({
       tenant_id: tenant.id, period, status: 'completed', total_gross: gross, total_net: net, currency: tenant.currency,
     }).select().single();
     if (run) {
-      const payslips = selectedEmps.map((e) => ({
-        tenant_id: tenant.id, run_id: run.id, employee_id: e.id,
-        gross: Number(e.salary), deductions: Number(e.salary) * 0.15, net: Number(e.salary) * 0.85,
-        bonus: 0, allowances: 0, overtime_pay: 0, taxes: Number(e.salary) * 0.15,
+      const payslips = computed.map((c) => ({
+        tenant_id: tenant.id, run_id: run.id, employee_id: c.employee.id,
+        gross: c.gross, deductions: c.deductions, net: c.net,
+        bonus: c.bonus, allowances: c.allowances, overtime_pay: c.overtime_pay, taxes: c.taxes,
         currency: tenant.currency, status: 'pending',
       }));
       await supabase.from('payslips').insert(payslips);
+
+      // Mark the one-off adjustments as used so they aren't applied again next month
+      const consumedIds = computed.flatMap((c) => c.consumedIds);
+      if (consumedIds.length > 0) {
+        await supabase.from('payroll_adjustments').update({ consumed: true }).in('id', consumedIds);
+      }
+
       // Notify each employee
       await Promise.all(selectedEmps.map((e) => {
         if (e.user_id) {
@@ -1024,7 +1099,9 @@ function Recruitment() {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
+  const [candidateModal, setCandidateModal] = useState(false);
   const [form, setForm] = useState({ title: '', department: '', location: '', description: '' });
+  const [candidateForm, setCandidateForm] = useState({ posting_id: '', full_name: '', email: '', phone: '', notes: '' });
 
   async function load() {
     if (!tenant) return;
@@ -1047,6 +1124,22 @@ function Recruitment() {
     load();
   }
 
+  async function addCandidate() {
+    if (!tenant || !candidateForm.full_name.trim()) return;
+    await supabase.from('recruitment_candidates').insert({
+      tenant_id: tenant.id,
+      posting_id: candidateForm.posting_id || null,
+      full_name: candidateForm.full_name.trim(),
+      email: candidateForm.email.trim() || null,
+      phone: candidateForm.phone.trim() || null,
+      notes: candidateForm.notes.trim() || null,
+      stage: 'applied',
+    });
+    setCandidateModal(false);
+    setCandidateForm({ posting_id: '', full_name: '', email: '', phone: '', notes: '' });
+    load();
+  }
+
   async function moveCandidate(id: string, stage: string) {
     await supabase.from('recruitment_candidates').update({ stage }).eq('id', id);
     load();
@@ -1058,7 +1151,12 @@ function Recruitment() {
   return (
     <div>
       <PageHeader title={t('dash.recruitment')} icon={<UserPlus size={20} />}
-        action={<button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> Offre</button>} />
+        action={
+          <div className="flex gap-2">
+            <button onClick={() => setCandidateModal(true)} className="btn-ghost text-sm"><Plus size={16} /> Candidat</button>
+            <button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> Offre</button>
+          </div>
+        } />
       {loading ? <Spinner /> : (
         <>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
@@ -1085,6 +1183,11 @@ function Recruitment() {
                     <div key={c.id} className="rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 p-2.5">
                       <div className="text-slate-900 dark:text-white text-sm font-medium">{c.full_name}</div>
                       <div className="text-slate-400 dark:text-white/40 text-xs truncate">{c.email}</div>
+                      {c.posting_id && (
+                        <div className="text-slate-400 dark:text-white/40 text-[10px] truncate mt-0.5">
+                          {postings.find((p) => p.id === c.posting_id)?.title ?? ''}
+                        </div>
+                      )}
                       <select
                         value={c.stage}
                         onChange={(e) => moveCandidate(c.id, e.target.value)}
@@ -1115,6 +1218,28 @@ function Recruitment() {
           <button onClick={addPosting} className="btn-primary text-sm">{t('common.save')}</button>
         </div>
       </Modal>
+
+      <Modal open={candidateModal} onClose={() => setCandidateModal(false)} title="Nouveau candidat">
+        <div className="space-y-3">
+          <div>
+            <label className="label">Offre associée <span className="text-slate-400">(optionnel)</span></label>
+            <select className="input" value={candidateForm.posting_id} onChange={(e) => setCandidateForm({ ...candidateForm, posting_id: e.target.value })}>
+              <option value="">— Aucune —</option>
+              {postings.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+            </select>
+          </div>
+          <div><label className="label">Nom complet *</label><input className="input" value={candidateForm.full_name} onChange={(e) => setCandidateForm({ ...candidateForm, full_name: e.target.value })} /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="label">Email</label><input type="email" className="input" value={candidateForm.email} onChange={(e) => setCandidateForm({ ...candidateForm, email: e.target.value })} /></div>
+            <div><label className="label">Téléphone</label><input className="input" value={candidateForm.phone} onChange={(e) => setCandidateForm({ ...candidateForm, phone: e.target.value })} /></div>
+          </div>
+          <div><label className="label">Notes</label><textarea className="input" rows={2} value={candidateForm.notes} onChange={(e) => setCandidateForm({ ...candidateForm, notes: e.target.value })} /></div>
+        </div>
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={() => setCandidateModal(false)} className="btn-ghost text-sm">{t('common.cancel')}</button>
+          <button onClick={addCandidate} disabled={!candidateForm.full_name.trim()} className="btn-primary text-sm">{t('common.save')}</button>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -1123,39 +1248,59 @@ function Recruitment() {
 // Training, Goals, Reviews, Assets, Compliance, Communication, Events
 // ============================================================
 function SimpleList({ table, title, icon, fields, extraInsert }: {
-  table: string; title: string; icon: ReactNode; fields: { key: string; label: string; type?: string }[];
+  table: string; title: string; icon: ReactNode; fields: { key: string; label: string; type?: string; required?: boolean }[];
   extraInsert?: (form: any) => Record<string, any>;
 }) {
   const { t } = useI18n();
   const tenant = useTenant();
   const [items, setItems] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<Record<string, Employee>>({});
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState<any>({});
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const needsEmployees = fields.some((f) => f.type === 'employee_select');
 
   async function load() {
     if (!tenant) return;
     setLoading(true);
-    const { data } = await supabase.from(table).select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false });
-    setItems(data ?? []);
+    const calls: Promise<any>[] = [supabase.from(table).select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false })];
+    if (needsEmployees) calls.push(supabase.from('employees').select('id, first_name, last_name').eq('tenant_id', tenant.id));
+    const [r, e] = await Promise.all(calls);
+    setItems(r.data ?? []);
+    if (e) {
+      const map: Record<string, Employee> = {};
+      (e.data ?? []).forEach((x: any) => { map[x.id] = x as Employee; });
+      setEmployees(map);
+    }
     setLoading(false);
   }
   useEffect(() => { load(); }, [tenant]);
 
   async function add() {
     if (!tenant) return;
+    setSaveError(null);
+    const missing = fields.find((f) => f.required && !form[f.key]);
+    if (missing) { setSaveError(`Le champ "${missing.label}" est requis.`); return; }
     const payload = { ...form, tenant_id: tenant.id, ...(extraInsert ? extraInsert(form) : {}) };
-    await supabase.from(table).insert(payload);
+    const { error } = await supabase.from(table).insert(payload);
+    if (error) { setSaveError(`L'enregistrement a échoué : ${error.message}`); return; }
     setModal(false);
     setForm({});
     load();
   }
 
+  const empName = (id: string) => {
+    const e = employees[id];
+    return e ? `${e.first_name} ${e.last_name}` : '—';
+  };
+
   if (!tenant) return null;
   return (
     <div>
       <PageHeader title={title} icon={icon}
-        action={<button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> {t('common.add')}</button>} />
+        action={<button onClick={() => { setSaveError(null); setModal(true); }} className="btn-primary text-sm"><Plus size={16} /> {t('common.add')}</button>} />
       {loading ? <Spinner /> : items.length === 0 ? (
         <EmptyState icon={icon} title="Rien pour le moment" />
       ) : (
@@ -1164,8 +1309,8 @@ function SimpleList({ table, title, icon, fields, extraInsert }: {
             <div key={it.id} className="card p-5">
               {fields.map((f) => (
                 <div key={f.key} className="mb-1">
-                  {f.key === fields[0].key && <div className="text-slate-900 dark:text-white font-semibold">{it[f.key]}</div>}
-                  {f.key !== fields[0].key && <div className="text-slate-500 dark:text-white/50 text-xs">{f.label}: {String(it[f.key] ?? '—')}</div>}
+                  {f.key === fields[0].key && <div className="text-slate-900 dark:text-white font-semibold">{f.type === 'employee_select' ? empName(it[f.key]) : it[f.key]}</div>}
+                  {f.key !== fields[0].key && <div className="text-slate-500 dark:text-white/50 text-xs">{f.label}: {f.type === 'employee_select' ? empName(it[f.key]) : String(it[f.key] ?? '—')}</div>}
                 </div>
               ))}
             </div>
@@ -1177,14 +1322,22 @@ function SimpleList({ table, title, icon, fields, extraInsert }: {
           {fields.map((f) => (
             <div key={f.key}>
               <label className="label">{f.label}</label>
-              <input
-                type={f.type ?? 'text'}
-                className="input"
-                value={form[f.key] ?? ''}
-                onChange={(e) => setForm({ ...form, [f.key]: f.type === 'number' ? Number(e.target.value) : e.target.value })}
-              />
+              {f.type === 'employee_select' ? (
+                <select className="input" value={form[f.key] ?? ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
+                  <option value="">—</option>
+                  {Object.entries(employees).map(([id, e]) => <option key={id} value={id}>{e.first_name} {e.last_name}</option>)}
+                </select>
+              ) : (
+                <input
+                  type={f.type ?? 'text'}
+                  className="input"
+                  value={form[f.key] ?? ''}
+                  onChange={(e) => setForm({ ...form, [f.key]: f.type === 'number' ? Number(e.target.value) : e.target.value })}
+                />
+              )}
             </div>
           ))}
+          {saveError && <p className="text-sm text-rose-600 dark:text-rose-400">{saveError}</p>}
         </div>
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={() => setModal(false)} className="btn-ghost text-sm">{t('common.cancel')}</button>
@@ -1198,6 +1351,7 @@ function SimpleList({ table, title, icon, fields, extraInsert }: {
 function Events() {
   const { t } = useI18n();
   const tenant = useTenant();
+  const { user } = useAuth();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
@@ -1223,9 +1377,9 @@ function Events() {
   }
 
   async function rsvp(id: string, status: string) {
-    if (!tenant) return;
+    if (!tenant || !user) return;
     const { data } = await supabase.from('events').select('rsvp').eq('id', id).single();
-    const rsvp = { ...(data?.rsvp ?? {}), [tenant.id]: status };
+    const rsvp = { ...(data?.rsvp ?? {}), [user.id]: status };
     await supabase.from('events').update({ rsvp }).eq('id', id);
     load();
   }
@@ -1274,62 +1428,105 @@ function Events() {
   );
 }
 
-function Communication() {
+function Compliance() {
   const { t } = useI18n();
   const tenant = useTenant();
-  const [announcements, setAnnouncements] = useState<any[]>([]);
-  const [text, setText] = useState('');
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [letterEmpId, setLetterEmpId] = useState('');
+  const [letterType, setLetterType] = useState<'attestation' | 'certificat'>('attestation');
 
   async function load() {
     if (!tenant) return;
-    const { data } = await supabase.from('audit_logs').select('*').eq('tenant_id', tenant.id).eq('action', 'announcement').order('created_at', { ascending: false });
-    setAnnouncements((data ?? []).map((a) => ({ id: a.id, text: a.details?.text, created_at: a.created_at })));
+    setLoading(true);
+    const { data } = await supabase.from('employees').select('*').eq('tenant_id', tenant.id).eq('status', 'active');
+    setEmployees((data as Employee[]) ?? []);
+    setLoading(false);
   }
   useEffect(() => { load(); }, [tenant]);
 
-  async function post() {
-    if (!tenant || !text.trim()) return;
-    await supabase.from('audit_logs').insert({ tenant_id: tenant.id, action: 'announcement', details: { text } });
-    setText('');
-    load();
+  // Real, data-driven compliance checklist — flags employees with missing
+  // required information, computed live from the database (not a hardcoded claim).
+  const issues = employees.flatMap((e) => {
+    const missing: string[] = [];
+    if (!e.email) missing.push('email');
+    if (!e.phone) missing.push('téléphone');
+    if (!e.position) missing.push('poste');
+    if (!e.hire_date) missing.push("date d'embauche");
+    if (!e.contract_type) missing.push('type de contrat');
+    return missing.length > 0 ? [{ employee: e, missing }] : [];
+  });
+
+  function generateLetter() {
+    if (!tenant || !letterEmpId) return;
+    const emp = employees.find((e) => e.id === letterEmpId);
+    if (!emp) return;
+    const today = new Date().toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
+    const hireDate = emp.hire_date ? new Date(emp.hire_date).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' }) : '—';
+    const title = letterType === 'attestation' ? "ATTESTATION DE TRAVAIL" : "CERTIFICAT DE TRAVAIL";
+    const body = letterType === 'attestation'
+      ? `Nous, soussignés <strong>${tenant.name}</strong>, certifions que <strong>${emp.first_name} ${emp.last_name}</strong> est employé(e) au sein de notre entreprise depuis le <strong>${hireDate}</strong>, en qualité de <strong>${emp.position || '—'}</strong>, sous contrat de type <strong>${emp.contract_type || '—'}</strong>.<br/><br/>Cette attestation est délivrée à l'intéressé(e) pour servir et valoir ce que de droit.`
+      : `Nous, soussignés <strong>${tenant.name}</strong>, certifions que <strong>${emp.first_name} ${emp.last_name}</strong> a été employé(e) au sein de notre entreprise depuis le <strong>${hireDate}</strong>, en qualité de <strong>${emp.position || '—'}</strong>.<br/><br/>Ce certificat est délivré à l'intéressé(e) pour servir et valoir ce que de droit.`;
+
+    const win = window.open('', '_blank', 'width=800,height=1000');
+    if (!win) return;
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"/><title>${title}</title>
+      <style>
+        body { font-family: Georgia, 'Times New Roman', serif; padding: 60px; color: #1a1a1a; line-height: 1.7; }
+        h1 { font-size: 20px; letter-spacing: 2px; text-align: center; margin-bottom: 50px; }
+        .header { text-align: center; margin-bottom: 40px; font-weight: bold; font-size: 15px; }
+        .date { text-align: right; margin-top: 60px; }
+        .sign { margin-top: 80px; text-align: right; }
+        @media print { body { padding: 40px; } }
+      </style></head><body>
+      <div class="header">${tenant.name}</div>
+      <h1>${title}</h1>
+      <p>${body}</p>
+      <div class="date">Fait le ${today}</div>
+      <div class="sign">La Direction<br/><br/><br/>______________________</div>
+    </body></html>`);
+    win.document.close();
+    win.focus();
+    win.print();
   }
 
   if (!tenant) return null;
-  return (
-    <div>
-      <PageHeader title={t('dash.communication')} icon={<MessageSquare size={20} />} />
-      <div className="card p-5 mb-4">
-        <textarea className="input" rows={3} placeholder="Annonce à toute l'entreprise..." value={text} onChange={(e) => setText(e.target.value)} />
-        <div className="flex justify-end mt-3"><button onClick={post} className="btn-primary text-sm">Publier</button></div>
-      </div>
-      <div className="space-y-3">
-        {announcements.map((a) => (
-          <div key={a.id} className="card p-4">
-            <div className="text-slate-700 dark:text-white/70 text-sm">{a.text}</div>
-            <div className="text-slate-400 dark:text-white/40 text-xs mt-2">{new Date(a.created_at).toLocaleString()}</div>
-          </div>
-        ))}
-        {announcements.length === 0 && <div className="text-slate-400 dark:text-white/40 text-sm">Aucune annonce.</div>}
-      </div>
-    </div>
-  );
-}
-
-function Compliance() {
-  const { t } = useI18n();
   return (
     <div>
       <PageHeader title={t('dash.compliance')} icon={<ShieldCheck size={20} />} />
       <div className="grid md:grid-cols-2 gap-4">
         <div className="card p-5">
           <div className="flex items-center gap-2 text-slate-900 dark:text-white font-semibold mb-2"><FileText size={18} className="text-coral-500" /> Lettres RH</div>
-          <p className="text-slate-600 dark:text-white/60 text-sm mb-4">Générez des lettres (attestation d'emploi, certificat de travail, etc.) en FR/EN.</p>
-          <button className="btn-ghost text-sm" onClick={() => alert('Modèle de lettre généré (démo).')}>Générer une lettre</button>
+          <p className="text-slate-600 dark:text-white/60 text-sm mb-4">Générez une attestation ou un certificat de travail pour un employé — prêt à imprimer ou enregistrer en PDF.</p>
+          <div className="space-y-2">
+            <select className="input" value={letterType} onChange={(e) => setLetterType(e.target.value as any)}>
+              <option value="attestation">Attestation de travail</option>
+              <option value="certificat">Certificat de travail</option>
+            </select>
+            <select className="input" value={letterEmpId} onChange={(e) => setLetterEmpId(e.target.value)}>
+              <option value="">— Choisir un employé —</option>
+              {employees.map((e) => <option key={e.id} value={e.id}>{e.first_name} {e.last_name}</option>)}
+            </select>
+            <button className="btn-primary text-sm w-full justify-center" disabled={!letterEmpId} onClick={generateLetter}>
+              Générer la lettre
+            </button>
+          </div>
         </div>
         <div className="card p-5">
-          <div className="flex items-center gap-2 text-slate-900 dark:text-white font-semibold mb-2"><ShieldCheck size={18} className="text-coral-500" /> AI Compliance Monitor</div>
-          <p className="text-slate-600 dark:text-white/60 text-sm mb-4">Surveille automatiquement les changements réglementaires (RGPD, code du travail).</p>
-          <Badge color="emerald">Actif</Badge>
+          <div className="flex items-center gap-2 text-slate-900 dark:text-white font-semibold mb-2"><ShieldCheck size={18} className="text-coral-500" /> Contrôle de conformité des dossiers</div>
+          <p className="text-slate-600 dark:text-white/60 text-sm mb-4">Vérification automatique des informations obligatoires manquantes dans vos dossiers employés.</p>
+          {loading ? <Spinner /> : issues.length === 0 ? (
+            <Badge color="emerald">Tous les dossiers sont complets</Badge>
+          ) : (
+            <div className="space-y-2 max-h-56 overflow-y-auto">
+              {issues.map(({ employee, missing }) => (
+                <div key={employee.id} className="flex items-start justify-between text-sm p-2 rounded-lg bg-amber-50 dark:bg-amber-500/10">
+                  <span className="text-slate-800 dark:text-white/80">{employee.first_name} {employee.last_name}</span>
+                  <span className="text-amber-700 dark:text-amber-300 text-xs text-right">{missing.join(', ')}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1661,10 +1858,10 @@ export default function AdminDashboard() {
     case 'claims': content = <RequestList table="claims" title="Notes de frais" icon={<Receipt size={20} />} amountKey="amount" />; break;
     case 'attendance': content = <Attendance />; break;
     case 'recruitment': content = <Recruitment />; break;
-    case 'training': content = <SimpleList table="trainings" title="Formation / LMS" icon={<GraduationCap size={20} />} fields={[{ key: 'title', label: 'Titre' }, { key: 'progress', label: 'Progression %', type: 'number' }]} extraInsert={() => ({ status: 'assigned' })} />; break;
-    case 'goals': content = <SimpleList table="goals" title="Objectifs OKR" icon={<Target size={20} />} fields={[{ key: 'title', label: 'Titre' }, { key: 'progress', label: 'Progression %', type: 'number' }]} extraInsert={() => ({ status: 'active' })} />; break;
-    case 'reviews': content = <SimpleList table="reviews" title="Évaluations 360°" icon={<Star size={20} />} fields={[{ key: 'period', label: 'Période' }, { key: 'rating', label: 'Note /5', type: 'number' }]} extraInsert={() => ({ status: 'draft' })} />; break;
-    case 'assets': content = <SimpleList table="assets" title="Actifs" icon={<Package size={20} />} fields={[{ key: 'name', label: 'Nom' }, { key: 'category', label: 'Catégorie' }, { key: 'serial', label: 'Série' }]} extraInsert={() => ({ status: 'available' })} />; break;
+    case 'training': content = <SimpleList table="trainings" title="Formation / LMS" icon={<GraduationCap size={20} />} fields={[{ key: 'title', label: 'Titre', required: true }, { key: 'employee_id', label: 'Employé', type: 'employee_select' }, { key: 'progress', label: 'Progression %', type: 'number' }]} extraInsert={() => ({ status: 'assigned' })} />; break;
+    case 'goals': content = <SimpleList table="goals" title="Objectifs OKR" icon={<Target size={20} />} fields={[{ key: 'title', label: 'Titre', required: true }, { key: 'employee_id', label: 'Employé', type: 'employee_select', required: true }, { key: 'progress', label: 'Progression %', type: 'number' }]} extraInsert={() => ({ status: 'active' })} />; break;
+    case 'reviews': content = <SimpleList table="reviews" title="Évaluations 360°" icon={<Star size={20} />} fields={[{ key: 'employee_id', label: 'Employé', type: 'employee_select', required: true }, { key: 'period', label: 'Période' }, { key: 'rating', label: 'Note /5', type: 'number' }]} extraInsert={() => ({ status: 'draft' })} />; break;
+    case 'assets': content = <SimpleList table="assets" title="Actifs" icon={<Package size={20} />} fields={[{ key: 'name', label: 'Nom', required: true }, { key: 'category', label: 'Catégorie' }, { key: 'serial', label: 'Série' }, { key: 'assigned_to', label: 'Assigné à', type: 'employee_select' }]} extraInsert={() => ({ status: 'available' })} />; break;
     case 'compliance': content = <Compliance />; break;
     case 'communication': content = <CommunicationsPanel />; break;
     case 'events': content = <Events />; break;
