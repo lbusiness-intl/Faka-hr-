@@ -854,27 +854,42 @@ function Payroll() {
       .in('employee_id', empIds)
       .in('field', ['bonus', 'overtime', 'taxes']);
 
-    type AdjBucket = { bonus: number; overtime: number; taxAdj: number; ids: string[] };
+    // Pull approved overtime hours that haven't been paid out yet, so they
+    // actually land on the payslip instead of vanishing after approval.
+    const { data: approvedOT } = await supabase
+      .from('overtime')
+      .select('id, employee_id, amount')
+      .eq('tenant_id', tenant.id)
+      .eq('status', 'approved')
+      .in('employee_id', empIds);
+
+    type AdjBucket = { bonus: number; overtime: number; taxAdj: number; ids: string[]; otIds: string[] };
     const adjByEmp = new Map<string, AdjBucket>();
     (pendingAdj ?? []).forEach((a: any) => {
-      const bucket = adjByEmp.get(a.employee_id) ?? { bonus: 0, overtime: 0, taxAdj: 0, ids: [] };
+      const bucket = adjByEmp.get(a.employee_id) ?? { bonus: 0, overtime: 0, taxAdj: 0, ids: [], otIds: [] };
       if (a.field === 'bonus') bucket.bonus += Number(a.new_value);
       if (a.field === 'overtime') bucket.overtime += Number(a.new_value);
       if (a.field === 'taxes') bucket.taxAdj += Number(a.new_value);
       bucket.ids.push(a.id);
       adjByEmp.set(a.employee_id, bucket);
     });
+    (approvedOT ?? []).forEach((o: any) => {
+      const bucket = adjByEmp.get(o.employee_id) ?? { bonus: 0, overtime: 0, taxAdj: 0, ids: [], otIds: [] };
+      bucket.overtime += Number(o.amount);
+      bucket.otIds.push(o.id);
+      adjByEmp.set(o.employee_id, bucket);
+    });
 
     const computed = selectedEmps.map((e) => {
       const base = Number(e.salary);
       const allowances = Number(e.allowances ?? 0);
       const recurringDeductions = Number(e.recurring_deductions ?? 0);
-      const adj = adjByEmp.get(e.id) ?? { bonus: 0, overtime: 0, taxAdj: 0, ids: [] };
+      const adj = adjByEmp.get(e.id) ?? { bonus: 0, overtime: 0, taxAdj: 0, ids: [], otIds: [] };
       const grossPay = base + allowances + adj.bonus + adj.overtime;
       const taxes = grossPay * 0.15 + adj.taxAdj;
       const deductions = recurringDeductions + taxes;
       const net = grossPay - deductions;
-      return { employee: e, gross: grossPay, deductions, net, bonus: adj.bonus, allowances, overtime_pay: adj.overtime, taxes, consumedIds: adj.ids };
+      return { employee: e, gross: grossPay, deductions, net, bonus: adj.bonus, allowances, overtime_pay: adj.overtime, taxes, consumedIds: adj.ids, otIds: adj.otIds };
     });
 
     const gross = computed.reduce((s, c) => s + c.gross, 0);
@@ -895,6 +910,11 @@ function Payroll() {
       const consumedIds = computed.flatMap((c) => c.consumedIds);
       if (consumedIds.length > 0) {
         await supabase.from('payroll_adjustments').update({ consumed: true }).in('id', consumedIds);
+      }
+      // Mark the approved overtime entries as paid so they don't get paid twice
+      const paidOtIds = computed.flatMap((c) => c.otIds);
+      if (paidOtIds.length > 0) {
+        await supabase.from('overtime').update({ status: 'paid' }).in('id', paidOtIds);
       }
 
       // Notify each employee
@@ -1804,7 +1824,7 @@ function Overtime() {
                   <td className="p-4 text-slate-700 dark:text-white/70">{o.hours}h</td>
                   <td className="p-4 text-slate-700 dark:text-white/70">x{o.rate}</td>
                   <td className="p-4 text-slate-700 dark:text-white/70">{fmt(o.amount)} {o.currency}</td>
-                  <td className="p-4"><Badge color={o.status === 'approved' ? 'emerald' : o.status === 'rejected' ? 'rose' : 'amber'}>{o.status}</Badge></td>
+                  <td className="p-4"><Badge color={o.status === 'paid' ? 'indigo' : o.status === 'approved' ? 'emerald' : o.status === 'rejected' ? 'rose' : 'amber'}>{o.status === 'paid' ? 'payé' : o.status}</Badge></td>
                   <td className="p-4 flex gap-2">
                     {o.status === 'pending' && <>
                       <button onClick={() => setStatus(o.id, 'approved')} className="text-emerald-600 hover:text-emerald-500 text-xs">Approuver</button>
