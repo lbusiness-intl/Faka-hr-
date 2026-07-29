@@ -1347,6 +1347,87 @@ function Recruitment() {
 // ============================================================
 // Training, Goals, Reviews, Assets, Compliance, Communication, Events
 // ============================================================
+function Performance() {
+  const { t } = useI18n();
+  const tenant = useTenant();
+  const [goals, setGoals] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<Record<string, Employee>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!tenant) return;
+    (async () => {
+      const [g, r, e] = await Promise.all([
+        supabase.from('goals').select('*').eq('tenant_id', tenant.id),
+        supabase.from('reviews').select('*').eq('tenant_id', tenant.id),
+        supabase.from('employees').select('id, first_name, last_name').eq('tenant_id', tenant.id),
+      ]);
+      setGoals(g.data ?? []);
+      setReviews(r.data ?? []);
+      const map: Record<string, Employee> = {};
+      (e.data ?? []).forEach((x: any) => { map[x.id] = x as Employee; });
+      setEmployees(map);
+      setLoading(false);
+    })();
+  }, [tenant]);
+
+  if (!tenant) return null;
+  const avgProgress = goals.length ? Math.round(goals.reduce((s, g) => s + Number(g.progress ?? 0), 0) / goals.length) : 0;
+  const avgRating = reviews.length ? (reviews.reduce((s, r) => s + Number(r.rating ?? 0), 0) / reviews.length).toFixed(1) : '—';
+  const empName = (id: string) => { const e = employees[id]; return e ? `${e.first_name} ${e.last_name}` : '—'; };
+
+  return (
+    <div>
+      <PageHeader title={t('dash.performance')} icon={<Target size={20} />} />
+      {loading ? <Spinner /> : (
+        <>
+          <div className="grid sm:grid-cols-3 gap-4 mb-6">
+            <StatCard label="Objectifs en cours" value={String(goals.length)} icon={<Target size={18} />} color="coral" />
+            <StatCard label="Progression moyenne" value={`${avgProgress}%`} icon={<TrendingUp size={18} />} color="teal" />
+            <StatCard label="Note moyenne (évaluations)" value={String(avgRating)} sub="sur 5" icon={<Star size={18} />} color="amber" />
+          </div>
+          <div className="grid lg:grid-cols-2 gap-6">
+            <div className="card p-5">
+              <h3 className="text-slate-900 dark:text-white font-semibold mb-3">Objectifs récents</h3>
+              {goals.length === 0 ? <p className="text-sm text-slate-400">Aucun objectif défini pour l'instant.</p> : (
+                <div className="space-y-2">
+                  {goals.slice(0, 8).map((g) => (
+                    <div key={g.id} className="flex items-center justify-between text-sm border-b border-slate-100 dark:border-white/5 pb-2">
+                      <div>
+                        <div className="text-slate-800 dark:text-white/80 font-medium">{g.title}</div>
+                        <div className="text-xs text-slate-400">{empName(g.employee_id)}</div>
+                      </div>
+                      <span className="text-coral-600 dark:text-coral-400 font-semibold">{g.progress ?? 0}%</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="card p-5">
+              <h3 className="text-slate-900 dark:text-white font-semibold mb-3">Évaluations récentes</h3>
+              {reviews.length === 0 ? <p className="text-sm text-slate-400">Aucune évaluation pour l'instant.</p> : (
+                <div className="space-y-2">
+                  {reviews.slice(0, 8).map((r) => (
+                    <div key={r.id} className="flex items-center justify-between text-sm border-b border-slate-100 dark:border-white/5 pb-2">
+                      <div>
+                        <div className="text-slate-800 dark:text-white/80 font-medium">{empName(r.employee_id)}</div>
+                        <div className="text-xs text-slate-400">{r.period ?? '—'}</div>
+                      </div>
+                      <span className="text-amber-600 dark:text-amber-400 font-semibold">{r.rating ?? '—'}/5</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <p className="text-xs text-slate-400 mt-4">Astuce : gérez les objectifs et évaluations en détail depuis les onglets "Objectifs OKR" et "Évaluations 360°".</p>
+        </>
+      )}
+    </div>
+  );
+}
+
 function SimpleList({ table, title, icon, fields, extraInsert }: {
   table: string; title: string; icon: ReactNode; fields: { key: string; label: string; type?: string; required?: boolean }[];
   extraInsert?: (form: any) => Record<string, any>;
@@ -1960,6 +2041,7 @@ export default function AdminDashboard() {
     case 'recruitment': content = <Recruitment />; break;
     case 'training': content = <SimpleList table="trainings" title="Formation / LMS" icon={<GraduationCap size={20} />} fields={[{ key: 'title', label: 'Titre', required: true }, { key: 'employee_id', label: 'Employé', type: 'employee_select' }, { key: 'progress', label: 'Progression %', type: 'number' }]} extraInsert={() => ({ status: 'assigned' })} />; break;
     case 'goals': content = <SimpleList table="goals" title="Objectifs OKR" icon={<Target size={20} />} fields={[{ key: 'title', label: 'Titre', required: true }, { key: 'employee_id', label: 'Employé', type: 'employee_select', required: true }, { key: 'progress', label: 'Progression %', type: 'number' }]} extraInsert={() => ({ status: 'active' })} />; break;
+    case 'performance': content = <Performance />; break;
     case 'reviews': content = <SimpleList table="reviews" title="Évaluations 360°" icon={<Star size={20} />} fields={[{ key: 'employee_id', label: 'Employé', type: 'employee_select', required: true }, { key: 'period', label: 'Période' }, { key: 'rating', label: 'Note /5', type: 'number' }]} extraInsert={() => ({ status: 'draft' })} />; break;
     case 'assets': content = <SimpleList table="assets" title="Actifs" icon={<Package size={20} />} fields={[{ key: 'name', label: 'Nom', required: true }, { key: 'category', label: 'Catégorie' }, { key: 'serial', label: 'Série' }, { key: 'assigned_to', label: 'Assigné à', type: 'employee_select' }]} extraInsert={() => ({ status: 'available' })} />; break;
     case 'compliance': content = <Compliance />; break;
