@@ -20,19 +20,6 @@ type Comm = {
 
 type Branch = { id: string; name: string };
 type Department = { id: string; name: string };
-type EmployeeOption = { id: string; first_name: string; last_name: string };
-
-const STANDARD_ROLE_OPTIONS: { value: string; label: string }[] = [
-  { value: 'admin', label: 'Admin' },
-  { value: 'hr_manager', label: 'RH — Manager' },
-  { value: 'hr_assistant', label: 'RH — Assistant' },
-  { value: 'recruiter', label: 'Recrutement' },
-  { value: 'payroll_officer', label: 'Paie' },
-  { value: 'finance', label: 'Finance' },
-  { value: 'manager', label: 'Managers' },
-  { value: 'team_lead', label: "Chefs d'équipe" },
-  { value: 'employee', label: 'Employés' },
-];
 
 const TYPE_ICONS: Record<string, typeof MessageSquare> = {
   announcement: Megaphone,
@@ -59,13 +46,7 @@ export default function CommunicationsPanel({ isEmployee = false }: { isEmployee
   const [selected, setSelected] = useState<Comm | null>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [sending, setSending] = useState(false);
-  const [sendError, setSendError] = useState<string | null>(null);
-  const [roleTargets, setRoleTargets] = useState<string[]>([]);
-  const [branchTarget, setBranchTarget] = useState('');
-  const [departmentTarget, setDepartmentTarget] = useState('');
-  const [individualTargets, setIndividualTargets] = useState<string[]>([]);
   const [form, setForm] = useState({
     type: 'announcement',
     subject: '',
@@ -93,11 +74,9 @@ export default function CommunicationsPanel({ isEmployee = false }: { isEmployee
     Promise.all([
       supabase.from('branches').select('id, name').eq('tenant_id', activeTenant.id),
       supabase.from('departments').select('id, name').eq('tenant_id', activeTenant.id),
-      supabase.from('employees').select('id, first_name, last_name').eq('tenant_id', activeTenant.id).order('first_name'),
-    ]).then(([b, d, e]) => {
+    ]).then(([b, d]) => {
       setBranches(b.data ?? []);
       setDepartments(d.data ?? []);
-      setEmployees(e.data ?? []);
     });
   }, [activeTenant]);
 
@@ -114,44 +93,22 @@ export default function CommunicationsPanel({ isEmployee = false }: { isEmployee
 
   async function sendComm() {
     if (!activeTenant || !user || !form.subject.trim() || !form.body.trim()) return;
-    setSendError(null);
-
-    let recipientIds: string[] = [];
-    if (form.recipient_scope === 'role') {
-      if (roleTargets.length === 0) { setSendError('Choisissez au moins un rôle destinataire.'); return; }
-      recipientIds = roleTargets;
-    } else if (form.recipient_scope === 'branch') {
-      if (!branchTarget) { setSendError('Choisissez une agence destinataire.'); return; }
-      recipientIds = [branchTarget];
-    } else if (form.recipient_scope === 'department') {
-      if (!departmentTarget) { setSendError('Choisissez un département destinataire.'); return; }
-      recipientIds = [departmentTarget];
-    } else if (form.recipient_scope === 'individual') {
-      if (individualTargets.length === 0) { setSendError('Choisissez au moins un destinataire.'); return; }
-      recipientIds = individualTargets;
-    }
-
     setSending(true);
     try {
-      const { error } = await supabase.from('communications').insert({
+      await supabase.from('communications').insert({
         tenant_id: activeTenant.id,
         sender_id: user.id,
         type: form.type,
         subject: form.subject.trim(),
         body: form.body.trim(),
         recipient_scope: form.recipient_scope,
-        recipient_ids: recipientIds,
+        recipient_ids: [],
         attachments: [],
         scheduled_at: form.scheduled_at ? new Date(form.scheduled_at).toISOString() : null,
         sent_at: form.scheduled_at ? null : new Date().toISOString(),
         is_draft: form.is_draft,
       });
-      if (error) {
-        setSendError(`L'envoi a échoué : ${error.message}`);
-        return;
-      }
       setForm({ type: 'announcement', subject: '', body: '', recipient_scope: 'all', scheduled_at: '', is_draft: false });
-      setRoleTargets([]); setBranchTarget(''); setDepartmentTarget(''); setIndividualTargets([]);
       setView('inbox');
       load();
     } finally {
@@ -169,9 +126,14 @@ export default function CommunicationsPanel({ isEmployee = false }: { isEmployee
 
   const scopeOptions = [
     { value: 'all', label: t('comms.scope.all') },
-    { value: 'role', label: t('comms.scope.role') },
+    { value: 'hr', label: 'RH' },
+    { value: 'hr_assistant', label: 'Assistant RH' },
+    { value: 'managers', label: 'Managers' },
+    { value: 'payroll', label: 'Paie' },
+    { value: 'finance', label: 'Finance' },
     { value: 'branch', label: t('comms.scope.branch') },
     { value: 'department', label: t('comms.scope.department') },
+    { value: 'role', label: t('comms.scope.role') },
     { value: 'individual', label: t('comms.scope.individual') },
   ];
 
@@ -260,7 +222,7 @@ export default function CommunicationsPanel({ isEmployee = false }: { isEmployee
               </div>
               <div>
                 <label className="label">Destinataires</label>
-                <select className="input" value={form.recipient_scope} onChange={(e) => { setForm({ ...form, recipient_scope: e.target.value }); setRoleTargets([]); setBranchTarget(''); setDepartmentTarget(''); setIndividualTargets([]); setSendError(null); }}>
+                <select className="input" value={form.recipient_scope} onChange={(e) => setForm({ ...form, recipient_scope: e.target.value })}>
                   {scopeOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
@@ -270,66 +232,6 @@ export default function CommunicationsPanel({ isEmployee = false }: { isEmployee
               <label className="label">{t('comms.subject')} *</label>
               <input className="input" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="Titre de la communication" />
             </div>
-
-            {form.recipient_scope === 'role' && (
-              <div>
-                <label className="label">Rôles destinataires *</label>
-                <div className="grid grid-cols-2 gap-1.5 mt-1">
-                  {STANDARD_ROLE_OPTIONS.map((r) => (
-                    <label key={r.value} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition text-sm">
-                      <input
-                        type="checkbox"
-                        checked={roleTargets.includes(r.value)}
-                        onChange={() => setRoleTargets((prev) => prev.includes(r.value) ? prev.filter((v) => v !== r.value) : [...prev, r.value])}
-                        className="rounded border-slate-300"
-                      />
-                      {r.label}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {form.recipient_scope === 'branch' && (
-              <div>
-                <label className="label">Agence destinataire *</label>
-                <select className="input" value={branchTarget} onChange={(e) => setBranchTarget(e.target.value)}>
-                  <option value="">— Choisir une agence —</option>
-                  {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                </select>
-              </div>
-            )}
-
-            {form.recipient_scope === 'department' && (
-              <div>
-                <label className="label">Département destinataire *</label>
-                <select className="input" value={departmentTarget} onChange={(e) => setDepartmentTarget(e.target.value)}>
-                  <option value="">— Choisir un département —</option>
-                  {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
-              </div>
-            )}
-
-            {form.recipient_scope === 'individual' && (
-              <div>
-                <label className="label">Destinataires *</label>
-                <div className="max-h-40 overflow-y-auto space-y-1 mt-1 border border-slate-200 dark:border-white/10 rounded-xl p-2">
-                  {employees.length === 0 ? (
-                    <p className="text-xs text-slate-400 p-2">Aucun employé trouvé.</p>
-                  ) : employees.map((emp) => (
-                    <label key={emp.id} className="flex items-center gap-2 cursor-pointer p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition text-sm">
-                      <input
-                        type="checkbox"
-                        checked={individualTargets.includes(emp.id)}
-                        onChange={() => setIndividualTargets((prev) => prev.includes(emp.id) ? prev.filter((v) => v !== emp.id) : [...prev, emp.id])}
-                        className="rounded border-slate-300"
-                      />
-                      {emp.first_name} {emp.last_name}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
 
             <div>
               <label className="label">{t('comms.body')} *</label>

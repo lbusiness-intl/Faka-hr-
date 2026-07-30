@@ -51,32 +51,19 @@ export function AuthScreen() {
       if (isSignup) {
         const { error, user } = await signUp(email, password, fullName);
         if (error) {
-          setError(friendlyAuthError(error));
+          setError(error);
         } else if (user) {
           if (prefilledPlan) sessionStorage.setItem('faka_signup_plan', prefilledPlan);
           setShowGate(true);
         }
       } else {
         const { error } = await signIn(email, password);
-        if (error) setError(friendlyAuthError(error));
+        if (error) setError(error);
         else navigate('/dashboard');
       }
     } finally {
       setLoading(false);
     }
-  }
-
-  function friendlyAuthError(message: string): string {
-    if (!isSupabaseConfigured) {
-      return "Impossible de contacter le serveur : la connexion à la base de données n'est pas configurée sur ce déploiement (variables d'environnement manquantes). Contactez l'administrateur du site.";
-    }
-    if (/failed to fetch|networkerror|load failed/i.test(message)) {
-      return 'Impossible de contacter le serveur. Vérifiez votre connexion internet, ou réessayez dans un instant.';
-    }
-    if (/invalid login credentials/i.test(message)) {
-      return 'Email ou mot de passe incorrect.';
-    }
-    return message;
   }
 
   if (showGate) {
