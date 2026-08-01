@@ -277,7 +277,7 @@ function Hero() {
 }
 
 function LogoCloud() {
-  const logos = ['Sonatel', 'Bandjoun', 'Lagos Logistics', 'Atlas Corp', 'Sahara Tech', 'Gulf Trading'];
+  const logos = ['Sonatel', 'LIYAH GROUP', 'Earth Scientific', 'Max Capital', 'Lagos Logistics', 'Atlas Corp', 'Sahara Tech', 'Gulf Trading'];
   return (
     <section className="border-y border-slate-200 dark:border-white/10 bg-white dark:bg-ink-900 py-10">
       <div className="section">
@@ -401,7 +401,7 @@ function Testimonials() {
   const { t } = useI18n();
   const items = [
     { name: 'Aïcha Diallo', role: 'CHRO, Sonatel (Senegal)', text: 'Faka cut our payroll processing time by 3x. The self-service portal transformed how our employees interact with HR.' },
-    { name: 'Jean-Paul Kamga', role: 'CEO, Bandjoun Industries (Cameroon)', text: 'Finally an HR tool designed for our reality. Mobile Money, multi-currency, bilingual contracts — everything is there.' },
+    { name: 'Jean-Paul Kamga', role: 'CEO, LIYAH GROUP (Cameroon)', text: 'Finally an HR tool designed for our reality. Mobile Money, multi-currency, bilingual contracts — everything is there.' },
     { name: 'Funke Adeyemi', role: 'CFO, Lagos Logistics (Nigeria)', text: 'The multi-tenant isolation and analytics give us board-level visibility we never had before.' },
   ];
   return (
