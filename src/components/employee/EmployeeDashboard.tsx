@@ -47,6 +47,154 @@ function useMe(tenantId: string | undefined, email: string | undefined) {
 }
 
 // ============================================================
+// My Profile — self-service contact info + password change.
+// (Previously there was no such screen at all.) Sensitive fields
+// like salary/position/status are read-only here and can never be
+// changed from this screen — enforced both by the UI and by a
+// database trigger, so it's not just a front-end restriction.
+// ============================================================
+function MyProfile() {
+  const { t } = useI18n();
+  const tenant = useTenant();
+  const { user } = useAuth();
+  const { me, loading: loadingMe } = useMe(tenant?.id, user?.email);
+  const [phone, setPhone] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMsg, setPwMsg] = useState<{ type: 'ok' | 'error'; text: string } | null>(null);
+
+  useEffect(() => {
+    if (!me) return;
+    setPhone((me as any).phone ?? '');
+    setAvatarUrl((me as any).avatar_url ?? null);
+  }, [me]);
+
+  async function saveProfile() {
+    if (!me || !tenant) return;
+    setSaving(true);
+    setError(null);
+    setSaved(false);
+    const { error: err } = await supabase.from('employees').update({ phone, avatar_url: avatarUrl }).eq('id', me.id);
+    setSaving(false);
+    if (err) { setError(`La sauvegarde a échoué : ${err.message}`); return; }
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  }
+
+  async function uploadAvatar(file: File) {
+    if (!me || !tenant) return;
+    setUploading(true);
+    setError(null);
+    const path = `${tenant.id}/avatars/${me.id}-${Date.now()}-${file.name}`;
+    const { error: upErr } = await supabase.storage.from('documents').upload(path, file, { upsert: true });
+    if (upErr) { setUploading(false); setError(`Le téléversement a échoué : ${upErr.message}`); return; }
+    const { data } = supabase.storage.from('documents').getPublicUrl(path);
+    setAvatarUrl(data.publicUrl);
+    setUploading(false);
+  }
+
+  async function changePassword() {
+    setPwMsg(null);
+    if (newPassword.length < 8) { setPwMsg({ type: 'error', text: 'Le mot de passe doit contenir au moins 8 caractères.' }); return; }
+    if (newPassword !== confirmPassword) { setPwMsg({ type: 'error', text: 'Les deux mots de passe ne correspondent pas.' }); return; }
+    setPwSaving(true);
+    const { error: err } = await supabase.auth.updateUser({ password: newPassword });
+    setPwSaving(false);
+    if (err) { setPwMsg({ type: 'error', text: err.message }); return; }
+    setPwMsg({ type: 'ok', text: 'Mot de passe mis à jour avec succès.' });
+    setNewPassword('');
+    setConfirmPassword('');
+  }
+
+  if (!tenant) return null;
+  if (loadingMe) return <Spinner />;
+  if (!me) return <EmptyState icon={<Users size={24} />} title="Profil introuvable" />;
+
+  return (
+    <div>
+      <PageHeader title="Mon Profil" icon={<Users size={20} />} />
+
+      <div className="card p-6 mb-6 max-w-xl">
+        <h3 className="text-slate-900 dark:text-white font-semibold mb-4">Informations de contact</h3>
+        <div className="flex items-center gap-4 mb-5">
+          <div className="w-16 h-16 rounded-full bg-coral-100 dark:bg-coral-500/15 flex items-center justify-center text-coral-600 dark:text-coral-400 font-bold text-xl overflow-hidden">
+            {avatarUrl ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" /> : `${me.first_name[0]}${me.last_name[0]}`}
+          </div>
+          <label className="btn-ghost text-sm cursor-pointer">
+            {uploading ? <Spinner /> : <><Camera size={16} /> Changer la photo</>}
+            <input type="file" accept="image/*" className="hidden" disabled={uploading}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadAvatar(f); }} />
+          </label>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="label">Prénom</label>
+            <input className="input opacity-60" value={me.first_name} disabled />
+          </div>
+          <div>
+            <label className="label">Nom</label>
+            <input className="input opacity-60" value={me.last_name} disabled />
+          </div>
+          <div>
+            <label className="label">Email</label>
+            <input className="input opacity-60" value={me.email} disabled />
+          </div>
+          <div>
+            <label className="label">Téléphone</label>
+            <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+237 6XX XXX XXX" />
+          </div>
+          <div>
+            <label className="label">Poste</label>
+            <input className="input opacity-60" value={me.position ?? '—'} disabled />
+          </div>
+          <div>
+            <label className="label">Département</label>
+            <input className="input opacity-60" value={me.department ?? '—'} disabled />
+          </div>
+        </div>
+        <p className="text-xs text-slate-400 mb-4">
+          Le poste, le département et les informations contractuelles sont gérés par votre équipe RH.
+        </p>
+
+        {error && <p className="text-sm text-rose-600 dark:text-rose-400 mb-3">{error}</p>}
+        {saved && <p className="text-sm text-emerald-600 dark:text-emerald-400 mb-3">✓ Profil mis à jour avec succès.</p>}
+        <button onClick={saveProfile} disabled={saving} className="btn-primary text-sm">
+          {saving ? <Spinner /> : <><Check size={16} /> Enregistrer</>}
+        </button>
+      </div>
+
+      <div className="card p-6 max-w-xl">
+        <h3 className="text-slate-900 dark:text-white font-semibold mb-4">Changer le mot de passe</h3>
+        <div className="space-y-3 mb-4">
+          <div>
+            <label className="label">Nouveau mot de passe</label>
+            <input type="password" className="input" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Confirmer le mot de passe</label>
+            <input type="password" className="input" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+          </div>
+        </div>
+        {pwMsg && (
+          <p className={`text-sm mb-3 ${pwMsg.type === 'ok' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{pwMsg.text}</p>
+        )}
+        <button onClick={changePassword} disabled={pwSaving || !newPassword} className="btn-primary text-sm">
+          {pwSaving ? <Spinner /> : <><Check size={16} /> Mettre à jour le mot de passe</>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // Staff Dashboard — Bayzat-style personal overview
 // ============================================================
 function Overview() {
@@ -275,6 +423,15 @@ function Attendance() {
 }
 
 // ============================================================
+function computeLeaveDays(start: string, end: string): number {
+  if (!start || !end) return 1;
+  const d1 = new Date(start);
+  const d2 = new Date(end);
+  const diff = Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  return diff > 0 ? diff : 1;
+}
+
+// ============================================================
 // Generic staff request page (leaves / advances / claims)
 // with category-aware form and status tracking.
 // ============================================================
@@ -288,15 +445,22 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
   const { user } = useAuth();
   const { me } = useMe(tenant?.id, user?.email);
   const [items, setItems] = useState<any[]>([]);
+  const [balance, setBalance] = useState<{ entitled: number; used: number; carried_over: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState<any>({});
 
+  const isLeave = table === 'leave_requests';
+  const thisYear = new Date().getFullYear();
+
   async function load() {
     if (!tenant || !me) return;
     setLoading(true);
-    const { data } = await supabase.from(table).select('*').eq('tenant_id', tenant.id).eq('employee_id', me.id).order('created_at', { ascending: false });
-    setItems(data ?? []);
+    const calls: Promise<any>[] = [supabase.from(table).select('*').eq('tenant_id', tenant.id).eq('employee_id', me.id).order('created_at', { ascending: false })];
+    if (isLeave) calls.push(supabase.from('leave_balances').select('entitled, used, carried_over').eq('tenant_id', tenant.id).eq('employee_id', me.id).eq('type', 'annual').eq('year', thisYear).maybeSingle());
+    const [r, b] = await Promise.all(calls);
+    setItems(r.data ?? []);
+    if (isLeave) setBalance(b?.data ?? null);
     setLoading(false);
   }
   useEffect(() => { load(); }, [tenant, me]);
@@ -305,7 +469,7 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
   useEffect(() => {
     if (!tenant || !me) return;
     const ch = supabase.channel(`emp_${table}:${tenant.id}:${me.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table, filter: `tenant_id=eq.${tenant.id} and employee_id=eq.${me.id}` }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table, filter: `tenant_id=eq.${tenant.id}` }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [tenant, me, table]);
@@ -314,7 +478,15 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
     if (!tenant || !me) return;
     const payload: any = { ...form, tenant_id: tenant.id, employee_id: me.id, currency: tenant.currency, status: 'pending' };
     if (table === 'leave_requests') {
-      payload.days = 1;
+      const days = computeLeaveDays(form.start_date, form.end_date);
+      payload.days = days;
+      if (balance) {
+        const remaining = Number(balance.entitled) + Number(balance.carried_over) - Number(balance.used);
+        if (days > remaining) {
+          const proceed = window.confirm(`Vous demandez ${days} jour(s) mais il ne vous reste que ${remaining} jour(s) de solde. Soumettre quand même ? La RH pourra examiner votre demande.`);
+          if (!proceed) return;
+        }
+      }
     }
     await supabase.from(table).insert(payload);
     // Notify HR
@@ -332,6 +504,19 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
   return (
     <div>
       <PageHeader title={title} icon={icon} />
+      {isLeave && balance && (
+        <div className="card p-4 mb-4 flex items-center gap-6 max-w-md">
+          <div>
+            <div className="text-xs text-slate-400 dark:text-white/40">Solde restant {thisYear}</div>
+            <div className="text-2xl font-semibold text-slate-900 dark:text-white">
+              {Number(balance.entitled) + Number(balance.carried_over) - Number(balance.used)} <span className="text-sm font-normal text-slate-400">jours</span>
+            </div>
+          </div>
+          <div className="text-xs text-slate-500 dark:text-white/50">
+            {Number(balance.entitled)} acquis + {Number(balance.carried_over)} reportés − {Number(balance.used)} pris
+          </div>
+        </div>
+      )}
       <div className="flex justify-end mb-4">
         <button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> Nouvelle demande</button>
       </div>
@@ -377,8 +562,13 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="label">Début</label><input type="date" className="input" onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></div>
-                <div><label className="label">Fin</label><input type="date" className="input" onChange={(e) => setForm({ ...form, end_date: e.target.value, days: 1 })} /></div>
+                <div><label className="label">Fin</label><input type="date" className="input" onChange={(e) => setForm({ ...form, end_date: e.target.value })} /></div>
               </div>
+              {balance && (
+                <p className="text-xs text-slate-500 dark:text-white/50">
+                  Solde restant : <strong>{Number(balance.entitled) + Number(balance.carried_over) - Number(balance.used)} jour(s)</strong>
+                </p>
+              )}
               <div><label className="label">Notes</label><textarea className="input" rows={2} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
             </>
           )}
@@ -487,6 +677,7 @@ function StaffAssets() {
 function EventsView() {
   const { t } = useI18n();
   const tenant = useTenant();
+  const { user } = useAuth();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -499,9 +690,9 @@ function EventsView() {
   }, [tenant]);
 
   async function rsvp(id: string, status: string) {
-    if (!tenant) return;
+    if (!tenant || !user) return;
     const { data } = await supabase.from('events').select('rsvp').eq('id', id).single();
-    const rsvp = { ...(data?.rsvp ?? {}), [tenant.id]: status };
+    const rsvp = { ...(data?.rsvp ?? {}), [user.id]: status };
     await supabase.from('events').update({ rsvp }).eq('id', id);
     setItems((prev) => prev.map((e) => e.id === id ? { ...e, rsvp } : e));
   }
@@ -870,6 +1061,7 @@ export default function EmployeeDashboard() {
     case 'payslips': content = <MyPayslips />; break;
     case 'overtime': content = <MyOvertime />; break;
     case 'subscription': content = <SubscriptionEmbed />; break;
+    case 'profile': content = <MyProfile />; break;
     default: content = <Overview />;
   }
 
