@@ -219,7 +219,7 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
             <Home size={15} /> <span className="hidden sm:inline">{t('nav.home')}</span>
           </Link>
           <div className="hidden sm:block text-sm text-slate-500 dark:text-white/50">
-            {role === 'super' ? 'LIYAH GROUP — Super Admin' : activeTenant?.name}
+            {role === 'super' ? 'LiAfrik — Super Admin' : activeTenant?.name}
           </div>
           <div className="flex items-center gap-3">
             <NotificationBell />

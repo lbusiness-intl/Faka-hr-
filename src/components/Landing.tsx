@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Building2, Users, Wallet, BarChart3, MessageSquare, ShieldCheck, Globe2,
   Check, Star, Menu, X, ArrowRight, Sparkles, Moon, Sun,
@@ -8,6 +8,35 @@ import {
 import { useI18n } from '../lib/i18n';
 import { Link, navigate } from '../lib/router';
 import { PLANS, recommendPlan, type PlanId } from '../lib/plans';
+
+function useReveal<T extends HTMLElement = HTMLDivElement>() {
+  const ref = useRef<T>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      { threshold: 0.12 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return { ref, visible };
+}
+
+function Reveal({ children, delay = 0, className = '', as: Tag = 'div' }: { children: React.ReactNode; delay?: number; className?: string; as?: React.ElementType }) {
+  const { ref, visible } = useReveal<HTMLDivElement>();
+  return (
+    <Tag
+      ref={ref}
+      className={`${visible ? 'animate-slide-up' : 'opacity-0'} ${className}`}
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      {children}
+    </Tag>
+  );
+}
 
 function useTheme() {
   const [dark, setDark] = useState(() => {
@@ -252,12 +281,14 @@ function LogoCloud() {
   return (
     <section className="border-y border-slate-200 dark:border-white/10 bg-white dark:bg-ink-900 py-10">
       <div className="section">
-        <p className="text-center text-xs uppercase tracking-widest text-slate-400 mb-6">Trusted by teams across Africa, the Middle East & beyond</p>
+        <Reveal><p className="text-center text-xs uppercase tracking-widest text-slate-400 mb-6">Trusted by teams across Africa, the Middle East & beyond</p></Reveal>
+        <Reveal delay={100}>
         <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
           {logos.map((l) => (
             <span key={l} className="font-display text-lg font-bold text-slate-300 dark:text-white/20 hover:text-slate-400 dark:hover:text-white/40 transition">{l}</span>
           ))}
         </div>
+        </Reveal>
       </div>
     </section>
   );
@@ -275,19 +306,21 @@ function Features() {
   ];
   return (
     <section id="features" className="section py-24 bg-white dark:bg-ink-900">
-      <div className="text-center mb-14">
+      <Reveal className="text-center mb-14">
         <h2 className="font-display text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{t('features.title')}</h2>
         <p className="mt-3 text-slate-600 dark:text-white/60 max-w-2xl mx-auto">{t('features.subtitle')}</p>
-      </div>
+      </Reveal>
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {items.map((f) => (
-          <div key={f.title} className="card p-6 hover:border-coral-300 hover:shadow-lg transition group">
+        {items.map((f, i) => (
+          <Reveal key={f.title} delay={i * 80}>
+          <div className="card p-6 hover:border-coral-300 hover:shadow-lg transition group h-full">
             <div className="w-11 h-11 rounded-xl bg-coral-100 text-coral-600 dark:bg-coral-500/10 dark:text-coral-400 flex items-center justify-center mb-4 group-hover:scale-110 transition">
               <f.icon size={22} />
             </div>
             <h3 className="font-display text-slate-900 dark:text-white font-bold text-lg">{f.title}</h3>
             <p className="mt-2 text-slate-600 dark:text-white/60 text-sm leading-relaxed">{f.desc}</p>
           </div>
+          </Reveal>
         ))}
       </div>
     </section>
@@ -308,10 +341,10 @@ function Pricing() {
 
   return (
     <section id="pricing" className="section py-24 border-t border-slate-200 dark:border-white/10 bg-sage-50/40 dark:bg-ink-900">
-      <div className="text-center mb-12">
+      <Reveal className="text-center mb-12">
         <h2 className="font-display text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{t('pricing.title')}</h2>
         <p className="mt-3 text-slate-600 dark:text-white/60">{t('pricing.subtitle')}</p>
-      </div>
+      </Reveal>
 
       <div className="flex items-center justify-center gap-4 mb-8">
         <span className={`text-sm ${!yearly ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>{t('pricing.monthly')}</span>
@@ -373,12 +406,13 @@ function Testimonials() {
   ];
   return (
     <section id="testimonials" className="section py-24 border-t border-slate-200 dark:border-white/10 bg-white dark:bg-ink-900">
-      <div className="text-center mb-12">
+      <Reveal className="text-center mb-12">
         <h2 className="font-display text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{t('testimonials.title')}</h2>
-      </div>
+      </Reveal>
       <div className="grid md:grid-cols-3 gap-5">
-        {items.map((it) => (
-          <div key={it.name} className="card p-6 hover:shadow-lg transition">
+        {items.map((it, i) => (
+          <Reveal key={it.name} delay={i * 100}>
+          <div className="card p-6 hover:shadow-lg transition h-full">
             <div className="flex gap-1 mb-3 text-amber-400">
               {[...Array(5)].map((_, i) => <Star key={i} size={14} fill="currentColor" />)}
             </div>
@@ -388,6 +422,7 @@ function Testimonials() {
               <div className="text-slate-400 text-xs">{it.role}</div>
             </div>
           </div>
+          </Reveal>
         ))}
       </div>
     </section>

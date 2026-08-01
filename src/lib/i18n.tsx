@@ -230,6 +230,14 @@ const fr: Dict = {
   'settings.company':     'Entreprise',
   'dash.overtime': 'Heures sup.',
   'dash.documents': 'Documents',
+  'emp.payslips': 'Mes fiches de paie',
+  'emp.documents': 'Mes documents',
+  'super.console': 'Console interne',
+  'super.access.denied': 'Cette console est réservée à l\'équipe interne LiAfrik.',
+  'gate.access.denied': 'Accès refusé',
+  'gate.no.tenant': 'Aucun espace',
+  'gate.no.tenant.desc': 'Complétez l\'onboarding pour créer votre espace Faka.',
+  'gate.setup': 'Configurer mon espace',
 };
 
 const en: Dict = {
@@ -444,11 +452,20 @@ const en: Dict = {
   'gate.subtitle': "How would you like to get started?",
   'gate.company':  "I'm setting up a company",
   'gate.invited':  'I received an invitation',
+  'gate.access.denied': 'Access denied',
+  'gate.no.tenant': 'No workspace',
+  'gate.no.tenant.desc': 'Complete onboarding to create your Faka workspace.',
+  'gate.setup': 'Set up my workspace',
   'settings.org':         'Organization',
   'settings.branches':    'Branches',
   'settings.departments': 'Departments',
   'settings.roles':       'Roles & Permissions',
   'settings.company':     'Company',
+  'dash.overtime': 'Overtime',
+  'dash.documents': 'Documents',
+  'emp.payslips': 'My payslips',
+  'emp.documents': 'My documents',
+  'super.console': 'Internal console',
 };
 
 const dicts: Record<Lang, Dict> = { fr, en };

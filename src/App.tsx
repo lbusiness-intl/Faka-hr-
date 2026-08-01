@@ -73,7 +73,7 @@ function Router() {
         <div className="min-h-screen bg-slate-50 dark:bg-ink-900 flex items-center justify-center text-center px-6">
           <div className="card p-8 max-w-md">
             <h2 className="text-slate-900 dark:text-white font-display text-xl font-bold mb-2">Accès refusé</h2>
-            <p className="text-slate-600 dark:text-white/60 text-sm">Cette console est réservée à l'équipe interne LIYAH GROUP.</p>
+            <p className="text-slate-600 dark:text-white/60 text-sm">Cette console est réservée à l'équipe interne LiAfrik.</p>
           </div>
         </div>
       );

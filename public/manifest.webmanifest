@@ -1,7 +1,7 @@
 {
-  "name": "Faka — RH & Paie",
+  "name": "Faka — HR & Payroll",
   "short_name": "Faka",
-  "description": "Le moteur RH et Paie 100% Africain — contrats, paie multicanal, self-service employé.",
+  "description": "The HR & Payroll platform for modern enterprises — contracts, multichannel payroll, employee self-service.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FFFFFF",

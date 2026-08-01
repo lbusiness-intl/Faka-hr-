@@ -81,7 +81,7 @@ export default function SuperAdminDashboard() {
           </div>
           <div>
             <div className="font-display text-lg font-bold text-slate-900 dark:text-white">Faka Super Admin</div>
-            <div className="text-xs text-slate-400 dark:text-white/40">LIYAH GROUP — Console interne</div>
+            <div className="text-xs text-slate-400 dark:text-white/40">LiAfrik — Console interne</div>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -391,7 +391,7 @@ function SalesAgents({ tenants }: { tenants: TenantRow[] }) {
         <div className="space-y-3">
           <div><label className="label">Nom</label><input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
           <div><label className="label">Email</label><input className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-          <div><label className="label">Code commercial</label><input className="input" value={form.sales_code} onChange={(e) => setForm({ ...form, sales_code: e.target.value })} placeholder="LIYAH-001" /></div>
+          <div><label className="label">Code commercial</label><input className="input" value={form.sales_code} onChange={(e) => setForm({ ...form, sales_code: e.target.value })} placeholder="FAKA-001" /></div>
           <div><label className="label">Taux de commission (%)</label><input type="number" className="input" value={form.commission_rate} onChange={(e) => setForm({ ...form, commission_rate: Number(e.target.value) })} /></div>
         </div>
         <div className="flex justify-end gap-2 mt-5">
@@ -628,7 +628,7 @@ function Promotions() {
 
       <Modal open={modal} onClose={() => setModal(false)} title="Nouveau code promo">
         <div className="space-y-3">
-          <div><label className="label">Code</label><input className="input" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="LIYAH20" /></div>
+          <div><label className="label">Code</label><input className="input" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="FAKA20" /></div>
           <div><label className="label">Description</label><input className="input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className="label">Remise (%)</label><input type="number" className="input" value={form.discount_percent} onChange={(e) => setForm({ ...form, discount_percent: Number(e.target.value) })} /></div>
