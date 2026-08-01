@@ -39,10 +39,15 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
 
   const planId = (activeTenant?.plan ?? 'starter') as PlanId;
 
+  // Super admins (LIYAH GROUP platform team) never pay for a plan and
+  // always have full access to every module, on every tenant they view —
+  // plan limits only apply to actual paying customers.
+  const isSuperAdmin = (user?.app_metadata?.role === 'super_admin') || memberships.some((m) => m.role === 'super_admin');
+
   const trialEnded = activeTenant?.status === 'trial' && activeTenant?.trial_ends_at
     ? new Date(activeTenant.trial_ends_at).getTime() < Date.now()
     : false;
-  const isBlocked = activeTenant?.status === 'suspended' || trialEnded;
+  const isBlocked = !isSuperAdmin && (activeTenant?.status === 'suspended' || trialEnded);
 
   const adminNav: NavItem[] = [
     { key: 'dashboard', icon: LayoutDashboard, label: t('dash.dashboard') },
@@ -95,7 +100,7 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
     // must always be reachable regardless of the company's plan —
     // previously they were being blocked by the same gate as premium
     // admin modules, which made no sense.
-    if (role !== 'employee' && !isModuleUnlocked(planId, key)) {
+    if (role !== 'employee' && !isSuperAdmin && !isModuleUnlocked(planId, key)) {
       setLockedModule(key);
       return;
     }
@@ -159,7 +164,7 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
 
         <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
           {nav.map((item) => {
-            const unlocked = role === 'employee' || isModuleUnlocked(planId, item.key);
+            const unlocked = role === 'employee' || isSuperAdmin || isModuleUnlocked(planId, item.key);
             const isSettingsItem = item.key === 'settings' && role !== 'employee';
             const isActive = currentModule === item.key || (isSettingsItem && currentModule.startsWith('settings'));
             return (
