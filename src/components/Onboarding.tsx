@@ -8,13 +8,9 @@ import { createTenantForUser } from './Auth';
 import { Spinner } from './ui';
 import { Check, ChevronLeft, ChevronRight, Globe2, Building2, MapPin, CreditCard } from 'lucide-react';
 
-const INDUSTRIES_FR = [
+const INDUSTRIES = [
   'Technologie', 'Finance', 'Agriculture', 'Manufacture', 'Commerce', 'Santé',
   'Éducation', 'Transport', 'Construction', 'Hôtellerie', 'Télécom', 'Autre',
-];
-const INDUSTRIES_EN = [
-  'Technology', 'Finance', 'Agriculture', 'Manufacturing', 'Retail', 'Healthcare',
-  'Education', 'Transport', 'Construction', 'Hospitality', 'Telecom', 'Other',
 ];
 const SIZES = ['1-10', '11-50', '51-200', '201-500', '500+'];
 
@@ -28,7 +24,7 @@ export default function Onboarding() {
   const initialPlan = (sessionStorage.getItem('faka_signup_plan') as PlanId) || 'pro';
 
   const [form, setForm] = useState({
-    name: '', subdomain: '', industry: '', company_size: SIZES[0],
+    name: '', subdomain: '', industry: INDUSTRIES[0], company_size: SIZES[0],
     country: 'CM', region: '', city: '', region_custom: '', city_custom: '',
     currency: 'XAF', timezone: 'Africa/Douala', phone_code: '+237',
     sales_code: '',
@@ -102,7 +98,7 @@ export default function Onboarding() {
       navigate('/dashboard');
     } catch (err) {
       const raw = err instanceof Error ? err.message : String(err);
-      let key: string;
+      let key: string | null;
       if (raw.startsWith('tenant.error.')) {
         key = raw;
       } else if (raw === 'No authenticated user') {
@@ -112,9 +108,13 @@ export default function Onboarding() {
       } else if (raw.includes('subdomain_taken') || raw.includes('SUBDOMAIN_TAKEN')) {
         key = 'tenant.error.subdomain_taken';
       } else {
-        key = 'tenant.error.unknown';
+        key = null;
       }
-      setError(t(key));
+      // If we have a real, specific error detail from the server, show it
+      // directly instead of hiding it behind the generic message — a
+      // generic "unexpected error" tells nobody (including us) what
+      // actually broke.
+      setError(key ? t(key) : `${t('tenant.error.unknown')} (${raw})`);
     } finally {
       setLoading(false);
     }
@@ -167,7 +167,7 @@ export default function Onboarding() {
                 <div>
                   <label className="label">{t('onboarding.company.industry')}</label>
                   <select className="input" value={form.industry} onChange={(e) => update('industry', e.target.value)}>
-                    {(lang === 'fr' ? INDUSTRIES_FR : INDUSTRIES_EN).map((i) => <option key={i} value={i} className="bg-ink-700">{i}</option>)}
+                    {INDUSTRIES.map((i) => <option key={i} value={i} className="bg-ink-700">{i}</option>)}
                   </select>
                 </div>
                 <div>
@@ -275,7 +275,7 @@ export default function Onboarding() {
               </div>
               <div>
                 <label className="label">{t('onboarding.salescode')}</label>
-                <input className="input" value={form.sales_code} onChange={(e) => update('sales_code', e.target.value)} placeholder="FAKA-2026" />
+                <input className="input" value={form.sales_code} onChange={(e) => update('sales_code', e.target.value)} placeholder="LIYAH-2026" />
                 <p className="text-[11px] text-slate-400 dark:text-white/40 mt-1">{t('onboarding.salescode.hint')}</p>
               </div>
               <div className="rounded-xl border border-coral-200 bg-coral-50 dark:bg-coral-500/5 p-4 text-sm text-slate-700 dark:text-white/70">
