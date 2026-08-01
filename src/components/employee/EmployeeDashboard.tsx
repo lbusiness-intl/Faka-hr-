@@ -305,7 +305,7 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
   useEffect(() => {
     if (!tenant || !me) return;
     const ch = supabase.channel(`emp_${table}:${tenant.id}:${me.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table, filter: `tenant_id=eq.${tenant.id}` }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table, filter: `tenant_id=eq.${tenant.id} and employee_id=eq.${me.id}` }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [tenant, me, table]);
