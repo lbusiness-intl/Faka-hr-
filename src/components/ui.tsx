@@ -19,14 +19,16 @@ export function Modal({ open, onClose, title, children, maxWidth = 'max-w-lg' }:
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-fade-in" onClick={onClose} />
-      <div className={`relative card w-full ${maxWidth} p-6 animate-scale-in`}>
-        <div className="flex items-center justify-between mb-4">
+      <div className={`relative card w-full ${maxWidth} p-6 animate-scale-in max-h-[90vh] flex flex-col`}>
+        <div className="flex items-center justify-between mb-4 shrink-0">
           <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700 dark:text-white/50 dark:hover:text-white transition">
             <X size={20} />
           </button>
         </div>
-        {children}
+        <div className="overflow-y-auto -mr-2 pr-2">
+          {children}
+        </div>
       </div>
     </div>
   );
