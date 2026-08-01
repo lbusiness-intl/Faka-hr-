@@ -60,7 +60,9 @@ Deno.serve(async (req: Request) => {
 
       if (!email || !tenantId) return json({ ok: false, error: "MISSING_FIELDS" }, 400);
 
-      // Check caller is admin of this tenant
+      // Check caller is admin of this tenant, OR a platform super admin
+      // (LIYAH GROUP team) who can act on any tenant.
+      const isSuperAdmin = user.app_metadata?.role === "super_admin";
       const { data: membership } = await adminClient
         .from("tenant_memberships")
         .select("role")
@@ -68,7 +70,8 @@ Deno.serve(async (req: Request) => {
         .eq("user_id", user.id)
         .eq("status", "active")
         .maybeSingle();
-      if (!membership || !["admin","hr_manager","hr_assistant"].includes(membership.role)) {
+      const isTenantAdmin = membership && ["admin","hr_manager","hr_assistant"].includes(membership.role);
+      if (!isSuperAdmin && !isTenantAdmin) {
         return json({ ok: false, error: "FORBIDDEN" }, 403);
       }
 
