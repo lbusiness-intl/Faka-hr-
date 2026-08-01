@@ -44,7 +44,7 @@ export default function EmployeeActivation() {
           : json.error === 'EXPIRED' ? 'Invitation expirée. Demandez à votre RH d\'en générer une nouvelle.'
           : json.error === 'ALREADY_USED' ? 'Ce compte est déjà activé. Connectez-vous directement.'
           : json.error === 'CODE_INVALID' ? 'Code d\'invitation invalide.'
-          : 'Erreur lors de l\'activation. Réessayez.';
+          : `Erreur lors de l'activation. Réessayez.${json.detail ? ` (${json.detail})` : json.error ? ` (${json.error})` : ''}`;
         setError(msg);
         setStatus('form');
         return;
@@ -58,8 +58,9 @@ export default function EmployeeActivation() {
       }
       setCompanyName(json.company_name ?? '');
       setStatus('done');
-    } catch {
-      setError('Erreur réseau. Réessayez.');
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : String(err);
+      setError(`Erreur réseau. Réessayez. (${raw})`);
       setStatus('form');
     }
   }
