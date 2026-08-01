@@ -80,6 +80,7 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
     { key: 'events', icon: CalendarDays, label: t('dash.events') },
     { key: 'communication', icon: MessageSquare, label: t('emp.whatsapp') },
     { key: 'subscription', icon: CreditCard, label: t('dash.subscription') },
+    { key: 'profile', icon: Users, label: 'Mon Profil' },
   ];
 
   const nav = role === 'employee' ? employeeNav : adminNav;
@@ -88,7 +89,13 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
   const currentModule = currentRoute.split(role === 'employee' ? '/dashboard/employee/' : '/dashboard/admin/')[1]?.split('?')[0] ?? '';
 
   function handleNav(key: ModuleKey) {
-    if (!isModuleUnlocked(planId, key)) {
+    // Plan-based paywalling only makes sense for admin/company-level
+    // features (recruitment, training, compliance...). An employee's
+    // own self-service screens (payslips, profile, communication...)
+    // must always be reachable regardless of the company's plan —
+    // previously they were being blocked by the same gate as premium
+    // admin modules, which made no sense.
+    if (role !== 'employee' && !isModuleUnlocked(planId, key)) {
       setLockedModule(key);
       return;
     }
@@ -106,6 +113,7 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
     { sub: 'settings', icon: SettingsIcon, label: t('settings.company') },
     { sub: 'settings/branches', icon: GitBranch, label: t('settings.branches') },
     { sub: 'settings/departments', icon: Layers, label: t('settings.departments') },
+    { sub: 'settings/leave-balances', icon: CalendarClock, label: 'Soldes de congés' },
     { sub: 'settings/roles', icon: Shield, label: t('settings.roles') },
   ];
 
@@ -151,7 +159,7 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
 
         <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
           {nav.map((item) => {
-            const unlocked = isModuleUnlocked(planId, item.key);
+            const unlocked = role === 'employee' || isModuleUnlocked(planId, item.key);
             const isSettingsItem = item.key === 'settings' && role !== 'employee';
             const isActive = currentModule === item.key || (isSettingsItem && currentModule.startsWith('settings'));
             return (
@@ -219,7 +227,7 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
             <Home size={15} /> <span className="hidden sm:inline">{t('nav.home')}</span>
           </Link>
           <div className="hidden sm:block text-sm text-slate-500 dark:text-white/50">
-            {role === 'super' ? 'LiAfrik — Super Admin' : activeTenant?.name}
+            {role === 'super' ? 'LIYAH GROUP — Super Admin' : activeTenant?.name}
           </div>
           <div className="flex items-center gap-3">
             <NotificationBell />
