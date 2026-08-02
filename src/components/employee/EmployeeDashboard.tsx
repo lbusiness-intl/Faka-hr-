@@ -752,7 +752,7 @@ function MyDocuments() {
     if (!tenant || !me || !file || !form.name) return;
     const path = `${tenant.id}/${me.id}/${Date.now()}-${file.name}`;
     const { error: upErr } = await supabase.storage.from('documents').upload(path, file);
-    if (upErr) { alert('Upload failed'); return; }
+    if (upErr) { alert(`Le téléversement a échoué : ${upErr.message}`); return; }
     await supabase.from('documents').insert({
       tenant_id: tenant.id,
       employee_id: me.id,
