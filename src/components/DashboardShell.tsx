@@ -4,10 +4,10 @@ import {
   UserPlus, GraduationCap, Target, Star, Package, ShieldCheck,
   MessageSquare, CalendarDays, CreditCard, Settings as SettingsIcon, LogOut, Lock, Menu, X,
   Building2, ChevronDown, Moon, Sun, FileText, Home, AlertTriangle,
-  GitBranch, Layers, Shield,
+  GitBranch, Layers, Shield, Crown, Palette,
 } from 'lucide-react';
 import { useI18n } from '../lib/i18n';
-import { useAuth } from '../lib/auth';
+import { useAuth, isSuperAdminEmail } from '../lib/auth';
 import { Link, navigate, useRoute } from '../lib/router';
 import { ALL_MODULES, getPlan, isModuleUnlocked, type ModuleKey, type PlanId } from '../lib/plans';
 import { Modal, Badge } from './ui';
@@ -29,10 +29,23 @@ function useTheme() {
   return { dark, setDark };
 }
 
+function useBrandTheme() {
+  const [brand, setBrand] = useState(() => {
+    return localStorage.getItem('faka_brand_theme') ?? 'ocean';
+  });
+  useEffect(() => {
+    document.documentElement.classList.toggle('theme-coral', brand === 'coral');
+    document.documentElement.classList.toggle('theme-ocean', brand === 'ocean' || !brand);
+    localStorage.setItem('faka_brand_theme', brand);
+  }, [brand]);
+  return { brand, setBrand };
+}
+
 export function DashboardShell({ children, role }: { children: ReactNode; role: 'admin' | 'employee' | 'super' }) {
   const { t, lang, setLang } = useI18n();
   const { activeTenant, user, signOut, memberships, setActiveTenantId } = useAuth();
   const { dark, setDark } = useTheme();
+  const { brand, setBrand } = useBrandTheme();
   const [open, setOpen] = useState(false);
   const [lockedModule, setLockedModule] = useState<ModuleKey | null>(null);
   const [tenantMenu, setTenantMenu] = useState(false);
@@ -42,7 +55,9 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
   // Super admins (LIYAH GROUP platform team) never pay for a plan and
   // always have full access to every module, on every tenant they view —
   // plan limits only apply to actual paying customers.
-  const isSuperAdmin = (user?.app_metadata?.role === 'super_admin') || memberships.some((m) => m.role === 'super_admin');
+  const isSuperAdmin = (user?.app_metadata?.role === 'super_admin') ||
+                       memberships.some((m) => m.role === 'super_admin') ||
+                       isSuperAdminEmail(user?.email);
 
   const trialEnded = activeTenant?.status === 'trial' && activeTenant?.trial_ends_at
     ? new Date(activeTenant.trial_ends_at).getTime() < Date.now()
@@ -134,6 +149,18 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
           </Link>
           <button className="lg:hidden text-slate-500" onClick={() => setOpen(false)}><X size={18} /></button>
         </div>
+
+        {isSuperAdmin && (
+          <div className="px-3 pt-3">
+            <button
+              onClick={() => { navigate('/super-admin'); setOpen(false); }}
+              className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-sky-700 dark:text-sky-300 font-bold bg-sky-500/10 hover:bg-sky-500/20 border border-sky-300/40 dark:border-sky-500/30 transition-all duration-200 shadow-sm"
+            >
+              <Crown size={15} className="text-sky-500" />
+              Console Super Admin
+            </button>
+          </div>
+        )}
 
         {role !== 'super' && memberships.length > 1 && (
           <div className="px-3 pt-3 relative">
@@ -236,6 +263,13 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
           </div>
           <div className="flex items-center gap-3">
             <NotificationBell />
+            <button
+              onClick={() => setBrand(brand === 'ocean' ? 'coral' : 'ocean')}
+              className="w-9 h-9 rounded-lg border border-slate-200 dark:border-white/15 flex items-center justify-center text-slate-600 dark:text-sky-400 hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+              title={brand === 'ocean' ? 'Thème Corail' : 'Thème Bleu Océan'}
+            >
+              <Palette size={16} />
+            </button>
             <button
               onClick={() => setDark(!dark)}
               className="w-9 h-9 rounded-lg border border-slate-200 dark:border-white/15 flex items-center justify-center text-slate-600 dark:text-amber-300 hover:bg-slate-50 dark:hover:bg-white/5"

@@ -19,16 +19,41 @@ export const SUPER_ADMIN_EMAILS = [
   'liyahjoha@gmail.com',
 ];
 
-export const PROTECTED_ADMIN_EMAILS = ['webdxb1@gmail.com', 'liyahjoha@gmail.com'];
+export const PROTECTED_ADMIN_EMAILS = ['vincentnogue@yahoo.com', 'webdxb1@gmail.com', 'liyahjoha@gmail.com'];
+
+export function getSuperAdminEmails(): string[] {
+  let custom: string[] = [];
+  try {
+    const saved = localStorage.getItem('faka_custom_super_admins');
+    if (saved) {
+      custom = JSON.parse(saved);
+    } else {
+      custom = [...SUPER_ADMIN_EMAILS];
+      localStorage.setItem('faka_custom_super_admins', JSON.stringify(custom));
+    }
+  } catch {
+    custom = [...SUPER_ADMIN_EMAILS];
+  }
+  // Ensure we return unique and lowercase emails
+  const all = custom.map(e => e.toLowerCase().trim());
+  return Array.from(new Set(all));
+}
+
+export function saveSuperAdminEmails(emails: string[]) {
+  try {
+    const unique = Array.from(new Set(emails.map(e => e.toLowerCase().trim())));
+    localStorage.setItem('faka_custom_super_admins', JSON.stringify(unique));
+  } catch { /* ignore */ }
+}
 
 export function isSuperAdminEmail(email: string | undefined | null): boolean {
   if (!email) return false;
-  return SUPER_ADMIN_EMAILS.includes(email.toLowerCase());
+  return getSuperAdminEmails().includes(email.toLowerCase().trim());
 }
 
 export function isProtectedAdmin(email: string | undefined | null): boolean {
   if (!email) return false;
-  return PROTECTED_ADMIN_EMAILS.includes(email.toLowerCase());
+  return PROTECTED_ADMIN_EMAILS.includes(email.toLowerCase().trim());
 }
 
 export type Tenant = {

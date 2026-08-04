@@ -18,6 +18,23 @@ export default function AcceptInvite() {
     if (!token) { setStatus('invalid'); return; }
     (async () => {
       try {
+        if (!import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')) {
+          // Mock verification fallback
+          const savedMockInvites = localStorage.getItem('faka_mock_invitations') ? JSON.parse(localStorage.getItem('faka_mock_invitations')!) : {};
+          const mockInv = savedMockInvites[token];
+          if (!mockInv) {
+            setStatus('invalid');
+          } else if (mockInv.status === 'used') {
+            setStatus('used');
+          } else if (new Date(mockInv.expires_at) < new Date()) {
+            setStatus('expired');
+          } else {
+            setEmail(mockInv.email);
+            setStatus('valid');
+          }
+          return;
+        }
+
         const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-employee`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', apikey: import.meta.env.VITE_SUPABASE_ANON_KEY },
@@ -41,14 +58,30 @@ export default function AcceptInvite() {
     if (password !== confirm) { setError('Les mots de passe ne correspondent pas.'); return; }
     setStatus('submitting');
     try {
+      if (!import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')) {
+        // Mock submission fallback
+        const savedMockInvites = localStorage.getItem('faka_mock_invitations') ? JSON.parse(localStorage.getItem('faka_mock_invitations')!) : {};
+        const mockInv = savedMockInvites[token];
+        if (!mockInv) {
+          setError('Invitation invalide.');
+          setStatus('valid');
+          return;
+        }
+        mockInv.status = 'used';
+        savedMockInvites[token] = mockInv;
+        localStorage.setItem('faka_mock_invitations', JSON.stringify(savedMockInvites));
+        setStatus('done');
+        return;
+      }
+
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-employee`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', apikey: import.meta.env.VITE_SUPABASE_ANON_KEY },
         body: JSON.stringify({ action: 'accept', token, password, full_name: fullName }),
       });
       const json = await res.json();
-      if (!json.ok) {
-        setError(json.error === 'EXPIRED' ? 'Invitation expirée.' : json.error === 'ALREADY_USED' ? 'Invitation déjà utilisée.' : 'Erreur lors de la création du compte.');
+      if (!res.ok || json.ok === false) {
+        setError(json?.error === 'EXPIRED' ? 'Invitation expirée.' : json?.error === 'ALREADY_USED' ? 'Invitation déjà utilisée.' : 'Erreur lors de la création du compte.');
         setStatus('valid');
         return;
       }

@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import EmailCenter from './EmailCenter';
 import AutomationCenter from './AutomationCenter';
-import { SUPER_ADMIN_EMAILS, PROTECTED_ADMIN_EMAILS } from '../../lib/auth';
+import { getSuperAdminEmails, saveSuperAdminEmails, isProtectedAdmin } from '../../lib/auth';
 
 type TenantRow = {
   id: string; name: string; country: string; currency: string; plan: string;
@@ -20,16 +20,13 @@ type TenantRow = {
   sales_code: string | null; employee_limit: number;
 };
 
-const SUPER_ADMIN_EMAILS_LOCAL = SUPER_ADMIN_EMAILS;
-const PROTECTED_EMAILS = PROTECTED_ADMIN_EMAILS;
-
 export default function SuperAdminDashboard() {
   const { t } = useI18n();
   const auth = useAuth();
   const [tenants, setTenants] = useState<TenantRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [edit, setEdit] = useState<TenantRow | null>(null);
-  const [tab, setTab] = useState<'overview' | 'tenants' | 'sales' | 'invitations' | 'plans' | 'promotions' | 'geo' | 'email' | 'automation'>('overview');
+  const [tab, setTab] = useState<'overview' | 'tenants' | 'sales' | 'invitations' | 'plans' | 'promotions' | 'geo' | 'email' | 'automation' | 'super_admins'>('overview');
 
   async function load() {
     setLoading(true);
@@ -97,6 +94,7 @@ export default function SuperAdminDashboard() {
           {([
             { id: 'overview', label: 'Vue d\'ensemble' },
             { id: 'tenants', label: t('super.tenants') },
+            { id: 'super_admins', label: 'Super Admins' },
             { id: 'sales', label: 'Commerciaux' },
             { id: 'invitations', label: 'Invitations' },
             { id: 'plans', label: 'Plans' },
@@ -229,11 +227,128 @@ export default function SuperAdminDashboard() {
             {tab === 'promotions' && <Promotions />}
             {tab === 'email' && <EmailCenter />}
             {tab === 'automation' && <AutomationCenter />}
+            {tab === 'super_admins' && <SuperAdminsManager />}
           </>
         )}
       </div>
 
       <EditTenantModal tenant={edit} onClose={() => setEdit(null)} onSave={updateTenant} />
+    </div>
+  );
+}
+
+// ============================================================
+// Super Admins Manager Tab Component
+// ============================================================
+function SuperAdminsManager() {
+  const [emails, setEmails] = useState<string[]>([]);
+  const [newEmail, setNewEmail] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setEmails(getSuperAdminEmails());
+  }, []);
+
+  function handleAdd() {
+    setError(null);
+    const email = newEmail.trim().toLowerCase();
+    if (!email) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('Veuillez saisir une adresse email valide.');
+      return;
+    }
+    if (emails.includes(email)) {
+      setError('Cet email est déjà un super administrateur.');
+      return;
+    }
+    const updated = [...emails, email];
+    setEmails(updated);
+    saveSuperAdminEmails(updated);
+    setNewEmail('');
+  }
+
+  function handleDelete(email: string) {
+    setError(null);
+    if (isProtectedAdmin(email)) {
+      setError('Ce super administrateur est protégé et ne peut pas être supprimé.');
+      return;
+    }
+    const updated = emails.filter((e) => e !== email);
+    setEmails(updated);
+    saveSuperAdminEmails(updated);
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-500/10 border border-sky-200 dark:border-sky-500/30 flex items-center justify-center text-sky-600 dark:text-sky-300">
+            <Crown size={20} />
+          </div>
+          <div>
+            <h1 className="font-display text-xl font-bold text-slate-900 dark:text-white">Gestion des Super Administrateurs</h1>
+            <p className="text-xs text-slate-500 dark:text-white/40">Gérez les comptes d'administration globale de la plateforme Faka.</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="card p-6 max-w-2xl">
+        <h3 className="text-slate-900 dark:text-white font-semibold mb-4">Ajouter un Super Administrateur</h3>
+        <div className="flex gap-3">
+          <input
+            className="input flex-1"
+            type="email"
+            placeholder="superadmin@faka.app"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+          />
+          <button onClick={handleAdd} className="btn-primary text-sm px-6">
+            <Plus size={16} /> Ajouter
+          </button>
+        </div>
+        {error && (
+          <p className="text-xs text-rose-500 font-medium mt-2">{error}</p>
+        )}
+      </div>
+
+      <div className="card max-w-2xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="text-slate-400 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5">
+            <tr>
+              <th className="text-left p-4">Email</th>
+              <th className="text-left p-4">Rôle</th>
+              <th className="text-right p-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {emails.map((email) => {
+              const protectedAdmin = isProtectedAdmin(email);
+              return (
+                <tr key={email} className="border-b border-slate-100 dark:border-white/5">
+                  <td className="p-4 text-slate-900 dark:text-white font-medium">{email}</td>
+                  <td className="p-4">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${protectedAdmin ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300' : 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300'}`}>
+                      {protectedAdmin ? 'Super Admin Protégé' : 'Super Admin'}
+                    </span>
+                  </td>
+                  <td className="p-4 text-right">
+                    {protectedAdmin ? (
+                      <span className="text-xs text-slate-400 dark:text-white/30 italic">Suppression impossible</span>
+                    ) : (
+                      <button
+                        onClick={() => handleDelete(email)}
+                        className="text-rose-500 hover:text-rose-600 font-medium text-xs flex items-center gap-1 ml-auto"
+                      >
+                        <Trash2 size={14} /> Supprimer
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

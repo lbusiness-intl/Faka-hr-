@@ -20,6 +20,34 @@
 
 :root {
   color-scheme: light;
+
+  /* --- Ocean Blue Theme (Default Principal Theme) --- */
+  --brand-50: #F0F9FF;
+  --brand-100: #E0F2FE;
+  --brand-200: #BAE6FD;
+  --brand-300: #7DD3FC;
+  --brand-400: #38BDF8;
+  --brand-500: #0369A1;
+  --brand-600: #0284C7;
+  --brand-700: #0369A1;
+  --brand-800: #075985;
+  --brand-900: #0C4A6E;
+  --brand-glow-color: rgba(3, 105, 161, 0.45);
+}
+
+html.theme-coral {
+  /* --- Coral Theme (Alternative Theme) --- */
+  --brand-50: #FFF4ED;
+  --brand-100: #FFE6D5;
+  --brand-200: #FFC9AB;
+  --brand-300: #FFA377;
+  --brand-400: #FF8250;
+  --brand-500: #FF6B35;
+  --brand-600: #F05220;
+  --brand-700: #C73D17;
+  --brand-800: #9E3216;
+  --brand-900: #7F2C18;
+  --brand-glow-color: rgba(255, 107, 53, 0.45);
 }
 
 html, body, #root {
@@ -57,7 +85,7 @@ html.dark body {
     @apply rounded-2xl bg-white border border-slate-200/70 shadow-card backdrop-blur-sm;
   }
   .input {
-    @apply w-full rounded-xl bg-white border border-slate-200 px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-coral-400/50 focus:border-transparent transition;
+    @apply w-full rounded-xl bg-white border border-slate-200 px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-coral-400 focus:ring-opacity-50 focus:border-transparent transition;
   }
   .label {
     @apply block text-sm font-medium text-slate-700 mb-1.5;
@@ -74,7 +102,7 @@ html.dark body {
     @apply bg-white/5 backdrop-blur-xl border border-white/10;
   }
   html.dark .btn-ghost {
-    @apply text-white/90 hover:text-coral-300 border-white/15 hover:border-coral-400/40 hover:bg-white/5;
+    @apply text-white/90 hover:text-coral-300 border-white/15 hover:border-coral-400 hover:border-opacity-40 hover:bg-white/5;
   }
   html.dark .btn-soft {
     @apply text-white/80 bg-white/5 hover:bg-white/10;
@@ -83,7 +111,7 @@ html.dark body {
     @apply bg-ink-800/80 border-white/10 shadow-card-dark;
   }
   html.dark .input {
-    @apply bg-ink-700/60 border-white/10 text-white placeholder-white/40 focus:ring-coral-400/50;
+    @apply bg-ink-700/60 border-white/10 text-white placeholder-white/40 focus:ring-coral-400 focus:ring-opacity-50;
   }
   html.dark .label {
     @apply text-white/80;

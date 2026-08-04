@@ -62,7 +62,13 @@ Deno.serve(async (req: Request) => {
 
       // Check caller is admin of this tenant, OR a platform super admin
       // (LIYAH GROUP team) who can act on any tenant.
-      const isSuperAdmin = user.app_metadata?.role === "super_admin";
+      const SUPER_ADMIN_EMAILS = [
+        "vincentnogue2@gmail.com",
+        "vincentnogue@yahoo.com",
+        "webdxb1@gmail.com",
+        "liyahjoha@gmail.com"
+      ];
+      const isSuperAdmin = (user.app_metadata?.role === "super_admin") || (user.email && SUPER_ADMIN_EMAILS.includes(user.email.toLowerCase()));
       const { data: membership } = await adminClient
         .from("tenant_memberships")
         .select("role")
@@ -70,7 +76,7 @@ Deno.serve(async (req: Request) => {
         .eq("user_id", user.id)
         .eq("status", "active")
         .maybeSingle();
-      const isTenantAdmin = membership && ["admin","hr_manager","hr_assistant"].includes(membership.role);
+      const isTenantAdmin = membership && ["super_admin","admin","hr_manager","hr_assistant"].includes(membership.role);
       if (!isSuperAdmin && !isTenantAdmin) {
         return json({ ok: false, error: "FORBIDDEN" }, 403);
       }

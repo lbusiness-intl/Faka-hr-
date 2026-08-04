@@ -81,11 +81,35 @@ export default function InviteWizard({ open, onClose, onDone }: {
     setError(null);
     setSending(true);
     try {
+      if (!import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')) {
+        // Mock offline fallback
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        const mockToken = Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2);
+        const inviteUrl = `${window.location.origin}/#/accept-invite?token=${mockToken}`;
+        setInviteLink(inviteUrl);
+        // Also simulate inserting to local database (mock) so accept-invite works!
+        const savedMockInvites = localStorage.getItem('faka_mock_invitations') ? JSON.parse(localStorage.getItem('faka_mock_invitations')!) : {};
+        savedMockInvites[mockToken] = {
+          email: wiz.email.trim().toLowerCase(),
+          role: wiz.role,
+          tenant_id: activeTenant.id,
+          status: 'pending',
+          expires_at: new Date(Date.now() + 72 * 3600 * 1000).toISOString()
+        };
+        localStorage.setItem('faka_mock_invitations', JSON.stringify(savedMockInvites));
+        onDone();
+        return;
+      }
+
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token;
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-employee`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+        },
         body: JSON.stringify({
           action: 'create',
           email: wiz.email.trim().toLowerCase(),
