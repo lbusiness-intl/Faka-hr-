@@ -183,6 +183,55 @@ export async function createTenantForUser(_userId: string, data: {
   currency: string; timezone: string; phone_code: string; sales_code?: string;
   payment_methods: string[]; plan: string;
 }) {
+  if (!isSupabaseConfigured) {
+    // Simulate tenant and membership creation in local storage
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    const mockTenantId = 'mock-tenant-id-' + Math.random().toString(36).substring(2);
+
+    // Create simulated tenant
+    const mockTenant = {
+      id: mockTenantId,
+      name: data.name,
+      subdomain: data.subdomain || null,
+      country: data.country,
+      currency: data.currency,
+      timezone: data.timezone,
+      phone_code: data.phone_code,
+      plan: data.plan,
+      status: 'trial',
+      employee_limit: 15,
+      trial_ends_at: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(),
+      current_period_end: null,
+      sales_code: data.sales_code || null,
+      default_payment_methods: data.payment_methods,
+    };
+
+    // Save mock tenant to list of tenants in local storage
+    const savedTenants = localStorage.getItem('faka_mock_tenants') ? JSON.parse(localStorage.getItem('faka_mock_tenants')!) : {};
+    savedTenants[mockTenantId] = mockTenant;
+    localStorage.setItem('faka_mock_tenants', JSON.stringify(savedTenants));
+
+    // Create simulated membership for the user
+    const mockMembership = {
+      id: 'mock-membership-id-' + Math.random().toString(36).substring(2),
+      tenant_id: mockTenantId,
+      role: 'admin',
+      status: 'active',
+      custom_role_id: null,
+      custom_role: null,
+      tenant: mockTenant,
+    };
+
+    const savedMemberships = localStorage.getItem('faka_mock_memberships') ? JSON.parse(localStorage.getItem('faka_mock_memberships')!) : {};
+    if (!savedMemberships[_userId]) {
+      savedMemberships[_userId] = [];
+    }
+    savedMemberships[_userId].push(mockMembership);
+    localStorage.setItem('faka_mock_memberships', JSON.stringify(savedMemberships));
+
+    return { ok: true, tenant_id: mockTenantId, status: 'trial' };
+  }
+
   const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-tenant`;
   const { data: sessionData } = await supabase.auth.getSession();
   const accessToken = sessionData?.session?.access_token;
