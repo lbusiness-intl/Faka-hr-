@@ -72,6 +72,7 @@ export const ALL_MODULES = [
   'overtime', 'documents',
   'recruitment', 'training', 'performance', 'goals', 'reviews', 'assets',
   'compliance', 'communication', 'events', 'subscription', 'settings',
+  'payslips', 'profile',
 ] as const;
 
 export type ModuleKey = (typeof ALL_MODULES)[number];

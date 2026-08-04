@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import BranchManager from './BranchManager';
 import DepartmentManager from './DepartmentManager';
+import LeaveBalanceManager from './LeaveBalanceManager';
 import RoleManager from './RoleManager';
 import CommunicationsPanel from './CommunicationsPanel';
 import InviteWizard from './InviteWizard';
@@ -26,6 +27,7 @@ type Employee = {
   employee_id: string | null; employment_type: string; manager_id: string | null;
   start_date: string | null; branch_id: string | null; department_id: string | null;
   avatar_url: string | null; user_id: string | null;
+  allowances: number; recurring_deductions: number;
 };
 
 type Invitation = {
@@ -57,16 +59,18 @@ function Overview() {
   const { t } = useI18n();
   const tenant = useTenant();
   const [stats, setStats] = useState({ employees: 0, leaves: 0, payroll: 0, advances: 0 });
+  const [history, setHistory] = useState<{ label: string; value: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!tenant) return;
     (async () => {
-      const [e, l, p, a] = await Promise.all([
+      const [e, l, p, a, runs] = await Promise.all([
         supabase.from('employees').select('id, salary, currency').eq('tenant_id', tenant.id).eq('status', 'active'),
         supabase.from('leave_requests').select('id').eq('tenant_id', tenant.id).eq('status', 'pending'),
         supabase.from('payslips').select('net, currency').eq('tenant_id', tenant.id).eq('status', 'paid'),
         supabase.from('advances').select('amount').eq('tenant_id', tenant.id).eq('status', 'pending'),
+        supabase.from('payroll_runs').select('period, total_net').eq('tenant_id', tenant.id).order('period', { ascending: true }),
       ]);
       const totalPayroll = ((p.data ?? []) as { net: number }[]).reduce((s, x) => s + Number(x.net), 0);
       const totalAdvances = ((a.data ?? []) as { amount: number }[]).reduce((s, x) => s + Number(x.amount), 0);
@@ -76,12 +80,29 @@ function Overview() {
         payroll: totalPayroll,
         advances: totalAdvances,
       });
+
+      // Build the real last-6-months payroll cost history from actual
+      // payroll_runs (previously this chart showed fixed, fake numbers).
+      const byPeriod = new Map<string, number>();
+      ((runs.data ?? []) as { period: string; total_net: number }[]).forEach((r) => {
+        byPeriod.set(r.period, (byPeriod.get(r.period) ?? 0) + Number(r.total_net));
+      });
+      const now = new Date();
+      const months: { label: string; value: number }[] = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const key = d.toISOString().slice(0, 7);
+        const label = d.toLocaleDateString('fr-FR', { month: 'short' });
+        months.push({ label, value: byPeriod.get(key) ?? 0 });
+      }
+      setHistory(months);
       setLoading(false);
     })();
   }, [tenant]);
 
   if (!tenant) return null;
   const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(Math.round(n));
+  const maxHistory = Math.max(1, ...history.map((h) => h.value));
 
   return (
     <div>
@@ -96,14 +117,18 @@ function Overview() {
           </div>
           <div className="card p-6">
             <h3 className="text-slate-900 dark:text-white font-semibold mb-4">Coût de paie — 6 derniers mois</h3>
-            <div className="flex items-end gap-3 h-48">
-              {[42, 55, 48, 70, 62, 85].map((h, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                  <div className="w-full rounded-t bg-gradient-to-t from-coral-500 to-coral-400" style={{ height: `${h}%` }} />
-                  <div className="text-xs text-slate-400 dark:text-white/40">M{i + 1}</div>
-                </div>
-              ))}
-            </div>
+            {history.every((h) => h.value === 0) ? (
+              <p className="text-slate-400 dark:text-white/40 text-sm">Aucune paie exécutée sur cette période pour l'instant.</p>
+            ) : (
+              <div className="flex items-end gap-3 h-48">
+                {history.map((h, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-2" title={`${fmt(h.value)} ${tenant.currency}`}>
+                    <div className="w-full rounded-t bg-gradient-to-t from-coral-500 to-coral-400" style={{ height: `${Math.max(2, (h.value / maxHistory) * 100)}%` }} />
+                    <div className="text-xs text-slate-400 dark:text-white/40 capitalize">{h.label}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </>
       )}
@@ -283,7 +308,7 @@ function Employees() {
   }
 
   const inviteStatusForEmail = (email: string): Invitation | null => {
-    return invitations.find((i) => i.email === email.toLowerCase());
+    return invitations.find((i) => i.email === email.toLowerCase()) ?? null;
   };
 
   if (!tenant) return null;
@@ -529,6 +554,14 @@ function OffboardModal({ employee, onClose, onConfirm }: {
 // ============================================================
 // Generic requests list (leaves, advances, claims)
 // ============================================================
+function computeLeaveDays(start: string, end: string): number {
+  if (!start || !end) return 1;
+  const d1 = new Date(start);
+  const d2 = new Date(end);
+  const diff = Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  return diff > 0 ? diff : 1;
+}
+
 function RequestList({ table, title, icon, amountKey }: {
   table: 'leave_requests' | 'advances' | 'claims';
   title: string;
@@ -539,21 +572,32 @@ function RequestList({ table, title, icon, amountKey }: {
   const tenant = useTenant();
   const [items, setItems] = useState<any[]>([]);
   const [employees, setEmployees] = useState<Record<string, Employee>>({});
+  const [balances, setBalances] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState<any>({});
 
+  const isLeave = table === 'leave_requests';
+  const thisYear = new Date().getFullYear();
+
   async function load() {
     if (!tenant) return;
     setLoading(true);
-    const [r, emps] = await Promise.all([
+    const calls: any[] = [
       supabase.from(table).select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false }),
       supabase.from('employees').select('id, first_name, last_name, user_id').eq('tenant_id', tenant.id),
-    ]);
+    ];
+    if (isLeave) calls.push(supabase.from('leave_balances').select('*').eq('tenant_id', tenant.id).eq('type', 'annual').eq('year', thisYear));
+    const [r, emps, bal] = await Promise.all(calls);
     setItems(r.data ?? []);
     const map: Record<string, Employee> = {};
     (emps.data ?? []).forEach((e: any) => { map[e.id] = e; });
     setEmployees(map);
+    if (isLeave && bal) {
+      const bmap: Record<string, any> = {};
+      (bal.data ?? []).forEach((b: any) => { bmap[b.employee_id] = b; });
+      setBalances(bmap);
+    }
     setLoading(false);
   }
   useEffect(() => { load(); }, [tenant]);
@@ -585,10 +629,45 @@ function RequestList({ table, title, icon, amountKey }: {
     setForm({});
     load();
   }
+
+  function remainingFor(employeeId: string): number | null {
+    const b = balances[employeeId];
+    if (!b) return null;
+    return Number(b.entitled) + Number(b.carried_over) - Number(b.used);
+  }
+
   async function update(id: string, status: string) {
+    const item = items.find((it) => it.id === id);
+
+    // Leave-specific: keep the employee's remaining balance accurate as
+    // requests move in and out of "approved" (previously nothing ever
+    // touched leave_balances, so quotas were never actually enforced).
+    if (isLeave && item) {
+      const days = computeLeaveDays(item.start_date, item.end_date);
+      const wasApproved = item.status === 'approved';
+      const willBeApproved = status === 'approved';
+      if (!wasApproved && willBeApproved) {
+        const b = balances[item.employee_id];
+        const remaining = b ? Number(b.entitled) + Number(b.carried_over) - Number(b.used) : null;
+        if (b && remaining !== null && remaining < days) {
+          const proceed = window.confirm(
+            `${empName(item.employee_id)} n'a que ${remaining} jour(s) restant(s) mais demande ${days} jour(s). Approuver quand même ?`
+          );
+          if (!proceed) return;
+        }
+        if (b) {
+          await supabase.from('leave_balances').update({ used: Number(b.used) + days }).eq('id', b.id);
+        }
+      } else if (wasApproved && !willBeApproved) {
+        const b = balances[item.employee_id];
+        if (b) {
+          await supabase.from('leave_balances').update({ used: Math.max(0, Number(b.used) - days) }).eq('id', b.id);
+        }
+      }
+    }
+
     await supabase.from(table).update({ status }).eq('id', id);
     // Notify the employee
-    const item = items.find((it) => it.id === id);
     const emp = item ? employees[item.employee_id] : null;
     if (emp?.user_id && tenant) {
       const cat = table === 'leave_requests' ? 'leave' : table === 'advances' ? 'advance' : 'claim';
@@ -624,6 +703,7 @@ function RequestList({ table, title, icon, amountKey }: {
                   <th className="text-left p-4 font-medium">Type</th>
                   <th className="text-left p-4 font-medium">Période</th>
                   <th className="text-left p-4 font-medium">Jours</th>
+                  <th className="text-left p-4 font-medium">Solde restant</th>
                 </>}
                 {amountKey && <th className="text-left p-4 font-medium">Montant</th>}
                 <th className="text-left p-4 font-medium">Statut</th>
@@ -638,6 +718,15 @@ function RequestList({ table, title, icon, amountKey }: {
                     <td className="p-4 text-slate-700 dark:text-white/70 capitalize">{it.type}</td>
                     <td className="p-4 text-slate-700 dark:text-white/70 text-xs">{it.start_date} → {it.end_date}</td>
                     <td className="p-4 text-slate-700 dark:text-white/70">{it.days}</td>
+                    <td className="p-4">
+                      {remainingFor(it.employee_id) === null ? (
+                        <span className="text-slate-400 text-xs">—</span>
+                      ) : (
+                        <span className={remainingFor(it.employee_id)! < it.days ? 'text-rose-500 font-medium' : 'text-slate-700 dark:text-white/70'}>
+                          {remainingFor(it.employee_id)} j.
+                        </span>
+                      )}
+                    </td>
                   </>}
                   {amountKey && <td className="p-4 text-slate-700 dark:text-white/70">{new Intl.NumberFormat('fr-FR').format(it[amountKey])} {tenant.currency}</td>}
                   <td className="p-4"><Badge color={it.status === 'approved' ? 'emerald' : it.status === 'rejected' ? 'rose' : 'amber'}>{it.status}</Badge></td>
@@ -676,9 +765,20 @@ function RequestList({ table, title, icon, amountKey }: {
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="label">Début</label><input type="date" className="input" onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></div>
-                <div><label className="label">Fin</label><input type="date" className="input" onChange={(e) => setForm({ ...form, end_date: e.target.value, days: 1 })} /></div>
+                <div><label className="label">Début</label><input type="date" className="input" onChange={(e) => {
+                  const start = e.target.value;
+                  const days = form.end_date ? computeLeaveDays(start, form.end_date) : form.days;
+                  setForm({ ...form, start_date: start, days });
+                }} /></div>
+                <div><label className="label">Fin</label><input type="date" className="input" onChange={(e) => {
+                  const end = e.target.value;
+                  const days = form.start_date ? computeLeaveDays(form.start_date, end) : 1;
+                  setForm({ ...form, end_date: end, days });
+                }} /></div>
               </div>
+              {form.start_date && form.end_date && (
+                <p className="text-xs text-slate-500 dark:text-white/50">Durée calculée : <strong>{form.days ?? computeLeaveDays(form.start_date, form.end_date)} jour(s)</strong></p>
+              )}
             </>
           )}
           {amountKey && (
@@ -757,7 +857,11 @@ function Payroll() {
   async function saveAdjustment() {
     if (!tenant || !editingEmp || !adjustForm.reason.trim()) return;
     const field = adjustForm.field as 'salary' | 'bonus' | 'allowances' | 'deductions' | 'overtime' | 'taxes';
-    // Audit trail
+    // Recurring fields (salary, allowances, deductions) apply immediately and every
+    // future payroll run picks them up from the employee record — so they're marked
+    // "consumed" right away. Bonus / overtime / one-off tax corrections stay pending
+    // (consumed = false) until the next payroll run actually uses them.
+    const isRecurring = field === 'salary' || field === 'allowances' || field === 'deductions';
     await supabase.from('payroll_adjustments').insert({
       tenant_id: tenant.id,
       employee_id: editingEmp.id,
@@ -766,10 +870,14 @@ function Payroll() {
       new_value: adjustForm.new_value,
       reason: adjustForm.reason.trim(),
       changed_by: user?.id,
+      consumed: isRecurring,
     });
-    // Update employee salary if salary field changed
     if (field === 'salary') {
       await supabase.from('employees').update({ salary: adjustForm.new_value }).eq('id', editingEmp.id);
+    } else if (field === 'allowances') {
+      await supabase.from('employees').update({ allowances: adjustForm.new_value }).eq('id', editingEmp.id);
+    } else if (field === 'deductions') {
+      await supabase.from('employees').update({ recurring_deductions: adjustForm.new_value }).eq('id', editingEmp.id);
     }
     await supabase.from('audit_logs').insert({
       tenant_id: tenant.id, actor: user?.id,
@@ -782,23 +890,90 @@ function Payroll() {
 
   async function runPayroll() {
     if (!tenant || employees.length === 0) return;
-    setRunning(true);
     const period = new Date().toISOString().slice(0, 7);
+    const alreadyRun = runs.some((r) => r.period === period);
+    if (alreadyRun) {
+      alert(`La paie pour ${period} a déjà été exécutée. Pour corriger un bulletin, modifiez-le individuellement plutôt que de relancer un run complet (cela créerait des doublons).`);
+      return;
+    }
+    setRunning(true);
     const selectedEmps = selected.size > 0 ? employees.filter((e) => selected.has(e.id)) : employees;
-    const gross = selectedEmps.reduce((s, e) => s + Number(e.salary), 0);
-    const deductions = gross * 0.15;
-    const net = gross - deductions;
+    const empIds = selectedEmps.map((e) => e.id);
+
+    // Pull any pending one-off adjustments (bonus / overtime / manual tax
+    // corrections) HR recorded since the last run, so they actually land on
+    // this period's payslip instead of being silently ignored.
+    const { data: pendingAdj } = await supabase
+      .from('payroll_adjustments')
+      .select('id, employee_id, field, new_value')
+      .eq('tenant_id', tenant.id)
+      .eq('consumed', false)
+      .in('employee_id', empIds)
+      .in('field', ['bonus', 'overtime', 'taxes']);
+
+    // Pull approved overtime hours that haven't been paid out yet, so they
+    // actually land on the payslip instead of vanishing after approval.
+    const { data: approvedOT } = await supabase
+      .from('overtime')
+      .select('id, employee_id, amount')
+      .eq('tenant_id', tenant.id)
+      .eq('status', 'approved')
+      .in('employee_id', empIds);
+
+    type AdjBucket = { bonus: number; overtime: number; taxAdj: number; ids: string[]; otIds: string[] };
+    const adjByEmp = new Map<string, AdjBucket>();
+    (pendingAdj ?? []).forEach((a: any) => {
+      const bucket = adjByEmp.get(a.employee_id) ?? { bonus: 0, overtime: 0, taxAdj: 0, ids: [], otIds: [] };
+      if (a.field === 'bonus') bucket.bonus += Number(a.new_value);
+      if (a.field === 'overtime') bucket.overtime += Number(a.new_value);
+      if (a.field === 'taxes') bucket.taxAdj += Number(a.new_value);
+      bucket.ids.push(a.id);
+      adjByEmp.set(a.employee_id, bucket);
+    });
+    (approvedOT ?? []).forEach((o: any) => {
+      const bucket = adjByEmp.get(o.employee_id) ?? { bonus: 0, overtime: 0, taxAdj: 0, ids: [], otIds: [] };
+      bucket.overtime += Number(o.amount);
+      bucket.otIds.push(o.id);
+      adjByEmp.set(o.employee_id, bucket);
+    });
+
+    const computed = selectedEmps.map((e) => {
+      const base = Number(e.salary);
+      const allowances = Number(e.allowances ?? 0);
+      const recurringDeductions = Number(e.recurring_deductions ?? 0);
+      const adj = adjByEmp.get(e.id) ?? { bonus: 0, overtime: 0, taxAdj: 0, ids: [], otIds: [] };
+      const grossPay = base + allowances + adj.bonus + adj.overtime;
+      const taxes = grossPay * 0.15 + adj.taxAdj;
+      const deductions = recurringDeductions + taxes;
+      const net = grossPay - deductions;
+      return { employee: e, gross: grossPay, deductions, net, bonus: adj.bonus, allowances, overtime_pay: adj.overtime, taxes, consumedIds: adj.ids, otIds: adj.otIds };
+    });
+
+    const gross = computed.reduce((s, c) => s + c.gross, 0);
+    const net = computed.reduce((s, c) => s + c.net, 0);
     const { data: run } = await supabase.from('payroll_runs').insert({
       tenant_id: tenant.id, period, status: 'completed', total_gross: gross, total_net: net, currency: tenant.currency,
     }).select().single();
     if (run) {
-      const payslips = selectedEmps.map((e) => ({
-        tenant_id: tenant.id, run_id: run.id, employee_id: e.id,
-        gross: Number(e.salary), deductions: Number(e.salary) * 0.15, net: Number(e.salary) * 0.85,
-        bonus: 0, allowances: 0, overtime_pay: 0, taxes: Number(e.salary) * 0.15,
+      const payslips = computed.map((c) => ({
+        tenant_id: tenant.id, run_id: run.id, employee_id: c.employee.id,
+        gross: c.gross, deductions: c.deductions, net: c.net,
+        bonus: c.bonus, allowances: c.allowances, overtime_pay: c.overtime_pay, taxes: c.taxes,
         currency: tenant.currency, status: 'pending',
       }));
       await supabase.from('payslips').insert(payslips);
+
+      // Mark the one-off adjustments as used so they aren't applied again next month
+      const consumedIds = computed.flatMap((c) => c.consumedIds);
+      if (consumedIds.length > 0) {
+        await supabase.from('payroll_adjustments').update({ consumed: true }).in('id', consumedIds);
+      }
+      // Mark the approved overtime entries as paid so they don't get paid twice
+      const paidOtIds = computed.flatMap((c) => c.otIds);
+      if (paidOtIds.length > 0) {
+        await supabase.from('overtime').update({ status: 'paid' }).in('id', paidOtIds);
+      }
+
       // Notify each employee
       await Promise.all(selectedEmps.map((e) => {
         if (e.user_id) {
@@ -1024,7 +1199,9 @@ function Recruitment() {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
+  const [candidateModal, setCandidateModal] = useState(false);
   const [form, setForm] = useState({ title: '', department: '', location: '', description: '' });
+  const [candidateForm, setCandidateForm] = useState({ posting_id: '', full_name: '', email: '', phone: '', notes: '' });
 
   async function load() {
     if (!tenant) return;
@@ -1047,6 +1224,22 @@ function Recruitment() {
     load();
   }
 
+  async function addCandidate() {
+    if (!tenant || !candidateForm.full_name.trim()) return;
+    await supabase.from('recruitment_candidates').insert({
+      tenant_id: tenant.id,
+      posting_id: candidateForm.posting_id || null,
+      full_name: candidateForm.full_name.trim(),
+      email: candidateForm.email.trim() || null,
+      phone: candidateForm.phone.trim() || null,
+      notes: candidateForm.notes.trim() || null,
+      stage: 'applied',
+    });
+    setCandidateModal(false);
+    setCandidateForm({ posting_id: '', full_name: '', email: '', phone: '', notes: '' });
+    load();
+  }
+
   async function moveCandidate(id: string, stage: string) {
     await supabase.from('recruitment_candidates').update({ stage }).eq('id', id);
     load();
@@ -1058,7 +1251,12 @@ function Recruitment() {
   return (
     <div>
       <PageHeader title={t('dash.recruitment')} icon={<UserPlus size={20} />}
-        action={<button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> Offre</button>} />
+        action={
+          <div className="flex gap-2">
+            <button onClick={() => setCandidateModal(true)} className="btn-ghost text-sm"><Plus size={16} /> Candidat</button>
+            <button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> Offre</button>
+          </div>
+        } />
       {loading ? <Spinner /> : (
         <>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
@@ -1085,6 +1283,11 @@ function Recruitment() {
                     <div key={c.id} className="rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 p-2.5">
                       <div className="text-slate-900 dark:text-white text-sm font-medium">{c.full_name}</div>
                       <div className="text-slate-400 dark:text-white/40 text-xs truncate">{c.email}</div>
+                      {c.posting_id && (
+                        <div className="text-slate-400 dark:text-white/40 text-[10px] truncate mt-0.5">
+                          {postings.find((p) => p.id === c.posting_id)?.title ?? ''}
+                        </div>
+                      )}
                       <select
                         value={c.stage}
                         onChange={(e) => moveCandidate(c.id, e.target.value)}
@@ -1115,6 +1318,28 @@ function Recruitment() {
           <button onClick={addPosting} className="btn-primary text-sm">{t('common.save')}</button>
         </div>
       </Modal>
+
+      <Modal open={candidateModal} onClose={() => setCandidateModal(false)} title="Nouveau candidat">
+        <div className="space-y-3">
+          <div>
+            <label className="label">Offre associée <span className="text-slate-400">(optionnel)</span></label>
+            <select className="input" value={candidateForm.posting_id} onChange={(e) => setCandidateForm({ ...candidateForm, posting_id: e.target.value })}>
+              <option value="">— Aucune —</option>
+              {postings.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+            </select>
+          </div>
+          <div><label className="label">Nom complet *</label><input className="input" value={candidateForm.full_name} onChange={(e) => setCandidateForm({ ...candidateForm, full_name: e.target.value })} /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="label">Email</label><input type="email" className="input" value={candidateForm.email} onChange={(e) => setCandidateForm({ ...candidateForm, email: e.target.value })} /></div>
+            <div><label className="label">Téléphone</label><input className="input" value={candidateForm.phone} onChange={(e) => setCandidateForm({ ...candidateForm, phone: e.target.value })} /></div>
+          </div>
+          <div><label className="label">Notes</label><textarea className="input" rows={2} value={candidateForm.notes} onChange={(e) => setCandidateForm({ ...candidateForm, notes: e.target.value })} /></div>
+        </div>
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={() => setCandidateModal(false)} className="btn-ghost text-sm">{t('common.cancel')}</button>
+          <button onClick={addCandidate} disabled={!candidateForm.full_name.trim()} className="btn-primary text-sm">{t('common.save')}</button>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -1122,40 +1347,141 @@ function Recruitment() {
 // ============================================================
 // Training, Goals, Reviews, Assets, Compliance, Communication, Events
 // ============================================================
+function Performance() {
+  const { t } = useI18n();
+  const tenant = useTenant();
+  const [goals, setGoals] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<Record<string, Employee>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!tenant) return;
+    (async () => {
+      const [g, r, e] = await Promise.all([
+        supabase.from('goals').select('*').eq('tenant_id', tenant.id),
+        supabase.from('reviews').select('*').eq('tenant_id', tenant.id),
+        supabase.from('employees').select('id, first_name, last_name').eq('tenant_id', tenant.id),
+      ]);
+      setGoals(g.data ?? []);
+      setReviews(r.data ?? []);
+      const map: Record<string, Employee> = {};
+      (e.data ?? []).forEach((x: any) => { map[x.id] = x as Employee; });
+      setEmployees(map);
+      setLoading(false);
+    })();
+  }, [tenant]);
+
+  if (!tenant) return null;
+  const avgProgress = goals.length ? Math.round(goals.reduce((s, g) => s + Number(g.progress ?? 0), 0) / goals.length) : 0;
+  const avgRating = reviews.length ? (reviews.reduce((s, r) => s + Number(r.rating ?? 0), 0) / reviews.length).toFixed(1) : '—';
+  const empName = (id: string) => { const e = employees[id]; return e ? `${e.first_name} ${e.last_name}` : '—'; };
+
+  return (
+    <div>
+      <PageHeader title={t('dash.performance')} icon={<Target size={20} />} />
+      {loading ? <Spinner /> : (
+        <>
+          <div className="grid sm:grid-cols-3 gap-4 mb-6">
+            <StatCard label="Objectifs en cours" value={String(goals.length)} icon={<Target size={18} />} color="coral" />
+            <StatCard label="Progression moyenne" value={`${avgProgress}%`} icon={<TrendingUp size={18} />} color="teal" />
+            <StatCard label="Note moyenne (évaluations)" value={String(avgRating)} sub="sur 5" icon={<Star size={18} />} color="amber" />
+          </div>
+          <div className="grid lg:grid-cols-2 gap-6">
+            <div className="card p-5">
+              <h3 className="text-slate-900 dark:text-white font-semibold mb-3">Objectifs récents</h3>
+              {goals.length === 0 ? <p className="text-sm text-slate-400">Aucun objectif défini pour l'instant.</p> : (
+                <div className="space-y-2">
+                  {goals.slice(0, 8).map((g) => (
+                    <div key={g.id} className="flex items-center justify-between text-sm border-b border-slate-100 dark:border-white/5 pb-2">
+                      <div>
+                        <div className="text-slate-800 dark:text-white/80 font-medium">{g.title}</div>
+                        <div className="text-xs text-slate-400">{empName(g.employee_id)}</div>
+                      </div>
+                      <span className="text-coral-600 dark:text-coral-400 font-semibold">{g.progress ?? 0}%</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="card p-5">
+              <h3 className="text-slate-900 dark:text-white font-semibold mb-3">Évaluations récentes</h3>
+              {reviews.length === 0 ? <p className="text-sm text-slate-400">Aucune évaluation pour l'instant.</p> : (
+                <div className="space-y-2">
+                  {reviews.slice(0, 8).map((r) => (
+                    <div key={r.id} className="flex items-center justify-between text-sm border-b border-slate-100 dark:border-white/5 pb-2">
+                      <div>
+                        <div className="text-slate-800 dark:text-white/80 font-medium">{empName(r.employee_id)}</div>
+                        <div className="text-xs text-slate-400">{r.period ?? '—'}</div>
+                      </div>
+                      <span className="text-amber-600 dark:text-amber-400 font-semibold">{r.rating ?? '—'}/5</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <p className="text-xs text-slate-400 mt-4">Astuce : gérez les objectifs et évaluations en détail depuis les onglets "Objectifs OKR" et "Évaluations 360°".</p>
+        </>
+      )}
+    </div>
+  );
+}
+
 function SimpleList({ table, title, icon, fields, extraInsert }: {
-  table: string; title: string; icon: ReactNode; fields: { key: string; label: string; type?: string }[];
+  table: string; title: string; icon: ReactNode; fields: { key: string; label: string; type?: string; required?: boolean }[];
   extraInsert?: (form: any) => Record<string, any>;
 }) {
   const { t } = useI18n();
   const tenant = useTenant();
   const [items, setItems] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<Record<string, Employee>>({});
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState<any>({});
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const needsEmployees = fields.some((f) => f.type === 'employee_select');
 
   async function load() {
     if (!tenant) return;
     setLoading(true);
-    const { data } = await supabase.from(table).select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false });
-    setItems(data ?? []);
+    const calls: any[] = [supabase.from(table).select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false })];
+    if (needsEmployees) calls.push(supabase.from('employees').select('id, first_name, last_name').eq('tenant_id', tenant.id));
+    const [r, e] = await Promise.all(calls);
+    setItems(r.data ?? []);
+    if (e) {
+      const map: Record<string, Employee> = {};
+      (e.data ?? []).forEach((x: any) => { map[x.id] = x as Employee; });
+      setEmployees(map);
+    }
     setLoading(false);
   }
   useEffect(() => { load(); }, [tenant]);
 
   async function add() {
     if (!tenant) return;
+    setSaveError(null);
+    const missing = fields.find((f) => f.required && !form[f.key]);
+    if (missing) { setSaveError(`Le champ "${missing.label}" est requis.`); return; }
     const payload = { ...form, tenant_id: tenant.id, ...(extraInsert ? extraInsert(form) : {}) };
-    await supabase.from(table).insert(payload);
+    const { error } = await supabase.from(table).insert(payload);
+    if (error) { setSaveError(`L'enregistrement a échoué : ${error.message}`); return; }
     setModal(false);
     setForm({});
     load();
   }
 
+  const empName = (id: string) => {
+    const e = employees[id];
+    return e ? `${e.first_name} ${e.last_name}` : '—';
+  };
+
   if (!tenant) return null;
   return (
     <div>
       <PageHeader title={title} icon={icon}
-        action={<button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> {t('common.add')}</button>} />
+        action={<button onClick={() => { setSaveError(null); setModal(true); }} className="btn-primary text-sm"><Plus size={16} /> {t('common.add')}</button>} />
       {loading ? <Spinner /> : items.length === 0 ? (
         <EmptyState icon={icon} title="Rien pour le moment" />
       ) : (
@@ -1164,8 +1490,8 @@ function SimpleList({ table, title, icon, fields, extraInsert }: {
             <div key={it.id} className="card p-5">
               {fields.map((f) => (
                 <div key={f.key} className="mb-1">
-                  {f.key === fields[0].key && <div className="text-slate-900 dark:text-white font-semibold">{it[f.key]}</div>}
-                  {f.key !== fields[0].key && <div className="text-slate-500 dark:text-white/50 text-xs">{f.label}: {String(it[f.key] ?? '—')}</div>}
+                  {f.key === fields[0].key && <div className="text-slate-900 dark:text-white font-semibold">{f.type === 'employee_select' ? empName(it[f.key]) : it[f.key]}</div>}
+                  {f.key !== fields[0].key && <div className="text-slate-500 dark:text-white/50 text-xs">{f.label}: {f.type === 'employee_select' ? empName(it[f.key]) : String(it[f.key] ?? '—')}</div>}
                 </div>
               ))}
             </div>
@@ -1177,14 +1503,22 @@ function SimpleList({ table, title, icon, fields, extraInsert }: {
           {fields.map((f) => (
             <div key={f.key}>
               <label className="label">{f.label}</label>
-              <input
-                type={f.type ?? 'text'}
-                className="input"
-                value={form[f.key] ?? ''}
-                onChange={(e) => setForm({ ...form, [f.key]: f.type === 'number' ? Number(e.target.value) : e.target.value })}
-              />
+              {f.type === 'employee_select' ? (
+                <select className="input" value={form[f.key] ?? ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
+                  <option value="">—</option>
+                  {Object.entries(employees).map(([id, e]) => <option key={id} value={id}>{e.first_name} {e.last_name}</option>)}
+                </select>
+              ) : (
+                <input
+                  type={f.type ?? 'text'}
+                  className="input"
+                  value={form[f.key] ?? ''}
+                  onChange={(e) => setForm({ ...form, [f.key]: f.type === 'number' ? Number(e.target.value) : e.target.value })}
+                />
+              )}
             </div>
           ))}
+          {saveError && <p className="text-sm text-rose-600 dark:text-rose-400">{saveError}</p>}
         </div>
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={() => setModal(false)} className="btn-ghost text-sm">{t('common.cancel')}</button>
@@ -1198,6 +1532,7 @@ function SimpleList({ table, title, icon, fields, extraInsert }: {
 function Events() {
   const { t } = useI18n();
   const tenant = useTenant();
+  const { user } = useAuth();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
@@ -1223,9 +1558,9 @@ function Events() {
   }
 
   async function rsvp(id: string, status: string) {
-    if (!tenant) return;
+    if (!tenant || !user) return;
     const { data } = await supabase.from('events').select('rsvp').eq('id', id).single();
-    const rsvp = { ...(data?.rsvp ?? {}), [tenant.id]: status };
+    const rsvp = { ...(data?.rsvp ?? {}), [user.id]: status };
     await supabase.from('events').update({ rsvp }).eq('id', id);
     load();
   }
@@ -1274,62 +1609,105 @@ function Events() {
   );
 }
 
-function Communication() {
+function Compliance() {
   const { t } = useI18n();
   const tenant = useTenant();
-  const [announcements, setAnnouncements] = useState<any[]>([]);
-  const [text, setText] = useState('');
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [letterEmpId, setLetterEmpId] = useState('');
+  const [letterType, setLetterType] = useState<'attestation' | 'certificat'>('attestation');
 
   async function load() {
     if (!tenant) return;
-    const { data } = await supabase.from('audit_logs').select('*').eq('tenant_id', tenant.id).eq('action', 'announcement').order('created_at', { ascending: false });
-    setAnnouncements((data ?? []).map((a) => ({ id: a.id, text: a.details?.text, created_at: a.created_at })));
+    setLoading(true);
+    const { data } = await supabase.from('employees').select('*').eq('tenant_id', tenant.id).eq('status', 'active');
+    setEmployees((data as Employee[]) ?? []);
+    setLoading(false);
   }
   useEffect(() => { load(); }, [tenant]);
 
-  async function post() {
-    if (!tenant || !text.trim()) return;
-    await supabase.from('audit_logs').insert({ tenant_id: tenant.id, action: 'announcement', details: { text } });
-    setText('');
-    load();
+  // Real, data-driven compliance checklist — flags employees with missing
+  // required information, computed live from the database (not a hardcoded claim).
+  const issues = employees.flatMap((e) => {
+    const missing: string[] = [];
+    if (!e.email) missing.push('email');
+    if (!e.phone) missing.push('téléphone');
+    if (!e.position) missing.push('poste');
+    if (!e.hire_date) missing.push("date d'embauche");
+    if (!e.contract_type) missing.push('type de contrat');
+    return missing.length > 0 ? [{ employee: e, missing }] : [];
+  });
+
+  function generateLetter() {
+    if (!tenant || !letterEmpId) return;
+    const emp = employees.find((e) => e.id === letterEmpId);
+    if (!emp) return;
+    const today = new Date().toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
+    const hireDate = emp.hire_date ? new Date(emp.hire_date).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' }) : '—';
+    const title = letterType === 'attestation' ? "ATTESTATION DE TRAVAIL" : "CERTIFICAT DE TRAVAIL";
+    const body = letterType === 'attestation'
+      ? `Nous, soussignés <strong>${tenant.name}</strong>, certifions que <strong>${emp.first_name} ${emp.last_name}</strong> est employé(e) au sein de notre entreprise depuis le <strong>${hireDate}</strong>, en qualité de <strong>${emp.position || '—'}</strong>, sous contrat de type <strong>${emp.contract_type || '—'}</strong>.<br/><br/>Cette attestation est délivrée à l'intéressé(e) pour servir et valoir ce que de droit.`
+      : `Nous, soussignés <strong>${tenant.name}</strong>, certifions que <strong>${emp.first_name} ${emp.last_name}</strong> a été employé(e) au sein de notre entreprise depuis le <strong>${hireDate}</strong>, en qualité de <strong>${emp.position || '—'}</strong>.<br/><br/>Ce certificat est délivré à l'intéressé(e) pour servir et valoir ce que de droit.`;
+
+    const win = window.open('', '_blank', 'width=800,height=1000');
+    if (!win) return;
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"/><title>${title}</title>
+      <style>
+        body { font-family: Georgia, 'Times New Roman', serif; padding: 60px; color: #1a1a1a; line-height: 1.7; }
+        h1 { font-size: 20px; letter-spacing: 2px; text-align: center; margin-bottom: 50px; }
+        .header { text-align: center; margin-bottom: 40px; font-weight: bold; font-size: 15px; }
+        .date { text-align: right; margin-top: 60px; }
+        .sign { margin-top: 80px; text-align: right; }
+        @media print { body { padding: 40px; } }
+      </style></head><body>
+      <div class="header">${tenant.name}</div>
+      <h1>${title}</h1>
+      <p>${body}</p>
+      <div class="date">Fait le ${today}</div>
+      <div class="sign">La Direction<br/><br/><br/>______________________</div>
+    </body></html>`);
+    win.document.close();
+    win.focus();
+    win.print();
   }
 
   if (!tenant) return null;
-  return (
-    <div>
-      <PageHeader title={t('dash.communication')} icon={<MessageSquare size={20} />} />
-      <div className="card p-5 mb-4">
-        <textarea className="input" rows={3} placeholder="Annonce à toute l'entreprise..." value={text} onChange={(e) => setText(e.target.value)} />
-        <div className="flex justify-end mt-3"><button onClick={post} className="btn-primary text-sm">Publier</button></div>
-      </div>
-      <div className="space-y-3">
-        {announcements.map((a) => (
-          <div key={a.id} className="card p-4">
-            <div className="text-slate-700 dark:text-white/70 text-sm">{a.text}</div>
-            <div className="text-slate-400 dark:text-white/40 text-xs mt-2">{new Date(a.created_at).toLocaleString()}</div>
-          </div>
-        ))}
-        {announcements.length === 0 && <div className="text-slate-400 dark:text-white/40 text-sm">Aucune annonce.</div>}
-      </div>
-    </div>
-  );
-}
-
-function Compliance() {
-  const { t } = useI18n();
   return (
     <div>
       <PageHeader title={t('dash.compliance')} icon={<ShieldCheck size={20} />} />
       <div className="grid md:grid-cols-2 gap-4">
         <div className="card p-5">
           <div className="flex items-center gap-2 text-slate-900 dark:text-white font-semibold mb-2"><FileText size={18} className="text-coral-500" /> Lettres RH</div>
-          <p className="text-slate-600 dark:text-white/60 text-sm mb-4">Générez des lettres (attestation d'emploi, certificat de travail, etc.) en FR/EN.</p>
-          <button className="btn-ghost text-sm" onClick={() => alert('Modèle de lettre généré (démo).')}>Générer une lettre</button>
+          <p className="text-slate-600 dark:text-white/60 text-sm mb-4">Générez une attestation ou un certificat de travail pour un employé — prêt à imprimer ou enregistrer en PDF.</p>
+          <div className="space-y-2">
+            <select className="input" value={letterType} onChange={(e) => setLetterType(e.target.value as any)}>
+              <option value="attestation">Attestation de travail</option>
+              <option value="certificat">Certificat de travail</option>
+            </select>
+            <select className="input" value={letterEmpId} onChange={(e) => setLetterEmpId(e.target.value)}>
+              <option value="">— Choisir un employé —</option>
+              {employees.map((e) => <option key={e.id} value={e.id}>{e.first_name} {e.last_name}</option>)}
+            </select>
+            <button className="btn-primary text-sm w-full justify-center" disabled={!letterEmpId} onClick={generateLetter}>
+              Générer la lettre
+            </button>
+          </div>
         </div>
         <div className="card p-5">
-          <div className="flex items-center gap-2 text-slate-900 dark:text-white font-semibold mb-2"><ShieldCheck size={18} className="text-coral-500" /> AI Compliance Monitor</div>
-          <p className="text-slate-600 dark:text-white/60 text-sm mb-4">Surveille automatiquement les changements réglementaires (RGPD, code du travail).</p>
-          <Badge color="emerald">Actif</Badge>
+          <div className="flex items-center gap-2 text-slate-900 dark:text-white font-semibold mb-2"><ShieldCheck size={18} className="text-coral-500" /> Contrôle de conformité des dossiers</div>
+          <p className="text-slate-600 dark:text-white/60 text-sm mb-4">Vérification automatique des informations obligatoires manquantes dans vos dossiers employés.</p>
+          {loading ? <Spinner /> : issues.length === 0 ? (
+            <Badge color="emerald">Tous les dossiers sont complets</Badge>
+          ) : (
+            <div className="space-y-2 max-h-56 overflow-y-auto">
+              {issues.map(({ employee, missing }) => (
+                <div key={employee.id} className="flex items-start justify-between text-sm p-2 rounded-lg bg-amber-50 dark:bg-amber-500/10">
+                  <span className="text-slate-800 dark:text-white/80">{employee.first_name} {employee.last_name}</span>
+                  <span className="text-amber-700 dark:text-amber-300 text-xs text-right">{missing.join(', ')}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1394,7 +1772,7 @@ function Documents() {
     if (!tenant || !file || !form.employee_id || !form.name) return;
     const path = `${tenant.id}/${form.employee_id}/${Date.now()}-${file.name}`;
     const { error: upErr } = await supabase.storage.from('documents').upload(path, file);
-    if (upErr) { alert('Upload failed'); return; }
+    if (upErr) { alert(`Le téléversement a échoué : ${upErr.message}`); return; }
     await supabase.from('documents').insert({
       tenant_id: tenant.id,
       employee_id: form.employee_id,
@@ -1584,7 +1962,7 @@ function Overtime() {
                   <td className="p-4 text-slate-700 dark:text-white/70">{o.hours}h</td>
                   <td className="p-4 text-slate-700 dark:text-white/70">x{o.rate}</td>
                   <td className="p-4 text-slate-700 dark:text-white/70">{fmt(o.amount)} {o.currency}</td>
-                  <td className="p-4"><Badge color={o.status === 'approved' ? 'emerald' : o.status === 'rejected' ? 'rose' : 'amber'}>{o.status}</Badge></td>
+                  <td className="p-4"><Badge color={o.status === 'paid' ? 'indigo' : o.status === 'approved' ? 'emerald' : o.status === 'rejected' ? 'rose' : 'amber'}>{o.status === 'paid' ? 'payé' : o.status}</Badge></td>
                   <td className="p-4 flex gap-2">
                     {o.status === 'pending' && <>
                       <button onClick={() => setStatus(o.id, 'approved')} className="text-emerald-600 hover:text-emerald-500 text-xs">Approuver</button>
@@ -1661,10 +2039,11 @@ export default function AdminDashboard() {
     case 'claims': content = <RequestList table="claims" title="Notes de frais" icon={<Receipt size={20} />} amountKey="amount" />; break;
     case 'attendance': content = <Attendance />; break;
     case 'recruitment': content = <Recruitment />; break;
-    case 'training': content = <SimpleList table="trainings" title="Formation / LMS" icon={<GraduationCap size={20} />} fields={[{ key: 'title', label: 'Titre' }, { key: 'progress', label: 'Progression %', type: 'number' }]} extraInsert={() => ({ status: 'assigned' })} />; break;
-    case 'goals': content = <SimpleList table="goals" title="Objectifs OKR" icon={<Target size={20} />} fields={[{ key: 'title', label: 'Titre' }, { key: 'progress', label: 'Progression %', type: 'number' }]} extraInsert={() => ({ status: 'active' })} />; break;
-    case 'reviews': content = <SimpleList table="reviews" title="Évaluations 360°" icon={<Star size={20} />} fields={[{ key: 'period', label: 'Période' }, { key: 'rating', label: 'Note /5', type: 'number' }]} extraInsert={() => ({ status: 'draft' })} />; break;
-    case 'assets': content = <SimpleList table="assets" title="Actifs" icon={<Package size={20} />} fields={[{ key: 'name', label: 'Nom' }, { key: 'category', label: 'Catégorie' }, { key: 'serial', label: 'Série' }]} extraInsert={() => ({ status: 'available' })} />; break;
+    case 'training': content = <SimpleList table="trainings" title="Formation / LMS" icon={<GraduationCap size={20} />} fields={[{ key: 'title', label: 'Titre', required: true }, { key: 'employee_id', label: 'Employé', type: 'employee_select' }, { key: 'progress', label: 'Progression %', type: 'number' }]} extraInsert={() => ({ status: 'assigned' })} />; break;
+    case 'goals': content = <SimpleList table="goals" title="Objectifs OKR" icon={<Target size={20} />} fields={[{ key: 'title', label: 'Titre', required: true }, { key: 'employee_id', label: 'Employé', type: 'employee_select', required: true }, { key: 'progress', label: 'Progression %', type: 'number' }]} extraInsert={() => ({ status: 'active' })} />; break;
+    case 'performance': content = <Performance />; break;
+    case 'reviews': content = <SimpleList table="reviews" title="Évaluations 360°" icon={<Star size={20} />} fields={[{ key: 'employee_id', label: 'Employé', type: 'employee_select', required: true }, { key: 'period', label: 'Période' }, { key: 'rating', label: 'Note /5', type: 'number' }]} extraInsert={() => ({ status: 'draft' })} />; break;
+    case 'assets': content = <SimpleList table="assets" title="Actifs" icon={<Package size={20} />} fields={[{ key: 'name', label: 'Nom', required: true }, { key: 'category', label: 'Catégorie' }, { key: 'serial', label: 'Série' }, { key: 'assigned_to', label: 'Assigné à', type: 'employee_select' }]} extraInsert={() => ({ status: 'available' })} />; break;
     case 'compliance': content = <Compliance />; break;
     case 'communication': content = <CommunicationsPanel />; break;
     case 'events': content = <Events />; break;
@@ -1674,6 +2053,7 @@ export default function AdminDashboard() {
     case 'settings': content = <Settings />; break;
     case 'settings/branches': content = <BranchManager />; break;
     case 'settings/departments': content = <DepartmentManager />; break;
+    case 'settings/leave-balances': content = <LeaveBalanceManager />; break;
     case 'settings/roles': content = <RoleManager />; break;
     default: content = <Overview />;
   }
