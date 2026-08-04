@@ -46,8 +46,8 @@ export default function AutomationCenter() {
 
   async function load() {
     setLoading(true);
-    const { data: user } = await supabase.auth.getUser();
-    if (!user.data.user) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     // Get all tenants for super admin
     const { data: tenants } = await supabase.from('tenants').select('id');
     const tenantIds = (tenants ?? []).map((x: any) => x.id);

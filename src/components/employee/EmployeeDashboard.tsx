@@ -456,7 +456,7 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
   async function load() {
     if (!tenant || !me) return;
     setLoading(true);
-    const calls: Promise<any>[] = [supabase.from(table).select('*').eq('tenant_id', tenant.id).eq('employee_id', me.id).order('created_at', { ascending: false })];
+    const calls: any[] = [supabase.from(table).select('*').eq('tenant_id', tenant.id).eq('employee_id', me.id).order('created_at', { ascending: false })];
     if (isLeave) calls.push(supabase.from('leave_balances').select('entitled, used, carried_over').eq('tenant_id', tenant.id).eq('employee_id', me.id).eq('type', 'annual').eq('year', thisYear).maybeSingle());
     const [r, b] = await Promise.all(calls);
     setItems(r.data ?? []);
