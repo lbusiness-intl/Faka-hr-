@@ -17,7 +17,7 @@ import { AlertTriangle } from 'lucide-react';
 function Router() {
   const route = useRoute();
   const path = route.split('?')[0];
-  const { user, loading, activeTenant, activeRole, memberships } = useAuth();
+  const { user, loading, activeTenant, activeRole } = useAuth();
 
   // While auth state is resolving, show a splash
   if (loading) {
@@ -57,12 +57,25 @@ function Router() {
     return <SimplePage />;
   }
 
-  // Super admin route — requires super_admin role
+  // Super admin route — reserved for the platform's own super admins and
+  // internal staff, never for a tenant's own users.
+  //
+  // SECURITY: this check trusts ONLY `user.app_metadata.role`, which lives in
+  // the Supabase Auth JWT and can only ever be written server-side (via the
+  // Admin API / service role) — a client can never set or forge it, no
+  // matter what request they craft by hand.
+  //
+  // We deliberately do NOT also trust `memberships.some(m => m.role ===
+  // 'super_admin')` here: that value comes from the `tenant_memberships`
+  // table, which a tenant's own admin can write to (to manage their own
+  // team). A now-patched bug let a tenant admin grant themselves that role
+  // directly through the API — the underlying database hole is closed
+  // (see migration 0011), but the UI gate itself must not depend on a
+  // tenant-writable value for a platform-wide permission, so it never
+  // trusts it again even if a similar mistake is reintroduced later.
   if (path === '/super-admin' || path.startsWith('/super-admin')) {
     if (!user) { navigate('/signin'); return null; }
-    // Role check: super_admin role is stored in raw_app_meta_data. The auth
-    // context exposes it via memberships' role OR we check user_role claim.
-    const isSuper = (user.app_metadata?.role === 'super_admin') || memberships.some((m) => m.role === 'super_admin');
+    const isSuper = user.app_metadata?.role === 'super_admin';
     if (!isSuper) {
       return (
         <div className="min-h-screen bg-slate-50 dark:bg-ink-900 flex items-center justify-center text-center px-6">

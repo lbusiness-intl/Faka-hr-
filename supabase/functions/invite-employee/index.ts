@@ -75,6 +75,25 @@ Deno.serve(async (req: Request) => {
         return json({ ok: false, error: "FORBIDDEN" }, 403);
       }
 
+      // SECURITY: the invitation `role` field ends up written straight into
+      // tenant_memberships when the invite is accepted (see the "accept" /
+      // "activate" actions below), via the service-role client which bypasses
+      // RLS entirely. Never let a tenant-level caller (even an admin) issue
+      // an invite carrying the platform-wide "super_admin" role — only a
+      // caller who is ALREADY a verified super admin (JWT app_metadata,
+      // which a client cannot forge) may grant it, and only to onboard
+      // platform staff, never through self-service tenant invites.
+      const requestedRole = typeof role === "string" ? role : "employee";
+      const safeRole = requestedRole === "super_admin" && !isSuperAdmin ? "employee" : requestedRole;
+      if (requestedRole === "super_admin" && !isSuperAdmin) {
+        await adminClient.from("audit_logs").insert({
+          tenant_id: tenantId,
+          actor: user.id,
+          action: "invitation.blocked_privilege_escalation",
+          details: { email, attempted_role: requestedRole },
+        });
+      }
+
       // Create or update employee record (pending)
       let employeeId: string | null = null;
       const { data: existing } = await adminClient
@@ -122,7 +141,7 @@ Deno.serve(async (req: Request) => {
       const { error: invErr } = await adminClient.from("invitations").insert({
         tenant_id: tenantId,
         email: email.toLowerCase(),
-        role: role ?? "employee",
+        role: safeRole,
         token: invToken,
         expires_at: expiresAt.toISOString(),
         created_by: user.id,
