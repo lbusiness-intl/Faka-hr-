@@ -10,9 +10,7 @@ import { Building2, MapPin, CreditCard, ArrowRight, ArrowLeft, Check, Moon, Sun 
 function Logo() {
   return (
     <div className="flex items-center gap-2.5">
-      <div className="w-9 h-9 rounded-xl bg-coral-500 flex items-center justify-center shadow-glow">
-        <span className="text-white font-bold text-lg">F</span>
-      </div>
+      <img src="/icon-192.png" alt="Faka" className="w-9 h-9 rounded-xl shadow-glow" />
       <span className="font-display text-xl font-bold text-slate-900 dark:text-white tracking-tight">Faka</span>
     </div>
   );
@@ -152,8 +150,8 @@ export default function Onboarding() {
 
       // Navigate to main workspace dashboard
       navigate('/dashboard');
-    } catch (err: any) {
-      const msg = err.message || 'onboarding.error.unknown';
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'onboarding.error.unknown';
       if (msg.startsWith('tenant.error.')) {
         setError(t(msg));
       } else {

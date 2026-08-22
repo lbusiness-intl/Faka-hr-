@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useI18n } from '../../lib/i18n';
 import { useAuth } from '../../lib/auth';
 import { supabase } from '../../lib/supabase';
-import { Badge, EmptyState, Modal, Spinner } from '../ui';
+import { EmptyState, Modal, Spinner } from '../ui';
 import { Layers, Plus, Pencil, Trash2, GitBranch } from 'lucide-react';
 
 type Branch = { id: string; name: string };

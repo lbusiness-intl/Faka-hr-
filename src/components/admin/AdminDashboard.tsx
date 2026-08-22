@@ -8,8 +8,8 @@ import { useRoute, navigate } from '../../lib/router';
 import { getPlan, type PlanId } from '../../lib/plans';
 import {
   Users, Wallet, CalendarClock, BanknoteIcon, Receipt, Clock, UserPlus, GraduationCap,
-  Target, Star, Package, ShieldCheck, MessageSquare, CalendarDays, Settings as SettingsIcon,
-  Plus, Trash2, Check, X, Download, Upload, FileText, TrendingUp, GitBranch, Layers, Shield,
+  Target, Star, Package, ShieldCheck, CalendarDays, Settings as SettingsIcon,
+  Plus, Check, X, FileText, TrendingUp,
   Send,
 } from 'lucide-react';
 import BranchManager from './BranchManager';
@@ -843,7 +843,11 @@ function Payroll() {
   }, [tenant]);
 
   function toggleSelect(id: string) {
-    setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    setSelected((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) { n.delete(id); } else { n.add(id); }
+      return n;
+    });
   }
   function selectAll() { setSelected(new Set(employees.map((e) => e.id))); }
   function selectNone() { setSelected(new Set()); }
@@ -2006,7 +2010,7 @@ function Overtime() {
 // ============================================================
 export default function AdminDashboard() {
   const route = useRoute();
-  const { activeTenant, activeRole, user } = useAuth();
+  const { activeTenant, user } = useAuth();
 
   // Redirect logic
   useEffect(() => {

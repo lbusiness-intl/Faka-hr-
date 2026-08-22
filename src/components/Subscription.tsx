@@ -4,8 +4,8 @@ import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { PLANS, getPlan, type PlanId } from '../lib/plans';
 import { Spinner, Badge } from './ui';
-import { Link, navigate } from '../lib/router';
-import { Check, Lock, CreditCard, Receipt, Zap } from 'lucide-react';
+import { Link } from '../lib/router';
+import { Check, Receipt, Zap } from 'lucide-react';
 
 type Invoice = {
   id: string;

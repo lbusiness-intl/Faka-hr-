@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { I18nProvider, useI18n } from './lib/i18n';
 import { AuthProvider, useAuth } from './lib/auth';
 import { useRoute, navigate } from './lib/router';
@@ -13,23 +12,19 @@ import AcceptInvite from './components/AcceptInvite';
 import EmployeeActivation from './components/EmployeeActivation';
 import SimplePage from './components/SimplePage';
 import { Spinner } from './components/ui';
-import { getPlan, type PlanId } from './lib/plans';
 import { AlertTriangle } from 'lucide-react';
 
 function Router() {
   const route = useRoute();
   const path = route.split('?')[0];
   const { user, loading, activeTenant, activeRole, memberships } = useAuth();
-  const { t } = useI18n();
 
   // While auth state is resolving, show a splash
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-ink-900 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-coral-500 flex items-center justify-center animate-pulse">
-            <span className="text-white font-bold text-lg">F</span>
-          </div>
+          <img src="/icon-192.png" alt="Faka" className="w-10 h-10 rounded-xl animate-pulse" />
           <Spinner />
         </div>
       </div>

@@ -11,7 +11,6 @@ import { useAuth } from '../lib/auth';
 import { Link, navigate, useRoute } from '../lib/router';
 import { ALL_MODULES, getPlan, isModuleUnlocked, type ModuleKey, type PlanId } from '../lib/plans';
 import { Modal, Badge } from './ui';
-import { ROLE_COLORS } from '../lib/permissions';
 import { NotificationBell } from './NotificationBell';
 
 type NavItem = { key: ModuleKey; icon: typeof LayoutDashboard; label: string };
@@ -127,9 +126,7 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
       <aside className={`fixed lg:static inset-y-0 left-0 z-40 w-64 border-r flex flex-col transition-transform ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} bg-sage-100 border-sage-200 dark:bg-sage-950 dark:border-white/10`}>
         <div className="h-16 flex items-center justify-between px-5 border-b border-sage-200 dark:border-white/10">
           <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-coral-500 flex items-center justify-center shadow-glow">
-              <span className="text-white font-bold text-sm">F</span>
-            </div>
+            <img src="/icon-192.png" alt="Faka" className="w-8 h-8 rounded-lg shadow-glow" />
             <span className="font-display text-lg font-bold text-slate-900 dark:text-white">Faka</span>
           </Link>
           <button className="lg:hidden text-slate-500" onClick={() => setOpen(false)}><X size={18} /></button>

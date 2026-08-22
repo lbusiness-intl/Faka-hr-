@@ -56,9 +56,7 @@ export default function SimplePage() {
     <div className="min-h-screen bg-slate-50 dark:bg-ink-900">
       <header className="h-16 border-b border-slate-200 dark:border-white/10 bg-white/80 dark:bg-ink-800/60 backdrop-blur-xl flex items-center justify-between px-5">
         <Link to="/" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-coral-500 flex items-center justify-center shadow-glow">
-            <span className="text-white font-bold text-sm">F</span>
-          </div>
+          <img src="/icon-192.png" alt="Faka" className="w-8 h-8 rounded-lg shadow-glow" />
           <span className="font-display text-lg font-bold text-slate-900 dark:text-white">Faka</span>
         </Link>
         <Link to="/" className="btn-ghost text-sm">← {t('nav.home')}</Link>

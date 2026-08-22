@@ -9,9 +9,7 @@ import { ArrowRight, ShieldCheck, Sparkles, Building2, Mail } from 'lucide-react
 function Logo() {
   return (
     <Link to="/" className="flex items-center gap-2.5">
-      <div className="w-9 h-9 rounded-xl bg-coral-500 flex items-center justify-center shadow-glow">
-        <span className="text-white font-bold text-lg">F</span>
-      </div>
+      <img src="/icon-192.png" alt="Faka" className="w-9 h-9 rounded-xl shadow-glow" />
       <span className="font-display text-xl font-bold text-slate-900 dark:text-white">Faka</span>
     </Link>
   );
@@ -204,14 +202,14 @@ export async function createTenantForUser(_userId: string, data: {
     }),
   });
 
-  let json: any = null;
+  let json: Record<string, unknown> | null = null;
   try { json = await res.json(); } catch { /* non-JSON body */ }
 
   if (!res.ok || !json || json.ok === false) {
-    const code = json?.error ?? 'UNKNOWN';
+    const code = (json?.error as string) ?? 'UNKNOWN';
     const mapped = mapErrorCode(code);
     // Surface the real detail from the edge function instead of hiding it
-    const detail = json?.detail ?? '';
+    const detail = (json?.detail as string) ?? '';
     if (mapped === 'unknown' && detail) {
       throw new Error(detail);
     }

@@ -2,8 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { subscribeToNotifications } from '../lib/notifications';
-import { Badge } from './ui';
-import { Bell, Check, Archive, Filter, X } from 'lucide-react';
+import { Bell, Archive, Filter, X } from 'lucide-react';
 
 type NotifItem = {
   id: string;

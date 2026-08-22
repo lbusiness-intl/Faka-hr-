@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { useI18n } from '../../lib/i18n';
 import { useAuth } from '../../lib/auth';
 import { supabase } from '../../lib/supabase';
-import { Badge, EmptyState, Modal, Spinner } from '../ui';
+import { EmptyState, Modal, Spinner } from '../ui';
 import { Shield, Plus, Pencil, Trash2, Check, Search, History, UserCog } from 'lucide-react';
-import { PERMISSION_DEFAULTS, ROLE_COLORS, ALL_STANDARD_ROLES } from '../../lib/permissions';
+import { ROLE_COLORS, ALL_STANDARD_ROLES } from '../../lib/permissions';
 import type { AppRole } from '../../lib/auth';
 import { notify } from '../../lib/notifications';
 

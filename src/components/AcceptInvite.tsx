@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useRoute, navigate, Link } from '../lib/router';
+import { useRoute, Link } from '../lib/router';
 import { supabase } from '../lib/supabase';
 import { Spinner } from './ui';
 import { Check, X, Sparkles, ArrowRight } from 'lucide-react';
@@ -69,9 +69,7 @@ export default function AcceptInvite() {
       }} />
       <div className="relative card w-full max-w-md p-8 animate-scale-in">
         <Link to="/" className="flex items-center gap-2.5 mb-6">
-          <div className="w-9 h-9 rounded-xl bg-coral-500 flex items-center justify-center shadow-glow">
-            <span className="text-white font-bold text-lg">F</span>
-          </div>
+          <img src="/icon-192.png" alt="Faka" className="w-9 h-9 rounded-xl shadow-glow" />
           <span className="font-display text-xl font-bold text-slate-900 dark:text-white">Faka</span>
         </Link>
 

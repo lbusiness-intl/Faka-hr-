@@ -52,6 +52,7 @@ export default function CommunicationsPanel({ isEmployee = false }: { isEmployee
     subject: '',
     body: '',
     recipient_scope: 'all',
+    recipient_target_id: '',
     scheduled_at: '',
     is_draft: false,
   });
@@ -93,6 +94,7 @@ export default function CommunicationsPanel({ isEmployee = false }: { isEmployee
 
   async function sendComm() {
     if (!activeTenant || !user || !form.subject.trim() || !form.body.trim()) return;
+    if ((form.recipient_scope === 'branch' || form.recipient_scope === 'department') && !form.recipient_target_id) return;
     setSending(true);
     try {
       await supabase.from('communications').insert({
@@ -102,13 +104,13 @@ export default function CommunicationsPanel({ isEmployee = false }: { isEmployee
         subject: form.subject.trim(),
         body: form.body.trim(),
         recipient_scope: form.recipient_scope,
-        recipient_ids: [],
+        recipient_ids: form.recipient_target_id ? [form.recipient_target_id] : [],
         attachments: [],
         scheduled_at: form.scheduled_at ? new Date(form.scheduled_at).toISOString() : null,
         sent_at: form.scheduled_at ? null : new Date().toISOString(),
         is_draft: form.is_draft,
       });
-      setForm({ type: 'announcement', subject: '', body: '', recipient_scope: 'all', scheduled_at: '', is_draft: false });
+      setForm({ type: 'announcement', subject: '', body: '', recipient_scope: 'all', recipient_target_id: '', scheduled_at: '', is_draft: false });
       setView('inbox');
       load();
     } finally {
@@ -222,11 +224,31 @@ export default function CommunicationsPanel({ isEmployee = false }: { isEmployee
               </div>
               <div>
                 <label className="label">Destinataires</label>
-                <select className="input" value={form.recipient_scope} onChange={(e) => setForm({ ...form, recipient_scope: e.target.value })}>
+                <select className="input" value={form.recipient_scope} onChange={(e) => setForm({ ...form, recipient_scope: e.target.value, recipient_target_id: '' })}>
                   {scopeOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
             </div>
+
+            {form.recipient_scope === 'branch' && (
+              <div>
+                <label className="label">Branche</label>
+                <select className="input" value={form.recipient_target_id} onChange={(e) => setForm({ ...form, recipient_target_id: e.target.value })}>
+                  <option value="">Sélectionner une branche</option>
+                  {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+              </div>
+            )}
+
+            {form.recipient_scope === 'department' && (
+              <div>
+                <label className="label">Département</label>
+                <select className="input" value={form.recipient_target_id} onChange={(e) => setForm({ ...form, recipient_target_id: e.target.value })}>
+                  <option value="">Sélectionner un département</option>
+                  {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="label">{t('comms.subject')} *</label>

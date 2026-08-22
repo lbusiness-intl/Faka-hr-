@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  Building2, Users, Wallet, BarChart3, MessageSquare, ShieldCheck, Globe2,
+  Users, Wallet, BarChart3, MessageSquare, ShieldCheck, Globe2,
   Check, Star, Menu, X, ArrowRight, Sparkles, Moon, Sun,
-  Briefcase, CalendarClock, FileText, UserCog, HeartHandshake,
-  TrendingUp, Clock, Download, ChevronRight,
+  Briefcase, UserCog,
+  TrendingUp, Clock, Download,
 } from 'lucide-react';
 import { useI18n } from '../lib/i18n';
 import { Link, navigate } from '../lib/router';
@@ -55,9 +55,7 @@ function useTheme() {
 function Logo() {
   return (
     <div className="flex items-center gap-2.5">
-      <div className="w-9 h-9 rounded-xl bg-coral-500 flex items-center justify-center shadow-glow">
-        <span className="text-white font-bold text-lg">F</span>
-      </div>
+      <img src="/icon-192.png" alt="Faka" className="w-9 h-9 rounded-xl shadow-glow" />
       <span className="font-display text-xl font-bold text-slate-900 dark:text-white tracking-tight">Faka</span>
     </div>
   );

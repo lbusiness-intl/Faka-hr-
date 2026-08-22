@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useI18n } from '../../lib/i18n';
 import { useAuth } from '../../lib/auth';
 import { supabase } from '../../lib/supabase';
 import { Spinner, Modal, EmptyState } from '../ui';
@@ -12,7 +11,6 @@ type LeaveBalance = {
 };
 
 export default function LeaveBalanceManager() {
-  const { t } = useI18n();
   const { activeTenant } = useAuth();
   const [items, setItems] = useState<LeaveBalance[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);

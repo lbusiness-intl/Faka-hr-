@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useI18n } from '../../lib/i18n';
 import { useAuth } from '../../lib/auth';
 import { supabase } from '../../lib/supabase';
@@ -8,8 +8,8 @@ import { useRoute, navigate } from '../../lib/router';
 import { notifyHR } from '../../lib/notifications';
 import {
   Clock, CalendarClock, Banknote, Receipt, CalendarDays, MessageSquare,
-  CreditCard, Play, Pause, Square, Camera, Send, TrendingUp, Target,
-  FileText, Package, Plus, Check, X, Wallet, Users, Sparkles, Bell, Download, Upload,
+  Play, Pause, Square, Camera, Send, TrendingUp,
+  FileText, Package, Plus, Check, X, Wallet, Users, Bell, Download, Upload,
 } from 'lucide-react';
 import CommunicationsPanel from '../admin/CommunicationsPanel';
 
@@ -54,7 +54,6 @@ function useMe(tenantId: string | undefined, email: string | undefined) {
 // database trigger, so it's not just a front-end restriction.
 // ============================================================
 function MyProfile() {
-  const { t } = useI18n();
   const tenant = useTenant();
   const { user } = useAuth();
   const { me, loading: loadingMe } = useMe(tenant?.id, user?.email);
@@ -222,7 +221,7 @@ function Overview() {
       const pendingCount = [...leaves, ...advances, ...claims].filter((x) => x.status === 'pending').length;
       setStats({
         leaves: leaves.length,
-        leaveBalance: 18 - leaves.filter((x) => x.status === 'approved').reduce((s, _x) => s + 1, 0),
+        leaveBalance: 18 - leaves.filter((x) => x.status === 'approved').reduce((s, x) => s + Number(x.days ?? 1), 0),
         advances: advances.filter((x) => x.status === 'pending').reduce((s, x) => s + Number(x.amount), 0),
         claims: claims.filter((x) => x.status === 'pending').reduce((s, x) => s + Number(x.amount), 0),
         goals: goals.length,
