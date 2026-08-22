@@ -46,6 +46,8 @@ export default function InviteWizard({ open, onClose, onDone }: {
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailWarning, setEmailWarning] = useState<string | null>(null);
 
   const [wiz, setWiz] = useState<WizardState>({
     step: 1, email: '', first_name: '', last_name: '', position: '',
@@ -68,6 +70,23 @@ export default function InviteWizard({ open, onClose, onDone }: {
     setInviteLink(null);
     setError(null);
     setCopied(false);
+    setEmailSent(false);
+    setEmailWarning(null);
+  }
+
+  function mapInviteError(code: string, detail: string | undefined, status: number): string {
+    switch (code) {
+      case 'UNAUTHORIZED':
+        return 'Votre session a expiré. Reconnectez-vous et réessayez.';
+      case 'FORBIDDEN':
+        return "Vous n'avez pas les droits pour inviter quelqu'un dans cette entreprise. Vérifiez que vous êtes bien connecté avec un compte Admin/RH de cette entreprise précise.";
+      case 'MISSING_FIELDS':
+        return 'Certains champs obligatoires sont manquants.';
+      case 'INVITATION_FAILED':
+        return `L'enregistrement de l'invitation a échoué.${detail ? ` (${detail})` : ''}`;
+      default:
+        return `Erreur lors de l'envoi (${code || status}).${detail ? ` ${detail}` : ''}`;
+    }
   }
 
   function handleClose() { reset(); onClose(); }
@@ -99,8 +118,10 @@ export default function InviteWizard({ open, onClose, onDone }: {
         }),
       });
       const json = await res.json();
-      if (!res.ok || json.ok === false) throw new Error(json.error ?? `HTTP ${res.status}`);
+      if (!res.ok || json.ok === false) throw new Error(mapInviteError(json.error, json.detail, res.status));
       setInviteLink(json.invite_url ?? `${window.location.origin}/#/accept-invite?token=${json.token}`);
+      setEmailSent(Boolean(json.email_sent));
+      setEmailWarning(json.email_sent ? null : (json.email_error ?? "L'email n'a pas pu être envoyé automatiquement."));
       onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur inconnue');
@@ -268,8 +289,19 @@ export default function InviteWizard({ open, onClose, onDone }: {
             </div>
           </div>
           <p className="text-center text-slate-700 dark:text-white/70 text-sm">
-            L'invitation a été envoyée à <strong>{wiz.email}</strong>.<br />Vous pouvez aussi partager ce lien directement :
+            {emailSent ? (
+              <>Un email d'invitation a été envoyé à <strong>{wiz.email}</strong>.<br />Vous pouvez aussi partager ce lien directement :</>
+            ) : (
+              <><strong>{wiz.email}</strong> a été ajouté(e), mais l'email automatique n'a pas pu être envoyé.<br />Partagez ce lien directement avec la personne :</>
+            )}
           </p>
+          {emailWarning && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 text-center bg-amber-50 dark:bg-amber-500/10 rounded-lg py-2 px-3">
+              {emailWarning.includes('configuration') || emailWarning.includes('No email')
+                ? "Aucun fournisseur d'email n'est configuré pour votre entreprise. Contactez le support pour l'activer, ou partagez le lien manuellement en attendant."
+                : `Détail technique : ${emailWarning}`}
+            </p>
+          )}
           <div className="flex gap-2">
             <input className="input flex-1 text-xs font-mono" readOnly value={inviteLink} />
             <button onClick={copyLink} className="btn-ghost text-sm shrink-0">
