@@ -332,13 +332,18 @@ function Overview() {
 // ============================================================
 // Attendance — check in / break / out with selfie
 // ============================================================
+type AttendanceLog = {
+  id: string; check_in: string | null; check_out: string | null;
+  break_start: string | null; break_end: string | null; selfie_url: string | null; created_at: string;
+};
+
 function Attendance() {
   const { t } = useI18n();
   const tenant = useTenant();
   const { user } = useAuth();
   const { me } = useMe(tenant?.id, user?.email);
-  const [today, setToday] = useState<any>(null);
-  const [logs, setLogs] = useState<any[]>([]);
+  const [today, setToday] = useState<AttendanceLog | null>(null);
+  const [logs, setLogs] = useState<AttendanceLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [selfie, setSelfie] = useState<string | null>(null);
 
@@ -349,8 +354,8 @@ function Attendance() {
       supabase.from('attendance').select('*').eq('tenant_id', tenant.id).eq('employee_id', me.id).gte('created_at', start.toISOString()).order('created_at', { ascending: false }).limit(1),
       supabase.from('attendance').select('*').eq('tenant_id', tenant.id).eq('employee_id', me.id).order('created_at', { ascending: false }).limit(10),
     ]);
-    setToday(todayRes.data?.[0] ?? null);
-    setLogs(allRes.data ?? []);
+    setToday((todayRes.data?.[0] as AttendanceLog) ?? null);
+    setLogs((allRes.data as AttendanceLog[]) ?? []);
     setLoading(false);
   }
   useEffect(() => { load(); }, [tenant, me]);
@@ -360,9 +365,9 @@ function Attendance() {
     const now = new Date().toISOString();
     if (!today) {
       const { data } = await supabase.from('attendance').insert({ tenant_id: tenant.id, employee_id: me.id, check_in: now, selfie_url: selfie }).select().single();
-      setToday(data);
+      setToday(data as AttendanceLog);
     } else {
-      const patch: any = {};
+      const patch: Partial<AttendanceLog> = {};
       if (type === 'break') patch.break_start = now;
       if (type === 'resume') patch.break_end = now;
       if (type === 'out') patch.check_out = now;
@@ -440,6 +445,22 @@ function computeLeaveDays(start: string, end: string): number {
 // Generic staff request page (leaves / advances / claims)
 // with category-aware form and status tracking.
 // ============================================================
+type StaffRequestItem = {
+  id: string;
+  employee_id: string;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  type?: string;
+  category?: string;
+  reason?: string;
+  start_date?: string;
+  end_date?: string;
+  days?: number;
+  amount?: number;
+  description?: string;
+  created_at: string;
+};
+type LeaveBalanceInfo = { entitled: number; used: number; carried_over: number };
+
 function StaffRequests({ table, title, icon, amountKey, categories }: {
   table: 'leave_requests' | 'advances' | 'claims';
   title: string; icon: ReactNode; amountKey?: 'amount';
@@ -449,11 +470,11 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
   const tenant = useTenant();
   const { user } = useAuth();
   const { me } = useMe(tenant?.id, user?.email);
-  const [items, setItems] = useState<any[]>([]);
-  const [balance, setBalance] = useState<{ entitled: number; used: number; carried_over: number } | null>(null);
+  const [items, setItems] = useState<StaffRequestItem[]>([]);
+  const [balance, setBalance] = useState<LeaveBalanceInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState<any>({});
+  const [form, setForm] = useState<Record<string, unknown>>({});
 
   const isLeave = table === 'leave_requests';
   const thisYear = new Date().getFullYear();
@@ -461,11 +482,11 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
   async function load() {
     if (!tenant || !me) return;
     setLoading(true);
-    const calls: any[] = [supabase.from(table).select('*').eq('tenant_id', tenant.id).eq('employee_id', me.id).order('created_at', { ascending: false })];
+    const calls: PromiseLike<{ data: unknown }>[] = [supabase.from(table).select('*').eq('tenant_id', tenant.id).eq('employee_id', me.id).order('created_at', { ascending: false })];
     if (isLeave) calls.push(supabase.from('leave_balances').select('entitled, used, carried_over').eq('tenant_id', tenant.id).eq('employee_id', me.id).eq('type', 'annual').eq('year', thisYear).maybeSingle());
     const [r, b] = await Promise.all(calls);
-    setItems(r.data ?? []);
-    if (isLeave) setBalance(b?.data ?? null);
+    setItems((r.data as StaffRequestItem[]) ?? []);
+    if (isLeave) setBalance((b?.data as LeaveBalanceInfo) ?? null);
     setLoading(false);
   }
   useEffect(() => { load(); }, [tenant, me]);
@@ -481,9 +502,9 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
 
   async function submit() {
     if (!tenant || !me) return;
-    const payload: any = { ...form, tenant_id: tenant.id, employee_id: me.id, currency: tenant.currency, status: 'pending' };
+    const payload: Record<string, unknown> = { ...form, tenant_id: tenant.id, employee_id: me.id, currency: tenant.currency, status: 'pending' };
     if (table === 'leave_requests') {
-      const days = computeLeaveDays(form.start_date, form.end_date);
+      const days = computeLeaveDays(form.start_date as string, form.end_date as string);
       payload.days = days;
       if (balance) {
         const remaining = Number(balance.entitled) + Number(balance.carried_over) - Number(balance.used);
@@ -497,7 +518,7 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
     // Notify HR
     const cat = table === 'leave_requests' ? 'leave' : table === 'advances' ? 'advance' : 'claim';
     const label = table === 'leave_requests' ? 'Congé' : table === 'advances' ? 'Avance' : 'Note de frais';
-    await notifyHR(tenant.id, { category: cat as any, title: `Nouvelle demande — ${label}`, body: `${me.first_name} ${me.last_name} a soumis une demande.`, priority: 'normal' });
+    await notifyHR(tenant.id, { category: cat, title: `Nouvelle demande — ${label}`, body: `${me.first_name} ${me.last_name} a soumis une demande.`, priority: 'normal' });
     setModal(false);
     setForm({});
     load();
@@ -542,7 +563,7 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
               {items.map((it) => (
                 <tr key={it.id} className="border-b border-slate-100 dark:border-white/5">
                   {table === 'leave_requests' && <><td className="p-4 text-slate-700 dark:text-white/70 capitalize">{it.type}</td><td className="p-4 text-slate-700 dark:text-white/70 text-xs">{it.start_date} → {it.end_date}</td><td className="p-4 text-slate-700 dark:text-white/70">{it.days}</td></>}
-                  {amountKey && <><td className="p-4 text-slate-700 dark:text-white/70">{it.category ?? it.reason ?? '—'}</td><td className="p-4 text-slate-700 dark:text-white/70">{fmt(it[amountKey])} {tenant.currency}</td></>}
+                  {amountKey && <><td className="p-4 text-slate-700 dark:text-white/70">{it.category ?? it.reason ?? '—'}</td><td className="p-4 text-slate-700 dark:text-white/70">{fmt(it[amountKey] ?? 0)} {tenant.currency}</td></>}
                   <td className="p-4"><Badge color={it.status === 'approved' ? 'emerald' : it.status === 'rejected' ? 'rose' : 'amber'}>{it.status}</Badge></td>
                   <td className="p-4 text-slate-400 text-xs">{new Date(it.created_at).toLocaleDateString()}</td>
                 </tr>
