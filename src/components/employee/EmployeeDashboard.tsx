@@ -17,6 +17,7 @@ type Employee = {
   id: string; first_name: string; last_name: string; email: string;
   position: string; department: string; salary: number; currency: string;
   contract_type: string; status: string; hire_date: string | null;
+  phone: string | null; avatar_url: string | null; user_id: string | null;
 };
 
 function useTenant() {
@@ -71,8 +72,8 @@ function MyProfile() {
 
   useEffect(() => {
     if (!me) return;
-    setPhone((me as any).phone ?? '');
-    setAvatarUrl((me as any).avatar_url ?? null);
+    setPhone(me.phone ?? '');
+    setAvatarUrl(me.avatar_url ?? null);
   }, [me]);
 
   async function saveProfile() {
@@ -196,28 +197,33 @@ function MyProfile() {
 // ============================================================
 // Staff Dashboard — Bayzat-style personal overview
 // ============================================================
+type LeaveRequestStat = { id: string; status: string; days?: number };
+type AmountStat = { amount: number; status: string };
+type GoalStat = { id: string; title: string; progress: number; status: string };
+type RecentLeave = { id: string; type: string; start_date: string; end_date: string; status: string; created_at: string };
+
 function Overview() {
   const { t, localeTag } = useI18n();
   const tenant = useTenant();
   const { user } = useAuth();
   const { me, loading } = useMe(tenant?.id, user?.email);
   const [stats, setStats] = useState({ leaves: 0, leaveBalance: 18, advances: 0, claims: 0, goals: 0, pending: 0 });
-  const [recent, setRecent] = useState<any[]>([]);
+  const [recent, setRecent] = useState<RecentLeave[]>([]);
 
   useEffect(() => {
     if (!tenant || !me) return;
     (async () => {
       const [l, a, c, g, allL] = await Promise.all([
-        supabase.from('leave_requests').select('id, status').eq('tenant_id', tenant.id).eq('employee_id', me.id),
+        supabase.from('leave_requests').select('id, status, days').eq('tenant_id', tenant.id).eq('employee_id', me.id),
         supabase.from('advances').select('amount, status').eq('tenant_id', tenant.id).eq('employee_id', me.id),
         supabase.from('claims').select('amount, status').eq('tenant_id', tenant.id).eq('employee_id', me.id),
         supabase.from('goals').select('id, title, progress, status').eq('tenant_id', tenant.id).eq('employee_id', me.id),
         supabase.from('leave_requests').select('id, type, start_date, end_date, status, created_at').eq('tenant_id', tenant.id).eq('employee_id', me.id).order('created_at', { ascending: false }).limit(5),
       ]);
-      const leaves = (l.data ?? []) as any[];
-      const advances = (a.data ?? []) as any[];
-      const claims = (c.data ?? []) as any[];
-      const goals = (g.data ?? []) as any[];
+      const leaves = (l.data ?? []) as LeaveRequestStat[];
+      const advances = (a.data ?? []) as AmountStat[];
+      const claims = (c.data ?? []) as AmountStat[];
+      const goals = (g.data ?? []) as GoalStat[];
       const pendingCount = [...leaves, ...advances, ...claims].filter((x) => x.status === 'pending').length;
       setStats({
         leaves: leaves.length,
@@ -227,7 +233,7 @@ function Overview() {
         goals: goals.length,
         pending: pendingCount,
       });
-      setRecent(allL.data ?? []);
+      setRecent((allL.data as RecentLeave[]) ?? []);
     })();
   }, [tenant, me]);
 
