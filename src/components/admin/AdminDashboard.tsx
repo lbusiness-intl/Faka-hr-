@@ -818,11 +818,15 @@ function RequestList({ table, title, icon, amountKey }: {
 // ============================================================
 // Payroll
 // ============================================================
+type PayrollRun = { id: string; period: string; status: string; total_gross?: number; total_net?: number; employee_count?: number; currency?: string; created_at: string };
+type PayrollAdjustmentRow = { id: string; employee_id: string; field: 'bonus' | 'overtime' | 'taxes'; new_value: number };
+type OvertimeEntry = { id: string; employee_id: string; amount: number };
+
 function Payroll() {
   const { t, localeTag } = useI18n();
   const tenant = useTenant();
   const { user } = useAuth();
-  const [runs, setRuns] = useState<any[]>([]);
+  const [runs, setRuns] = useState<PayrollRun[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
@@ -931,7 +935,7 @@ function Payroll() {
       .eq('tenant_id', tenant.id)
       .eq('consumed', false)
       .in('employee_id', empIds)
-      .in('field', ['bonus', 'overtime', 'taxes']);
+      .in('field', ['bonus', 'overtime', 'taxes']) as { data: PayrollAdjustmentRow[] | null };
 
     // Pull approved overtime hours that haven't been paid out yet, so they
     // actually land on the payslip instead of vanishing after approval.
@@ -940,11 +944,11 @@ function Payroll() {
       .select('id, employee_id, amount')
       .eq('tenant_id', tenant.id)
       .eq('status', 'approved')
-      .in('employee_id', empIds);
+      .in('employee_id', empIds) as { data: OvertimeEntry[] | null };
 
     type AdjBucket = { bonus: number; overtime: number; taxAdj: number; ids: string[]; otIds: string[] };
     const adjByEmp = new Map<string, AdjBucket>();
-    (pendingAdj ?? []).forEach((a: any) => {
+    (pendingAdj ?? []).forEach((a) => {
       const bucket = adjByEmp.get(a.employee_id) ?? { bonus: 0, overtime: 0, taxAdj: 0, ids: [], otIds: [] };
       if (a.field === 'bonus') bucket.bonus += Number(a.new_value);
       if (a.field === 'overtime') bucket.overtime += Number(a.new_value);
@@ -952,7 +956,7 @@ function Payroll() {
       bucket.ids.push(a.id);
       adjByEmp.set(a.employee_id, bucket);
     });
-    (approvedOT ?? []).forEach((o: any) => {
+    (approvedOT ?? []).forEach((o) => {
       const bucket = adjByEmp.get(o.employee_id) ?? { bonus: 0, overtime: 0, taxAdj: 0, ids: [], otIds: [] };
       bucket.overtime += Number(o.amount);
       bucket.otIds.push(o.id);
@@ -1108,8 +1112,8 @@ function Payroll() {
                 <Badge color={r.status === 'draft' ? 'slate' : r.status === 'completed' ? 'emerald' : 'amber'}>{r.status}</Badge>
               </div>
               <div className="grid grid-cols-3 gap-4 mt-4">
-                <StatCard label="Brut" value={`${fmt(r.total_gross)} ${r.currency}`} icon={<Wallet size={18} />} color="teal" />
-                <StatCard label="Net" value={`${fmt(r.total_net)} ${r.currency}`} icon={<Wallet size={18} />} color="emerald" />
+                <StatCard label="Brut" value={`${fmt(r.total_gross ?? 0)} ${r.currency ?? tenant.currency}`} icon={<Wallet size={18} />} color="teal" />
+                <StatCard label="Net" value={`${fmt(r.total_net ?? 0)} ${r.currency ?? tenant.currency}`} icon={<Wallet size={18} />} color="emerald" />
                 <StatCard label="Employés" value={String(employees.length)} icon={<Users size={18} />} color="indigo" />
               </div>
             </div>
