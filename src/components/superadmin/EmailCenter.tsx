@@ -3,9 +3,8 @@ import { useI18n } from '../../lib/i18n';
 import { useAuth } from '../../lib/auth';
 import { supabase } from '../../lib/supabase';
 import { Badge, Spinner, Modal, EmptyState } from '../ui';
-import { navigate } from '../../lib/router';
 import {
-  Mail, Settings, FileText, Send, Inbox, Check, X, Plus, Trash2, Edit,
+  Mail, Settings, FileText, Send, Inbox, Check, Plus, Trash2, Edit,
   Server, ShieldCheck, AlertCircle, RefreshCw,
 } from 'lucide-react';
 
@@ -19,14 +18,6 @@ const PROVIDERS = [
   { id: 'm365', label: 'Microsoft 365 SMTP' },
   { id: 'gmail', label: 'Gmail SMTP' },
   { id: 'custom', label: 'Custom SMTP' },
-];
-
-const TEMPLATE_KEYS = [
-  'employee_invitation', 'password_reset', 'welcome_email', 'payroll_notification',
-  'payslip_available', 'leave_approved', 'leave_rejected', 'leave_request_received',
-  'performance_review', 'document_uploaded', 'training_assigned', 'meeting_invitation',
-  'company_announcement', 'subscription_expiring', 'payment_successful', 'trial_ending',
-  'account_activated',
 ];
 
 const PLACEHOLDERS = [

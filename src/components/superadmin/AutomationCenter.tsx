@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useI18n } from '../../lib/i18n';
-import { useAuth } from '../../lib/auth';
 import { supabase } from '../../lib/supabase';
 import { Badge, Spinner, Modal, EmptyState } from '../ui';
 import {
   Zap, Plus, Trash2, Edit, Play, Pause, Clock, History,
-  Workflow, ArrowRight, Check, X, Settings,
+  Workflow, ArrowRight,
 } from 'lucide-react';
 
 const TRIGGERS = [
@@ -34,8 +32,6 @@ const CONDITIONS = [
 ];
 
 export default function AutomationCenter() {
-  const { t } = useI18n();
-  const auth = useAuth();
   const [workflows, setWorkflows] = useState<any[]>([]);
   const [executions, setExecutions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

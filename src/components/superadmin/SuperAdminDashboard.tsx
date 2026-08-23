@@ -8,20 +8,16 @@ import { PLANS, getPlan, type PlanId } from '../../lib/plans';
 import { COUNTRIES } from '../../lib/geo';
 import {
   Building2, DollarSign, TrendingDown, Globe2, Ticket, LogOut,
-  Crown, ShieldCheck, MapPin, Plus, Trash2, Mail, Trophy, Percent, Users, Zap,
+  Crown, ShieldCheck, MapPin, Plus, Trash2, Mail, Trophy, Percent,
 } from 'lucide-react';
 import EmailCenter from './EmailCenter';
 import AutomationCenter from './AutomationCenter';
-import { SUPER_ADMIN_EMAILS, PROTECTED_ADMIN_EMAILS } from '../../lib/auth';
 
 type TenantRow = {
   id: string; name: string; country: string; currency: string; plan: string;
   status: string; created_at: string; trial_ends_at: string | null;
   sales_code: string | null; employee_limit: number;
 };
-
-const SUPER_ADMIN_EMAILS_LOCAL = SUPER_ADMIN_EMAILS;
-const PROTECTED_EMAILS = PROTECTED_ADMIN_EMAILS;
 
 export default function SuperAdminDashboard() {
   const { t } = useI18n();

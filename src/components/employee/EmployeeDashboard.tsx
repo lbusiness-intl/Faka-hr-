@@ -9,7 +9,7 @@ import { notifyHR } from '../../lib/notifications';
 import {
   Clock, CalendarClock, Banknote, Receipt, CalendarDays, MessageSquare,
   Play, Pause, Square, Camera, Send, TrendingUp,
-  FileText, Package, Plus, Check, X, Wallet, Users, Bell, Download, Upload,
+  FileText, Package, Plus, Check, Wallet, Users, Bell, Download, Upload,
 } from 'lucide-react';
 import CommunicationsPanel from '../admin/CommunicationsPanel';
 
@@ -91,10 +91,10 @@ function MyProfile() {
     if (!me || !tenant) return;
     setUploading(true);
     setError(null);
-    const path = `${tenant.id}/avatars/${me.id}-${Date.now()}-${file.name}`;
-    const { error: upErr } = await supabase.storage.from('documents').upload(path, file, { upsert: true });
+    const path = `${tenant.id}/${me.id}-${Date.now()}-${file.name}`;
+    const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
     if (upErr) { setUploading(false); setError(`Le téléversement a échoué : ${upErr.message}`); return; }
-    const { data } = supabase.storage.from('documents').getPublicUrl(path);
+    const { data } = supabase.storage.from('avatars').getPublicUrl(path);
     setAvatarUrl(data.publicUrl);
     setUploading(false);
   }
