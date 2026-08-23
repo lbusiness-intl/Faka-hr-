@@ -1473,7 +1473,7 @@ function SimpleList({ table, title, icon, fields, extraInsert }: {
   const [employees, setEmployees] = useState<Record<string, EmployeeNameOnly>>({});
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState<any>({});
+  const [form, setForm] = useState<Record<string, unknown>>({});
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const needsEmployees = fields.some((f) => f.type === 'employee_select');
@@ -1481,13 +1481,16 @@ function SimpleList({ table, title, icon, fields, extraInsert }: {
   async function load() {
     if (!tenant) return;
     setLoading(true);
-    const calls: any[] = [supabase.from(table).select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false })];
+    const calls: [
+      PromiseLike<{ data: Record<string, unknown>[] | null }>,
+      PromiseLike<{ data: EmployeeNameOnly[] | null }>?,
+    ] = [supabase.from(table).select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false })];
     if (needsEmployees) calls.push(supabase.from('employees').select('id, first_name, last_name').eq('tenant_id', tenant.id));
     const [r, e] = await Promise.all(calls);
     setItems(r.data ?? []);
     if (e) {
-      const map: Record<string, Employee> = {};
-      (e.data ?? []).forEach((x: any) => { map[x.id] = x as Employee; });
+      const map: Record<string, EmployeeNameOnly> = {};
+      (e.data ?? []).forEach((x) => { map[x.id] = x; });
       setEmployees(map);
     }
     setLoading(false);
@@ -1539,7 +1542,7 @@ function SimpleList({ table, title, icon, fields, extraInsert }: {
             <div key={f.key}>
               <label className="label">{f.label}</label>
               {f.type === 'employee_select' ? (
-                <select className="input" value={form[f.key] ?? ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
+                <select className="input" value={(form[f.key] as string) ?? ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
                   <option value="">—</option>
                   {Object.entries(employees).map(([id, e]) => <option key={id} value={id}>{e.first_name} {e.last_name}</option>)}
                 </select>
@@ -1547,7 +1550,7 @@ function SimpleList({ table, title, icon, fields, extraInsert }: {
                 <input
                   type={f.type ?? 'text'}
                   className="input"
-                  value={form[f.key] ?? ''}
+                  value={(form[f.key] as string | number) ?? ''}
                   onChange={(e) => setForm({ ...form, [f.key]: f.type === 'number' ? Number(e.target.value) : e.target.value })}
                 />
               )}
@@ -1564,11 +1567,13 @@ function SimpleList({ table, title, icon, fields, extraInsert }: {
   );
 }
 
+type CompanyEvent = { id: string; title: string; description: string | null; location: string | null; event_date: string | null; scope: string; rsvp: Record<string, string> };
+
 function Events() {
   const { t } = useI18n();
   const tenant = useTenant();
   const { user } = useAuth();
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<CompanyEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', location: '', event_date: '' });
@@ -1577,7 +1582,7 @@ function Events() {
     if (!tenant) return;
     setLoading(true);
     const { data } = await supabase.from('events').select('*').or(`tenant_id.eq.${tenant.id},scope.eq.panafrican`).order('event_date', { ascending: false });
-    setItems(data ?? []);
+    setItems((data as CompanyEvent[]) ?? []);
     setLoading(false);
   }
   useEffect(() => { load(); }, [tenant]);
@@ -1715,7 +1720,7 @@ function Compliance() {
           <div className="flex items-center gap-2 text-slate-900 dark:text-white font-semibold mb-2"><FileText size={18} className="text-coral-500" /> Lettres RH</div>
           <p className="text-slate-600 dark:text-white/60 text-sm mb-4">Générez une attestation ou un certificat de travail pour un employé — prêt à imprimer ou enregistrer en PDF.</p>
           <div className="space-y-2">
-            <select className="input" value={letterType} onChange={(e) => setLetterType(e.target.value as any)}>
+            <select className="input" value={letterType} onChange={(e) => setLetterType(e.target.value as 'attestation' | 'certificat')}>
               <option value="attestation">Attestation de travail</option>
               <option value="certificat">Certificat de travail</option>
             </select>
@@ -1780,12 +1785,14 @@ function Settings() {
 // ============================================================
 // Documents — HR uploads for employees (contracts, payslips, etc.)
 // ============================================================
+type DocumentRow = { id: string; employee_id: string; name: string; type: string; storage_path: string; uploaded_by_role: string; created_at: string };
+
 function Documents() {
   const { t } = useI18n();
   const tenant = useTenant();
   const { user } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [docs, setDocs] = useState<any[]>([]);
+  const [docs, setDocs] = useState<DocumentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ employee_id: '', name: '', type: 'contract' });
@@ -1798,7 +1805,7 @@ function Documents() {
       supabase.from('documents').select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false }),
     ]);
     setEmployees((e.data as Employee[]) ?? []);
-    setDocs(d.data ?? []);
+    setDocs((d.data as DocumentRow[]) ?? []);
     setLoading(false);
   }
   useEffect(() => { load(); }, [tenant]);
@@ -1907,11 +1914,13 @@ function Documents() {
 // ============================================================
 // Overtime
 // ============================================================
+type OvertimeRow = { id: string; employee_id: string; date: string; hours: number; rate: number; amount: number; currency: string; status: string };
+
 function Overtime() {
   const { t, localeTag } = useI18n();
   const tenant = useTenant();
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<OvertimeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ employee_id: '', date: new Date().toISOString().slice(0, 10), hours: 1, rate: 1.5, notes: '' });
@@ -1923,7 +1932,7 @@ function Overtime() {
       supabase.from('overtime').select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false }),
     ]);
     setEmployees((e.data as Employee[]) ?? []);
-    setItems(o.data ?? []);
+    setItems((o.data as OvertimeRow[]) ?? []);
     setLoading(false);
   }
   useEffect(() => { load(); }, [tenant]);
