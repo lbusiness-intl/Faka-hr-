@@ -56,7 +56,7 @@ export default function Subscription() {
       <div className="min-h-screen bg-white dark:bg-ink-900 flex items-center justify-center px-6">
         <div className="card p-10 max-w-md text-center">
           <Zap className="mx-auto text-blue-600" size={40} />
-          <h1 className="font-display text-xl font-bold text-slate-900 dark:text-white mt-4">Accès équipe LiAfrik</h1>
+          <h1 className="font-display text-xl font-bold text-slate-900 dark:text-white mt-4">{t('sub.team.access.title')}</h1>
           <p className="text-slate-600 dark:text-white/60 text-sm mt-2">
             En tant que membre de l'équipe interne, votre accès à Faka est gratuit et illimité — aucun abonnement requis.
           </p>
@@ -184,7 +184,7 @@ export default function Subscription() {
           </div>
           <div className="rounded-xl bg-slate-900 dark:bg-ink-900 border border-slate-200 dark:border-white/10 p-3 font-mono text-xs space-y-1 min-h-[80px]">
             {log.length === 0 ? (
-              <div className="text-slate-500">Waiting for checkout... choose a plan above to simulate a Stripe payment.</div>
+              <div className="text-slate-500">{t('sub.checkout.waiting')}</div>
             ) : log.map((line, i) => (
               <div key={i} className={line.startsWith('✓') ? 'text-emerald-300' : line.startsWith('✗') ? 'text-rose-300' : 'text-slate-300'}>{line}</div>
             ))}
@@ -199,7 +199,7 @@ export default function Subscription() {
           {loading ? (
             <div className="text-slate-400 dark:text-white/40 text-sm py-4"><Spinner /> Loading...</div>
           ) : invoices.length === 0 ? (
-            <div className="text-slate-400 dark:text-white/40 text-sm py-4">Aucune facture pour le moment.</div>
+            <div className="text-slate-400 dark:text-white/40 text-sm py-4">{t('sub.invoices.none')}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

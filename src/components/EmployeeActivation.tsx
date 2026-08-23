@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from 'react';
 import { useRoute, navigate, Link } from '../lib/router';
 import { supabase } from '../lib/supabase';
+import { useI18n } from '../lib/i18n';
 import { Spinner } from './ui';
 import { Check, X, Sparkles, ArrowRight, Mail, KeyRound, Building2 } from 'lucide-react';
 
 export default function EmployeeActivation() {
+  const { t } = useI18n();
   const route = useRoute();
   const tokenFromUrl = new URLSearchParams(route.split('?')[1] ?? '').get('token') ?? '';
   const [email, setEmail] = useState('');
@@ -19,10 +21,10 @@ export default function EmployeeActivation() {
     e.preventDefault();
     setError('');
 
-    if (!email.trim()) { setError('L\'email professionnel est obligatoire.'); return; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError('Email invalide.'); return; }
-    if (password.length < 6) { setError('Le mot de passe doit faire au moins 6 caractères.'); return; }
-    if (password !== confirm) { setError('Les mots de passe ne correspondent pas.'); return; }
+    if (!email.trim()) { setError(t('activate.error.email.required')); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError(t('activate.error.email.invalid')); return; }
+    if (password.length < 6) { setError(t('invite.error.password.length')); return; }
+    if (password !== confirm) { setError(t('invite.error.password.mismatch')); return; }
 
     setStatus('submitting');
     try {
@@ -40,11 +42,11 @@ export default function EmployeeActivation() {
       });
       const json = await res.json();
       if (!json.ok) {
-        const msg = json.error === 'NOT_FOUND' ? 'Aucune invitation trouvée pour cet email. Vérifiez avec votre RH.'
-          : json.error === 'EXPIRED' ? 'Invitation expirée. Demandez à votre RH d\'en générer une nouvelle.'
-          : json.error === 'ALREADY_USED' ? 'Ce compte est déjà activé. Connectez-vous directement.'
-          : json.error === 'CODE_INVALID' ? 'Code d\'invitation invalide.'
-          : `Erreur lors de l'activation. Réessayez.${json.detail ? ` (${json.detail})` : json.error ? ` (${json.error})` : ''}`;
+        const msg = json.error === 'NOT_FOUND' ? t('activate.error.not_found')
+          : json.error === 'EXPIRED' ? t('activate.error.expired')
+          : json.error === 'ALREADY_USED' ? t('activate.error.used')
+          : json.error === 'CODE_INVALID' ? t('activate.error.code_invalid')
+          : `${t('activate.error.generic')}${json.detail ? ` (${json.detail})` : json.error ? ` (${json.error})` : ''}`;
         setError(msg);
         setStatus('form');
         return;
@@ -60,7 +62,7 @@ export default function EmployeeActivation() {
       setStatus('done');
     } catch (err) {
       const raw = err instanceof Error ? err.message : String(err);
-      setError(`Erreur réseau. Réessayez. (${raw})`);
+      setError(`${t('activate.error.network')} (${raw})`);
       setStatus('form');
     }
   }
@@ -77,11 +79,11 @@ export default function EmployeeActivation() {
         </Link>
 
         <div className="inline-flex items-center gap-2 rounded-full bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/30 px-3 py-1 text-xs text-teal-700 dark:text-teal-300 mb-5">
-          <Sparkles size={14} /> Activation Employé
+          <Sparkles size={14} /> {t('activate.badge')}
         </div>
-        <h1 className="font-display text-2xl font-bold text-slate-900 dark:text-white">Activez votre compte</h1>
+        <h1 className="font-display text-2xl font-bold text-slate-900 dark:text-white">{t('activate.title')}</h1>
         <p className="mt-2 text-sm text-slate-600 dark:text-white/60">
-          Entrez votre email professionnel et le code d'invitation fourni par votre RH.
+          {t('activate.subtitle')}
         </p>
 
         {status === 'done' ? (
@@ -89,36 +91,36 @@ export default function EmployeeActivation() {
             <div className="w-16 h-16 rounded-2xl bg-emerald-100 border border-emerald-200 flex items-center justify-center mx-auto mb-4">
               <Check size={30} className="text-emerald-600" />
             </div>
-            <h2 className="font-display text-xl font-bold text-slate-900 dark:text-white">Compte activé !</h2>
+            <h2 className="font-display text-xl font-bold text-slate-900 dark:text-white">{t('activate.done.title')}</h2>
             {companyName && (
               <p className="text-slate-600 dark:text-white/60 text-sm mt-2">
-                Bienvenue chez <span className="font-semibold text-slate-900 dark:text-white">{companyName}</span>.
+                {t('activate.welcome')} <span className="font-semibold text-slate-900 dark:text-white">{companyName}</span>.
               </p>
             )}
-            <p className="text-slate-500 dark:text-white/50 text-sm mt-1">Redirection en cours…</p>
+            <p className="text-slate-500 dark:text-white/50 text-sm mt-1">{t('activate.redirecting')}</p>
             <button onClick={() => navigate('/dashboard/employee/dashboard')} className="btn-primary text-sm mt-5 inline-flex">
-              Accéder à mon espace <ArrowRight size={16} />
+              {t('activate.goto.workspace')} <ArrowRight size={16} />
             </button>
           </div>
         ) : (
           <form onSubmit={submit} className="mt-6 space-y-4">
             <div>
-              <label className="label flex items-center gap-1.5"><Mail size={13} /> Email professionnel</label>
-              <input type="email" className="input" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@entreprise.com" />
+              <label className="label flex items-center gap-1.5"><Mail size={13} /> {t('activate.email.label')}</label>
+              <input type="email" className="input" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" />
             </div>
             {!tokenFromUrl && (
               <div>
-                <label className="label flex items-center gap-1.5"><KeyRound size={13} /> Code d'invitation</label>
-                <input className="input" value={code} onChange={(e) => setCode(e.target.value)} placeholder="Code fourni par votre RH" />
-                <p className="text-xs text-slate-400 mt-1">Le code se trouve dans l'email d'invitation envoyé par votre RH.</p>
+                <label className="label flex items-center gap-1.5"><KeyRound size={13} /> {t('activate.code.label')}</label>
+                <input className="input" value={code} onChange={(e) => setCode(e.target.value)} placeholder={t('activate.code.placeholder')} />
+                <p className="text-xs text-slate-400 mt-1">{t('activate.code.hint')}</p>
               </div>
             )}
             <div>
-              <label className="label">Mot de passe</label>
+              <label className="label">{t('invite.password.label')}</label>
               <input type="password" className="input" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" minLength={6} />
             </div>
             <div>
-              <label className="label">Confirmer le mot de passe</label>
+              <label className="label">{t('invite.password.confirm.label')}</label>
               <input type="password" className="input" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" minLength={6} />
             </div>
             {error && (
@@ -127,14 +129,14 @@ export default function EmployeeActivation() {
               </div>
             )}
             <button type="submit" disabled={status === 'submitting'} className="btn-primary w-full">
-              {status === 'submitting' ? <Spinner /> : <>Activer mon compte <ArrowRight size={18} /></>}
+              {status === 'submitting' ? <Spinner /> : <>{t('activate.submit')} <ArrowRight size={18} /></>}
             </button>
           </form>
         )}
 
         <div className="mt-6 flex items-center gap-2 text-xs text-slate-400 dark:text-white/40">
           <Building2 size={14} className="text-teal-500" />
-          Vous êtes une entreprise ? <Link to="/signup" className="text-coral-600 hover:text-coral-500 font-medium">Créer un espace</Link>
+          {t('activate.company.question')} <Link to="/signup" className="text-coral-600 hover:text-coral-500 font-medium">{t('activate.create.space')}</Link>
         </div>
       </div>
     </div>

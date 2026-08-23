@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useRoute, Link } from '../lib/router';
 import { supabase } from '../lib/supabase';
+import { useI18n } from '../lib/i18n';
 import { Spinner } from './ui';
 import { Check, X, Sparkles, ArrowRight } from 'lucide-react';
 
 export default function AcceptInvite() {
+  const { t } = useI18n();
   const route = useRoute();
   const token = new URLSearchParams(route.split('?')[1] ?? '').get('token') ?? '';
   const [status, setStatus] = useState<'verifying' | 'valid' | 'invalid' | 'expired' | 'used' | 'submitting' | 'done' | 'error'>('verifying');
@@ -37,8 +39,8 @@ export default function AcceptInvite() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    if (password.length < 6) { setError('Le mot de passe doit faire au moins 6 caractères.'); return; }
-    if (password !== confirm) { setError('Les mots de passe ne correspondent pas.'); return; }
+    if (password.length < 6) { setError(t('invite.error.password.length')); return; }
+    if (password !== confirm) { setError(t('invite.error.password.mismatch')); return; }
     setStatus('submitting');
     try {
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-employee`, {
@@ -48,7 +50,7 @@ export default function AcceptInvite() {
       });
       const json = await res.json();
       if (!json.ok) {
-        setError(json.error === 'EXPIRED' ? 'Invitation expirée.' : json.error === 'ALREADY_USED' ? 'Invitation déjà utilisée.' : 'Erreur lors de la création du compte.');
+        setError(json.error === 'EXPIRED' ? t('invite.error.expired') : json.error === 'ALREADY_USED' ? t('invite.error.used') : t('invite.error.generic'));
         setStatus('valid');
         return;
       }
@@ -57,7 +59,7 @@ export default function AcceptInvite() {
       if (signInErr) { setStatus('done'); return; }
       setStatus('done');
     } catch {
-      setError('Erreur réseau. Réessayez.');
+      setError(t('invite.error.network'));
       setStatus('valid');
     }
   }
@@ -76,7 +78,7 @@ export default function AcceptInvite() {
         {status === 'verifying' && (
           <div className="flex flex-col items-center gap-3 py-8">
             <Spinner className="w-6 h-6" />
-            <p className="text-slate-600 dark:text-white/60 text-sm">Vérification de l'invitation...</p>
+            <p className="text-slate-600 dark:text-white/60 text-sm">{t('invite.verifying')}</p>
           </div>
         )}
 
@@ -85,9 +87,9 @@ export default function AcceptInvite() {
             <div className="w-14 h-14 rounded-2xl bg-rose-100 border border-rose-200 flex items-center justify-center mx-auto mb-4">
               <X size={26} className="text-rose-600" />
             </div>
-            <h1 className="font-display text-xl font-bold text-slate-900 dark:text-white">Invitation invalide</h1>
-            <p className="text-slate-600 dark:text-white/60 text-sm mt-2">Ce lien d'invitation n'est pas valide. Contactez votre RH.</p>
-            <Link to="/" className="btn-ghost text-sm mt-5 inline-flex">Retour à l'accueil</Link>
+            <h1 className="font-display text-xl font-bold text-slate-900 dark:text-white">{t('invite.invalid.title')}</h1>
+            <p className="text-slate-600 dark:text-white/60 text-sm mt-2">{t('invite.invalid.desc')}</p>
+            <Link to="/" className="btn-ghost text-sm mt-5 inline-flex">{t('invite.back.home')}</Link>
           </div>
         )}
 
@@ -96,9 +98,9 @@ export default function AcceptInvite() {
             <div className="w-14 h-14 rounded-2xl bg-amber-100 border border-amber-200 flex items-center justify-center mx-auto mb-4">
               <span className="text-2xl">!</span>
             </div>
-            <h1 className="font-display text-xl font-bold text-slate-900 dark:text-white">Invitation expirée</h1>
-            <p className="text-slate-600 dark:text-white/60 text-sm mt-2">Cette invitation a expiré (délai de 72h dépassé). Demandez à votre RH d'en générer une nouvelle.</p>
-            <Link to="/" className="btn-ghost text-sm mt-5 inline-flex">Retour à l'accueil</Link>
+            <h1 className="font-display text-xl font-bold text-slate-900 dark:text-white">{t('invite.expired.title')}</h1>
+            <p className="text-slate-600 dark:text-white/60 text-sm mt-2">{t('invite.expired.desc')}</p>
+            <Link to="/" className="btn-ghost text-sm mt-5 inline-flex">{t('invite.back.home')}</Link>
           </div>
         )}
 
@@ -107,39 +109,39 @@ export default function AcceptInvite() {
             <div className="w-14 h-14 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto mb-4 dark:bg-white/5 dark:border-white/10">
               <Check size={26} className="text-slate-500" />
             </div>
-            <h1 className="font-display text-xl font-bold text-slate-900 dark:text-white">Invitation déjà utilisée</h1>
-            <p className="text-slate-600 dark:text-white/60 text-sm mt-2">Ce lien a déjà servi à créer un compte. Connectez-vous directement.</p>
-            <Link to="/signin" className="btn-primary text-sm mt-5 inline-flex">Se connecter <ArrowRight size={16} /></Link>
+            <h1 className="font-display text-xl font-bold text-slate-900 dark:text-white">{t('invite.used.title')}</h1>
+            <p className="text-slate-600 dark:text-white/60 text-sm mt-2">{t('invite.used.desc')}</p>
+            <Link to="/signin" className="btn-primary text-sm mt-5 inline-flex">{t('invite.signin')} <ArrowRight size={16} /></Link>
           </div>
         )}
 
         {(status === 'valid' || status === 'submitting' || status === 'error') && (
           <>
             <div className="inline-flex items-center gap-2 rounded-full bg-coral-50 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 px-3 py-1 text-xs text-coral-700 dark:text-coral-300 mb-5">
-              <Sparkles size={14} /> Bienvenue chez Faka
+              <Sparkles size={14} /> {t('invite.welcome')}
             </div>
-            <h1 className="font-display text-2xl font-bold text-slate-900 dark:text-white">Configurez votre accès</h1>
+            <h1 className="font-display text-2xl font-bold text-slate-900 dark:text-white">{t('invite.setup.title')}</h1>
             <p className="mt-2 text-sm text-slate-600 dark:text-white/60">
-              Email : <span className="text-slate-900 dark:text-white font-medium">{email}</span>
+              {t('invite.email.label')} : <span className="text-slate-900 dark:text-white font-medium">{email}</span>
             </p>
             <form onSubmit={submit} className="mt-6 space-y-4">
               <div>
-                <label className="label">Nom complet</label>
-                <input className="input" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Aïssa Bello" />
+                <label className="label">{t('invite.fullname.label')}</label>
+                <input className="input" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder={t('invite.fullname.placeholder')} />
               </div>
               <div>
-                <label className="label">Mot de passe</label>
+                <label className="label">{t('invite.password.label')}</label>
                 <input type="password" className="input" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" minLength={6} />
               </div>
               <div>
-                <label className="label">Confirmer le mot de passe</label>
+                <label className="label">{t('invite.password.confirm.label')}</label>
                 <input type="password" className="input" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" />
               </div>
               {error && (
                 <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>
               )}
               <button type="submit" disabled={status === 'submitting'} className="btn-primary w-full">
-                {status === 'submitting' ? <Spinner /> : <>Créer mon accès <ArrowRight size={18} /></>}
+                {status === 'submitting' ? <Spinner /> : <>{t('invite.submit')} <ArrowRight size={18} /></>}
               </button>
             </form>
           </>
@@ -150,9 +152,9 @@ export default function AcceptInvite() {
             <div className="w-14 h-14 rounded-2xl bg-emerald-100 border border-emerald-200 flex items-center justify-center mx-auto mb-4">
               <Check size={26} className="text-emerald-600" />
             </div>
-            <h1 className="font-display text-xl font-bold text-slate-900 dark:text-white">Compte créé !</h1>
-            <p className="text-slate-600 dark:text-white/60 text-sm mt-2">Connectez-vous avec votre email et mot de passe.</p>
-            <Link to="/signin" className="btn-primary text-sm mt-5 inline-flex">Se connecter <ArrowRight size={16} /></Link>
+            <h1 className="font-display text-xl font-bold text-slate-900 dark:text-white">{t('invite.done.title')}</h1>
+            <p className="text-slate-600 dark:text-white/60 text-sm mt-2">{t('invite.done.desc')}</p>
+            <Link to="/signin" className="btn-primary text-sm mt-5 inline-flex">{t('invite.signin')} <ArrowRight size={16} /></Link>
           </div>
         )}
       </div>
