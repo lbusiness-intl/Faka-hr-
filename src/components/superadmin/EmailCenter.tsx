@@ -1,10 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useI18n } from '../../lib/i18n';
-import { useAuth } from '../../lib/auth';
 import { supabase } from '../../lib/supabase';
 import { Badge, Spinner, Modal, EmptyState } from '../ui';
 import {
-  Mail, Settings, FileText, Send, Inbox, Check, Plus, Trash2, Edit,
+  Mail, Settings, FileText, Send, Inbox, Check, Edit,
   Server, ShieldCheck, AlertCircle, RefreshCw,
 } from 'lucide-react';
 
@@ -28,8 +26,6 @@ const PLACEHOLDERS = [
 ];
 
 export default function EmailCenter() {
-  const { t } = useI18n();
-  const auth = useAuth();
   const [tab, setTab] = useState<'config' | 'templates' | 'queue' | 'logs' | 'test'>('config');
   const [tenants, setTenants] = useState<any[]>([]);
   const [selectedTenant, setSelectedTenant] = useState<string>('');

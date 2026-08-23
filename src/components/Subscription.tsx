@@ -23,7 +23,7 @@ export default function Subscription() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState<PlanId | null>(null);
-  const [log, setLog] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!activeTenant) return;
@@ -66,38 +66,35 @@ export default function Subscription() {
   }
 
 
-  async function simulateCheckout(newPlan: PlanId) {
+  async function startCheckout(newPlan: PlanId) {
     if (!activeTenant || !user) return;
     setPaying(newPlan);
-    const p = getPlan(newPlan);
-    const sessionId = `cs_test_${Math.random().toString(36).slice(2, 12)}`;
-    setLog((l) => [`→ Initiating Stripe Checkout for ${p.name} ($${p.priceMonthly}/mo)...`, ...l]);
-
-    // Simulate the user completing Stripe Checkout, then the webhook firing.
-    const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-webhook`;
+    setError(null);
     try {
-      setLog((l) => ['→ Stripe session created: ' + sessionId, ...l]);
-      setLog((l) => ['→ Simulating checkout.session.completed webhook...', ...l]);
+      const { data: { session } } = await supabase.auth.getSession();
+      const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`;
       const res = await fetch(fnUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
-        body: JSON.stringify({
-          type: 'checkout.session.completed',
-          tenant_id: activeTenant.id,
-          plan: newPlan,
-          amount: p.priceMonthly,
-          currency: 'USD',
-          stripe_session_id: sessionId,
-        }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token ?? import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ tenantId: activeTenant.id, plan: newPlan, interval: 'monthly' }),
       });
       const json = await res.json();
-      if (!res.ok || json.ok === false) throw new Error(json.error ?? `HTTP ${res.status}`);
-      setLog((l) => ['✓ Webhook received — tenant status → active', ...l]);
-      setLog((l) => [`✓ Invoice recorded ($${p.priceMonthly} USD, plan=${newPlan})`, ...l]);
-      await refresh();
-      setLog((l) => ['✓ Tenant reloaded. Subscription active.', ...l]);
+      if (!res.ok || json.ok === false) {
+        if (json.error === 'CHECKOUT_NOT_CONFIGURED') {
+          setError(t('sub.checkout.not_configured'));
+        } else {
+          setError(json.detail || json.error || `HTTP ${res.status}`);
+        }
+        return;
+      }
+      // Real redirect to Stripe's hosted checkout page — payment is
+      // collected there, never inside this app.
+      window.location.href = json.url;
     } catch (err) {
-      setLog((l) => [`✗ Error: ${err instanceof Error ? err.message : String(err)}`, ...l]);
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setPaying(null);
     }
@@ -166,7 +163,7 @@ export default function Subscription() {
                   ))}
                 </ul>
                 <button
-                  onClick={() => simulateCheckout(p.id)}
+                  onClick={() => startCheckout(p.id)}
                   disabled={current || paying !== null}
                   className={`mt-4 w-full rounded-xl px-3 py-2.5 text-sm font-semibold transition ${current ? 'bg-slate-100 dark:bg-white/5 text-slate-400 dark:text-white/40 cursor-not-allowed' : p.highlight ? 'btn-primary' : 'btn-ghost'}`}
                 >
@@ -177,19 +174,11 @@ export default function Subscription() {
           })}
         </div>
 
-        {/* Webhook log */}
-        <div className="card p-5 mb-6">
-          <div className="flex items-center gap-2 text-slate-900 dark:text-white font-semibold mb-3">
-            <Zap size={16} className="text-coral-500" /> {t('sub.webhook')}
+        {error && (
+          <div className="card p-4 mb-6 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-sm text-rose-700 dark:text-rose-300">
+            {error}
           </div>
-          <div className="rounded-xl bg-slate-900 dark:bg-ink-900 border border-slate-200 dark:border-white/10 p-3 font-mono text-xs space-y-1 min-h-[80px]">
-            {log.length === 0 ? (
-              <div className="text-slate-500">{t('sub.checkout.waiting')}</div>
-            ) : log.map((line, i) => (
-              <div key={i} className={line.startsWith('✓') ? 'text-emerald-300' : line.startsWith('✗') ? 'text-rose-300' : 'text-slate-300'}>{line}</div>
-            ))}
-          </div>
-        </div>
+        )}
 
         {/* Invoice history */}
         <div className="card p-5">

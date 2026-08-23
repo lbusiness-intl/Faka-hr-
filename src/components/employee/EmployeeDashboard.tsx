@@ -7,8 +7,8 @@ import { Badge, Spinner, EmptyState, Modal, StatCard } from '../ui';
 import { useRoute, navigate } from '../../lib/router';
 import { notifyHR } from '../../lib/notifications';
 import {
-  Clock, CalendarClock, Banknote, Receipt, CalendarDays, MessageSquare,
-  Play, Pause, Square, Camera, Send, TrendingUp,
+  Clock, CalendarClock, Banknote, Receipt, CalendarDays,
+  Play, Pause, Square, Camera, TrendingUp,
   FileText, Package, Plus, Check, Wallet, Users, Bell, Download, Upload,
 } from 'lucide-react';
 import CommunicationsPanel from '../admin/CommunicationsPanel';
@@ -961,55 +961,6 @@ function MyOvertime() {
           <button onClick={submit} className="btn-primary text-sm">{t('common.submit')}</button>
         </div>
       </Modal>
-    </div>
-  );
-}
-
-function WhatsApp() {
-  const { t } = useI18n();
-  const [messages, setMessages] = useState<{ from: 'me' | 'bot'; text: string }[]>([
-    { from: 'bot', text: `Bonjour ! Je suis l'assistant Faka. Demandez-moi : "mes congés", "mon bulletin", "une avance", "attestation".` },
-  ]);
-  const [input, setInput] = useState('');
-
-  function send() {
-    if (!input.trim()) return;
-    const msg = input.toLowerCase();
-    const reply = msg.includes('congé') || msg.includes('leave')
-      ? 'Vous avez 12 jours de congé restants. Pour poser un congé, cliquez sur l\'onglet Congés.'
-      : msg.includes('avance') || msg.includes('advance')
-      ? 'Vous pouvez demander une avance sur salaire dans l\'onglet Avances. L\'admin validera sous 48h.'
-      : msg.includes('bulletin') || msg.includes('payslip')
-      ? 'Votre dernier bulletin est disponible dans Mon Espace. Format PDF bilingue FR/EN.'
-      : msg.includes('attestation')
-      ? 'Pour une attestation de travail ou de salaire, ouvrez une demande dans Notes de frais > Catégorie "Attestation".'
-      : 'Je peux vous aider avec : congés, avances, bulletins de paie, attestations, notes de frais. Que souhaitez-vous ?';
-    setMessages((m) => [...m, { from: 'me', text: input }, { from: 'bot', text: reply }]);
-    setInput('');
-  }
-
-  return (
-    <div>
-      <PageHeader title={t('emp.whatsapp')} icon={<MessageSquare size={20} />} />
-      <div className="card p-0 max-w-lg mx-auto overflow-hidden">
-        <div className="bg-coral-500/10 px-4 py-3 border-b border-slate-200 dark:border-white/10 flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-coral-500 flex items-center justify-center text-white font-bold text-sm">F</div>
-          <div><div className="text-slate-900 dark:text-white font-semibold text-sm">Assistant Faka</div><div className="text-emerald-600 text-xs">en ligne</div></div>
-        </div>
-        <div className="p-4 space-y-3 min-h-[300px] bg-slate-50 dark:bg-ink-900/50">
-          {messages.map((m, i) => (
-            <div key={i} className={`flex ${m.from === 'me' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-sm ${m.from === 'me' ? 'bg-coral-500 text-white' : 'bg-white dark:bg-white/10 text-slate-900 dark:text-white'}`}>
-                {m.text}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="p-3 border-t border-slate-200 dark:border-white/10 flex gap-2">
-          <input className="input flex-1" placeholder="Message..." value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} />
-          <button onClick={send} className="btn-primary"><Send size={16} /></button>
-        </div>
-      </div>
     </div>
   );
 }

@@ -86,7 +86,7 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
     { key: 'payslips', icon: Wallet, label: t('dash.payroll') },
     { key: 'assets', icon: Package, label: t('dash.assets') },
     { key: 'events', icon: CalendarDays, label: t('dash.events') },
-    { key: 'communication', icon: MessageSquare, label: t('emp.whatsapp') },
+    { key: 'communication', icon: MessageSquare, label: t('dash.communication') },
     { key: 'subscription', icon: CreditCard, label: t('dash.subscription') },
     { key: 'profile', icon: Users, label: 'Mon Profil' },
   ];
