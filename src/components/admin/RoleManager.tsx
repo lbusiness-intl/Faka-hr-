@@ -10,6 +10,27 @@ import { notify } from '../../lib/notifications';
 
 type CustomRole = { id: string; name: string; color: string; permissions: string[]; created_at: string };
 
+type MembershipEmployee = { id?: string; first_name: string; last_name: string; department: string | null; email: string | null };
+type Membership = {
+  id: string;
+  user_id: string;
+  role: AppRole;
+  status: string;
+  custom_role_id: string | null;
+  custom_role: { id: string; name: string; color: string } | null;
+  employee: MembershipEmployee | null;
+  email?: string;
+  originalRole?: AppRole;
+};
+type RoleHistoryEntry = {
+  id: string;
+  old_role: AppRole | null;
+  new_role: AppRole;
+  reason?: string | null;
+  created_at: string;
+  employee: { first_name: string; last_name: string } | null;
+};
+
 const PERMISSION_GROUPS = [
   { label: 'Employés', keys: ['employees.view','employees.create','employees.edit','employees.delete'] },
   { label: 'Paie', keys: ['payroll.view','payroll.run','payroll.approve'] },
@@ -49,14 +70,14 @@ export default function RoleManager() {
   const [editing, setEditing] = useState<CustomRole | null>(null);
   const [form, setForm] = useState({ name: '', color: COLORS[0], permissions: [] as string[] });
   // Role assignment state
-  const [members, setMembers] = useState<any[]>([]);
+  const [members, setMembers] = useState<Membership[]>([]);
   const [membersLoading, setMembersLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [history, setHistory] = useState<any[]>([]);
+  const [history, setHistory] = useState<RoleHistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [confirmAssign, setConfirmAssign] = useState<{ membership: any; newRole: AppRole } | null>(null);
-  const [confirmCustomAssign, setConfirmCustomAssign] = useState<{ membership: any; customRoleId: string | null; customRoleName: string } | null>(null);
+  const [confirmAssign, setConfirmAssign] = useState<{ membership: Membership; newRole: AppRole } | null>(null);
+  const [confirmCustomAssign, setConfirmCustomAssign] = useState<{ membership: Membership; customRoleId: string | null; customRoleName: string } | null>(null);
   const [assigning, setAssigning] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -78,8 +99,13 @@ export default function RoleManager() {
       .select('id, user_id, role, status, custom_role_id, custom_role:custom_roles(id, name, color), employee:employees(first_name, last_name, department, email)')
       .eq('tenant_id', activeTenant.id)
       .eq('status', 'active');
+    // Supabase's generic (non-codegen) type inference always models embedded
+    // relations as arrays; at runtime these many-to-one joins come back as a
+    // single object, so we narrow via `unknown` rather than fight the
+    // inferred shape here.
+    const rows = (data ?? []) as unknown as Membership[];
     // Get emails from auth.users is not possible via RLS, so use employee emails
-    const enriched = (data ?? []).map((m: any) => ({
+    const enriched: Membership[] = rows.map((m) => ({
       ...m,
       email: m.employee?.email ?? '—',
       originalRole: m.role,
@@ -100,7 +126,7 @@ export default function RoleManager() {
     );
   });
 
-  async function assignRole(membership: any, newRole: AppRole) {
+  async function assignRole(membership: Membership, newRole: AppRole) {
     if (!activeTenant || !user) return;
     if (membership.role === newRole) return;
     setConfirmAssign({ membership, newRole });
@@ -144,7 +170,7 @@ export default function RoleManager() {
     }
   }
 
-  function assignCustomRole(membership: any, customRoleId: string | null) {
+  function assignCustomRole(membership: Membership, customRoleId: string | null) {
     if (!activeTenant || !user) return;
     if ((membership.custom_role_id ?? null) === customRoleId) return;
     const customRoleName = customRoleId ? (roles.find((r) => r.id === customRoleId)?.name ?? 'Rôle personnalisé') : 'Aucun (rôle standard)';
@@ -190,7 +216,7 @@ export default function RoleManager() {
       .eq('tenant_id', activeTenant.id)
       .order('created_at', { ascending: false })
       .limit(50);
-    setHistory(data ?? []);
+    setHistory((data ?? []) as unknown as RoleHistoryEntry[]);
     setHistoryLoading(false);
   }
   useEffect(() => { if (historyOpen) loadHistory(); }, [historyOpen]);
@@ -391,7 +417,7 @@ export default function RoleManager() {
                 <tr><td colSpan={6} className="p-8 text-center"><Spinner className="mx-auto" /></td></tr>
               ) : filteredMembers.length === 0 ? (
                 <tr><td colSpan={6} className="p-8 text-center text-slate-400">Aucun membre trouvé</td></tr>
-              ) : filteredMembers.map((m: any) => (
+              ) : filteredMembers.map((m) => (
                 <tr key={m.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5">
                   <td className="p-4 text-slate-900 dark:text-white font-medium">
                     {m.employee?.first_name ?? m.email} {m.employee?.last_name ?? ''}
@@ -519,7 +545,7 @@ export default function RoleManager() {
             <EmptyState icon={<History size={40} />} title="Aucun historique" hint="Les changements de rôles apparaîtront ici." />
           ) : (
             <div className="space-y-3 max-h-96 overflow-y-auto">
-              {history.map((h: any) => (
+              {history.map((h) => (
                 <div key={h.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-white/5">
                   <div className="w-8 h-8 rounded-full bg-coral-100 dark:bg-coral-500/15 flex items-center justify-center text-coral-600 dark:text-coral-400 text-xs font-bold">
                     {(h.employee?.first_name?.[0] ?? '?').toUpperCase()}
