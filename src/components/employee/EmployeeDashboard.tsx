@@ -148,7 +148,7 @@ function MyProfile() {
           </div>
           <div>
             <label className="label">Téléphone</label>
-            <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+237 6XX XXX XXX" />
+            <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={`${tenant?.phone_code ?? '+'} ...`} />
           </div>
           <div>
             <label className="label">Poste</label>
@@ -197,7 +197,7 @@ function MyProfile() {
 // Staff Dashboard — Bayzat-style personal overview
 // ============================================================
 function Overview() {
-  const { t } = useI18n();
+  const { t, localeTag } = useI18n();
   const tenant = useTenant();
   const { user } = useAuth();
   const { me, loading } = useMe(tenant?.id, user?.email);
@@ -232,7 +232,7 @@ function Overview() {
   }, [tenant, me]);
 
   if (!tenant) return null;
-  const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(Math.round(n));
+  const fmt = (n: number) => new Intl.NumberFormat(localeTag).format(Math.round(n));
 
   const quickActions = [
     { label: t('emp.leaves'), icon: CalendarClock, color: 'coral', to: 'leaves' },
@@ -439,7 +439,7 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
   title: string; icon: ReactNode; amountKey?: 'amount';
   categories?: { value: string; label: string }[];
 }) {
-  const { t } = useI18n();
+  const { t, localeTag } = useI18n();
   const tenant = useTenant();
   const { user } = useAuth();
   const { me } = useMe(tenant?.id, user?.email);
@@ -498,7 +498,7 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
   }
 
   if (!tenant) return null;
-  const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(n);
+  const fmt = (n: number) => new Intl.NumberFormat(localeTag).format(n);
 
   return (
     <div>
@@ -830,7 +830,7 @@ function MyDocuments() {
 // Payslips (employee view — see own payslips)
 // ============================================================
 function MyPayslips() {
-  const { t } = useI18n();
+  const { t, localeTag } = useI18n();
   const tenant = useTenant();
   const { user } = useAuth();
   const { me } = useMe(tenant?.id, user?.email);
@@ -855,7 +855,7 @@ function MyPayslips() {
   }, [tenant, me]);
 
   if (!tenant || !me) return null;
-  const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(Math.round(n));
+  const fmt = (n: number) => new Intl.NumberFormat(localeTag).format(Math.round(n));
 
   return (
     <div>
@@ -891,7 +891,7 @@ function MyPayslips() {
 // Overtime (employee view — submit + see own)
 // ============================================================
 function MyOvertime() {
-  const { t } = useI18n();
+  const { t, localeTag } = useI18n();
   const tenant = useTenant();
   const { user } = useAuth();
   const { me } = useMe(tenant?.id, user?.email);
@@ -921,7 +921,7 @@ function MyOvertime() {
   }
 
   if (!tenant || !me) return null;
-  const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(Math.round(n));
+  const fmt = (n: number) => new Intl.NumberFormat(localeTag).format(Math.round(n));
 
   return (
     <div>

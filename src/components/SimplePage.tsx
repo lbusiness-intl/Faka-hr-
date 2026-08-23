@@ -42,7 +42,7 @@ const PAGES: Record<string, { icon: typeof Info; titleFr: string; titleEn: strin
     icon: Activity,
     titleFr: "État du service",
     titleEn: 'Service Status',
-    bodyFr: `Tous les systèmes sont opérationnels.\n\n• Application web : Opérationnel\n• Base de données : Opérationnel\n• Edge Functions : Opétiionnel\n• Paiements Stripe : Opérationnel\n\nDernière mise à jour : ${new Date().toLocaleDateString('fr-FR')}`,
+    bodyFr: `Tous les systèmes sont opérationnels.\n\n• Application web : Opérationnel\n• Base de données : Opérationnel\n• Edge Functions : Opérationnel\n• Paiements Stripe : Opérationnel\n\nDernière mise à jour : ${new Date().toLocaleDateString('fr-FR')}`,
     bodyEn: `All systems are operational.\n\n• Web Application: Operational\n• Database: Operational\n• Edge Functions: Operational\n• Stripe Payments: Operational\n\nLast updated: ${new Date().toLocaleDateString('en-US')}`,
   },
 };

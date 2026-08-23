@@ -474,14 +474,27 @@ type I18nContextValue = {
   lang: Lang;
   setLang: (l: Lang) => void;
   t: (key: string, vars?: Record<string, string | number>) => string;
+  /** BCP-47 locale tag for Intl.NumberFormat/Intl.DateTimeFormat, derived
+   * from the current UI language — never hardcode 'fr-FR' in a component,
+   * this app is used worldwide and must format numbers/dates correctly
+   * for every tenant, not just French-speaking ones. */
+  localeTag: string;
 };
+
+const LOCALE_TAGS: Record<Lang, string> = { fr: 'fr-FR', en: 'en-US' };
 
 const I18nContext = createContext<I18nContextValue | null>(null);
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(() => {
     const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('faka_lang') : null;
-    return (saved as Lang) || 'fr';
+    if (saved === 'fr' || saved === 'en') return saved;
+    // No saved preference yet: guess from the browser rather than
+    // assuming French — this product serves users worldwide.
+    if (typeof navigator !== 'undefined' && navigator.language) {
+      return navigator.language.toLowerCase().startsWith('fr') ? 'fr' : 'en';
+    }
+    return 'en';
   });
 
   useEffect(() => {
@@ -492,6 +505,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const value = useMemo<I18nContextValue>(() => ({
     lang,
     setLang: setLangState,
+    localeTag: LOCALE_TAGS[lang],
     t: (key, vars) => {
       let str = dicts[lang][key] ?? dicts.fr[key] ?? key;
       if (vars) {

@@ -468,7 +468,7 @@ const INTERNATIONAL: CountryInfo[] = [
   { code: 'RU', name: 'Russia', nameFr: 'Russie', currency: 'RUB', currencySymbol: '₽', timezone: 'Europe/Moscow', phoneCode: '+7',
     regions: [{ name: 'Moscow', cities: ['Moscow', 'Saint Petersburg'] }],
   },
-  { code: 'GE_Country', name: 'Georgia', nameFr: 'Géorgie', currency: 'GEL', currencySymbol: '₾', timezone: 'Asia/Tbilisi', phoneCode: '+995' },
+  { code: 'GE', name: 'Georgia', nameFr: 'Géorgie', currency: 'GEL', currencySymbol: '₾', timezone: 'Asia/Tbilisi', phoneCode: '+995' },
   { code: 'AM', name: 'Armenia', nameFr: 'Arménie', currency: 'AMD', currencySymbol: '֏', timezone: 'Asia/Yerevan', phoneCode: '+374' },
   { code: 'AZ', name: 'Azerbaijan', nameFr: 'Azerbaïdjan', currency: 'AZN', currencySymbol: 'man', timezone: 'Asia/Baku', phoneCode: '+994' },
   { code: 'CY', name: 'Cyprus', nameFr: 'Chypre', currency: 'EUR', currencySymbol: '€', timezone: 'Asia/Nicosia', phoneCode: '+357' },
@@ -637,7 +637,6 @@ const INTERNATIONAL: CountryInfo[] = [
   { code: 'SM', name: 'San Marino', nameFr: 'Saint-Marin', currency: 'EUR', currencySymbol: '€', timezone: 'Europe/San_Marino', phoneCode: '+378' },
   { code: 'VA', name: 'Vatican City', nameFr: 'Cité du Vatican', currency: 'EUR', currencySymbol: '€', timezone: 'Europe/Vatican', phoneCode: '+379' },
   { code: 'LI', name: 'Liechtenstein', nameFr: 'Liechtenstein', currency: 'CHF', currencySymbol: 'CHF', timezone: 'Europe/Vaduz', phoneCode: '+423' },
-  { code: 'MC2', name: 'Monaco', nameFr: 'Monaco', currency: 'EUR', currencySymbol: '€', timezone: 'Europe/Monaco', phoneCode: '+377' },
 ];
 
 export const COUNTRIES: CountryInfo[] = [...AFRICA, ...INTERNATIONAL].sort((a, b) =>

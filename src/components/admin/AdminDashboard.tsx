@@ -56,7 +56,7 @@ function useTenant() {
 // Dashboard overview
 // ============================================================
 function Overview() {
-  const { t } = useI18n();
+  const { t, localeTag } = useI18n();
   const tenant = useTenant();
   const [stats, setStats] = useState({ employees: 0, leaves: 0, payroll: 0, advances: 0 });
   const [history, setHistory] = useState<{ label: string; value: number }[]>([]);
@@ -92,7 +92,7 @@ function Overview() {
       for (let i = 5; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const key = d.toISOString().slice(0, 7);
-        const label = d.toLocaleDateString('fr-FR', { month: 'short' });
+        const label = d.toLocaleDateString(localeTag, { month: 'short' });
         months.push({ label, value: byPeriod.get(key) ?? 0 });
       }
       setHistory(months);
@@ -101,7 +101,7 @@ function Overview() {
   }, [tenant]);
 
   if (!tenant) return null;
-  const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(Math.round(n));
+  const fmt = (n: number) => new Intl.NumberFormat(localeTag).format(Math.round(n));
   const maxHistory = Math.max(1, ...history.map((h) => h.value));
 
   return (
@@ -140,7 +140,7 @@ function Overview() {
 // Employees
 // ============================================================
 function Employees() {
-  const { t } = useI18n();
+  const { t, localeTag } = useI18n();
   const tenant = useTenant();
   const { user } = useAuth();
   const [items, setItems] = useState<Employee[]>([]);
@@ -353,7 +353,7 @@ function Employees() {
                     </td>
                     <td className="p-4 text-slate-700 dark:text-white/70">{e.position || '—'}</td>
                     <td className="p-4 text-slate-700 dark:text-white/70">{e.department || '—'}</td>
-                    <td className="p-4 text-slate-700 dark:text-white/70">{new Intl.NumberFormat('fr-FR').format(e.salary)} {e.currency}</td>
+                    <td className="p-4 text-slate-700 dark:text-white/70">{new Intl.NumberFormat(localeTag).format(e.salary)} {e.currency}</td>
                     <td className="p-4">
                       <Badge color={e.status === 'active' ? 'emerald' : e.status === 'pending_invite' ? 'amber' : e.status === 'exited' ? 'slate' : 'rose'}>
                         {e.status === 'pending_invite' ? 'En attente' : e.status === 'active' ? 'Actif' : e.status === 'exited' ? 'Sorti' : e.status}
@@ -480,7 +480,7 @@ function Employees() {
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div><span className="text-slate-400">Poste:</span> <span className="text-slate-900 dark:text-white font-medium">{form.position}</span></div>
             <div><span className="text-slate-400">Type:</span> <span className="text-slate-900 dark:text-white font-medium uppercase">{form.employment_type}</span></div>
-            <div><span className="text-slate-400">Salaire:</span> <span className="text-slate-900 dark:text-white font-medium">{new Intl.NumberFormat('fr-FR').format(form.salary)} {tenant.currency}</span></div>
+            <div><span className="text-slate-400">Salaire:</span> <span className="text-slate-900 dark:text-white font-medium">{new Intl.NumberFormat(localeTag).format(form.salary)} {tenant.currency}</span></div>
             <div><span className="text-slate-400">Début:</span> <span className="text-slate-900 dark:text-white font-medium">{form.start_date}</span></div>
             {form.employee_id && <div><span className="text-slate-400">ID:</span> <span className="text-slate-900 dark:text-white font-medium">{form.employee_id}</span></div>}
             {form.department_id && <div><span className="text-slate-400">Dépt:</span> <span className="text-slate-900 dark:text-white font-medium">{departments.find((d) => d.id === form.department_id)?.name ?? '—'}</span></div>}
@@ -568,7 +568,7 @@ function RequestList({ table, title, icon, amountKey }: {
   icon: ReactNode;
   amountKey?: 'amount';
 }) {
-  const { t } = useI18n();
+  const { t, localeTag } = useI18n();
   const tenant = useTenant();
   const [items, setItems] = useState<any[]>([]);
   const [employees, setEmployees] = useState<Record<string, Employee>>({});
@@ -728,7 +728,7 @@ function RequestList({ table, title, icon, amountKey }: {
                       )}
                     </td>
                   </>}
-                  {amountKey && <td className="p-4 text-slate-700 dark:text-white/70">{new Intl.NumberFormat('fr-FR').format(it[amountKey])} {tenant.currency}</td>}
+                  {amountKey && <td className="p-4 text-slate-700 dark:text-white/70">{new Intl.NumberFormat(localeTag).format(it[amountKey])} {tenant.currency}</td>}
                   <td className="p-4"><Badge color={it.status === 'approved' ? 'emerald' : it.status === 'rejected' ? 'rose' : 'amber'}>{it.status}</Badge></td>
                   <td className="p-4">
                     {it.status === 'pending' && (
@@ -801,7 +801,7 @@ function RequestList({ table, title, icon, amountKey }: {
 // Payroll
 // ============================================================
 function Payroll() {
-  const { t } = useI18n();
+  const { t, localeTag } = useI18n();
   const tenant = useTenant();
   const { user } = useAuth();
   const [runs, setRuns] = useState<any[]>([]);
@@ -1006,7 +1006,7 @@ function Payroll() {
 
   const branchName = (id: string | null) => branches.find((b) => b.id === id)?.name ?? '—';
   const deptName = (id: string | null) => departments.find((d) => d.id === id)?.name ?? '—';
-  const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(Math.round(n));
+  const fmt = (n: number) => new Intl.NumberFormat(localeTag).format(Math.round(n));
 
   if (!tenant) return null;
   return (
@@ -1614,7 +1614,7 @@ function Events() {
 }
 
 function Compliance() {
-  const { t } = useI18n();
+  const { t, localeTag } = useI18n();
   const tenant = useTenant();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1646,8 +1646,8 @@ function Compliance() {
     if (!tenant || !letterEmpId) return;
     const emp = employees.find((e) => e.id === letterEmpId);
     if (!emp) return;
-    const today = new Date().toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
-    const hireDate = emp.hire_date ? new Date(emp.hire_date).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' }) : '—';
+    const today = new Date().toLocaleDateString(localeTag, { year: 'numeric', month: 'long', day: 'numeric' });
+    const hireDate = emp.hire_date ? new Date(emp.hire_date).toLocaleDateString(localeTag, { year: 'numeric', month: 'long', day: 'numeric' }) : '—';
     const title = letterType === 'attestation' ? "ATTESTATION DE TRAVAIL" : "CERTIFICAT DE TRAVAIL";
     const body = letterType === 'attestation'
       ? `Nous, soussignés <strong>${tenant.name}</strong>, certifions que <strong>${emp.first_name} ${emp.last_name}</strong> est employé(e) au sein de notre entreprise depuis le <strong>${hireDate}</strong>, en qualité de <strong>${emp.position || '—'}</strong>, sous contrat de type <strong>${emp.contract_type || '—'}</strong>.<br/><br/>Cette attestation est délivrée à l'intéressé(e) pour servir et valoir ce que de droit.`
@@ -1877,7 +1877,7 @@ function Documents() {
 // Overtime
 // ============================================================
 function Overtime() {
-  const { t } = useI18n();
+  const { t, localeTag } = useI18n();
   const tenant = useTenant();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [items, setItems] = useState<any[]>([]);
@@ -1936,7 +1936,7 @@ function Overtime() {
 
   if (!tenant) return null;
   const empName = (id: string) => { const e = employees.find((x) => x.id === id); return e ? `${e.first_name} ${e.last_name}` : '—'; };
-  const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(Math.round(n));
+  const fmt = (n: number) => new Intl.NumberFormat(localeTag).format(Math.round(n));
 
   return (
     <div>

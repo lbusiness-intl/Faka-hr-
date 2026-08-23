@@ -38,10 +38,14 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
 
   const planId = (activeTenant?.plan ?? 'starter') as PlanId;
 
-  // Super admins (LIYAH GROUP platform team) never pay for a plan and
-  // always have full access to every module, on every tenant they view —
-  // plan limits only apply to actual paying customers.
-  const isSuperAdmin = (user?.app_metadata?.role === 'super_admin') || memberships.some((m) => m.role === 'super_admin');
+  // Super admins (LIYAH GROUP platform team, and any staff they appoint via
+  // the same app_metadata claim) never pay for a plan and always have full
+  // access to every module, on every tenant they view — plan limits only
+  // apply to actual paying customers. Trust ONLY the JWT app_metadata claim
+  // here, never `memberships`: that table is writable by a tenant's own
+  // admin to manage their own team, so it must never be treated as proof
+  // of platform-wide super-admin status (see migration 0011/0012).
+  const isSuperAdmin = user?.app_metadata?.role === 'super_admin';
 
   const trialEnded = activeTenant?.status === 'trial' && activeTenant?.trial_ends_at
     ? new Date(activeTenant.trial_ends_at).getTime() < Date.now()
