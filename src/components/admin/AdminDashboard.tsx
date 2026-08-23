@@ -1021,7 +1021,7 @@ function Payroll() {
     if (!tenant) return;
     const { data: pending } = await supabase.from('payslips').select('id').eq('tenant_id', tenant.id).eq('status', 'pending');
     if (pending && pending.length > 0) {
-      await supabase.from('payslips').update({ status: 'paid', paid_at: new Date().toISOString() }).in('id', pending.map((p: any) => p.id));
+      await supabase.from('payslips').update({ status: 'paid', paid_at: new Date().toISOString() }).in('id', pending.map((p: { id: string }) => p.id));
     }
     load();
   }
@@ -1162,11 +1162,14 @@ function Payroll() {
 // ============================================================
 // Attendance
 // ============================================================
+type AttendanceEntry = { id: string; employee_id: string; check_in: string | null; check_out: string | null };
+type EmployeeNameOnly = { id: string; first_name: string; last_name: string };
+
 function Attendance() {
   const { t } = useI18n();
   const tenant = useTenant();
-  const [items, setItems] = useState<any[]>([]);
-  const [employees, setEmployees] = useState<Record<string, Employee>>({});
+  const [items, setItems] = useState<AttendanceEntry[]>([]);
+  const [employees, setEmployees] = useState<Record<string, EmployeeNameOnly>>({});
   const [loading, setLoading] = useState(true);
 
   async function load() {
@@ -1176,9 +1179,9 @@ function Attendance() {
       supabase.from('attendance').select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false }).limit(50),
       supabase.from('employees').select('id, first_name, last_name').eq('tenant_id', tenant.id),
     ]);
-    setItems(a.data ?? []);
-    const map: Record<string, Employee> = {};
-    (e.data ?? []).forEach((x: any) => { map[x.id] = x; });
+    setItems((a.data as AttendanceEntry[]) ?? []);
+    const map: Record<string, EmployeeNameOnly> = {};
+    ((e.data as EmployeeNameOnly[]) ?? []).forEach((x) => { map[x.id] = x; });
     setEmployees(map);
     setLoading(false);
   }
@@ -1218,11 +1221,14 @@ function Attendance() {
 // ============================================================
 // Recruitment
 // ============================================================
+type JobPosting = { id: string; title: string; department: string | null; location: string | null; description: string | null; status: string; created_at: string };
+type Candidate = { id: string; posting_id: string | null; full_name: string; email: string | null; phone: string | null; notes: string | null; stage: string; created_at: string };
+
 function Recruitment() {
   const { t } = useI18n();
   const tenant = useTenant();
-  const [postings, setPostings] = useState<any[]>([]);
-  const [candidates, setCandidates] = useState<any[]>([]);
+  const [postings, setPostings] = useState<JobPosting[]>([]);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [candidateModal, setCandidateModal] = useState(false);
@@ -1373,12 +1379,15 @@ function Recruitment() {
 // ============================================================
 // Training, Goals, Reviews, Assets, Compliance, Communication, Events
 // ============================================================
+type Goal = { id: string; employee_id: string; title: string; progress: number; created_at: string };
+type Review = { id: string; employee_id: string; period: string | null; rating: number | null; comments?: string | null; created_at: string };
+
 function Performance() {
   const { t } = useI18n();
   const tenant = useTenant();
-  const [goals, setGoals] = useState<any[]>([]);
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [employees, setEmployees] = useState<Record<string, Employee>>({});
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [employees, setEmployees] = useState<Record<string, EmployeeNameOnly>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -1389,10 +1398,10 @@ function Performance() {
         supabase.from('reviews').select('*').eq('tenant_id', tenant.id),
         supabase.from('employees').select('id, first_name, last_name').eq('tenant_id', tenant.id),
       ]);
-      setGoals(g.data ?? []);
-      setReviews(r.data ?? []);
-      const map: Record<string, Employee> = {};
-      (e.data ?? []).forEach((x: any) => { map[x.id] = x as Employee; });
+      setGoals((g.data as Goal[]) ?? []);
+      setReviews((r.data as Review[]) ?? []);
+      const map: Record<string, EmployeeNameOnly> = {};
+      ((e.data as EmployeeNameOnly[]) ?? []).forEach((x) => { map[x.id] = x; });
       setEmployees(map);
       setLoading(false);
     })();
@@ -1456,12 +1465,12 @@ function Performance() {
 
 function SimpleList({ table, title, icon, fields, extraInsert }: {
   table: string; title: string; icon: ReactNode; fields: { key: string; label: string; type?: string; required?: boolean }[];
-  extraInsert?: (form: any) => Record<string, any>;
+  extraInsert?: (form: Record<string, unknown>) => Record<string, unknown>;
 }) {
   const { t } = useI18n();
   const tenant = useTenant();
-  const [items, setItems] = useState<any[]>([]);
-  const [employees, setEmployees] = useState<Record<string, Employee>>({});
+  const [items, setItems] = useState<Record<string, unknown>[]>([]);
+  const [employees, setEmployees] = useState<Record<string, EmployeeNameOnly>>({});
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState<any>({});
@@ -1513,11 +1522,11 @@ function SimpleList({ table, title, icon, fields, extraInsert }: {
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {items.map((it) => (
-            <div key={it.id} className="card p-5">
+            <div key={String(it.id)} className="card p-5">
               {fields.map((f) => (
                 <div key={f.key} className="mb-1">
-                  {f.key === fields[0].key && <div className="text-slate-900 dark:text-white font-semibold">{f.type === 'employee_select' ? empName(it[f.key]) : it[f.key]}</div>}
-                  {f.key !== fields[0].key && <div className="text-slate-500 dark:text-white/50 text-xs">{f.label}: {f.type === 'employee_select' ? empName(it[f.key]) : String(it[f.key] ?? '—')}</div>}
+                  {f.key === fields[0].key && <div className="text-slate-900 dark:text-white font-semibold">{f.type === 'employee_select' ? empName(it[f.key] as string) : String(it[f.key] ?? '—')}</div>}
+                  {f.key !== fields[0].key && <div className="text-slate-500 dark:text-white/50 text-xs">{f.label}: {f.type === 'employee_select' ? empName(it[f.key] as string) : String(it[f.key] ?? '—')}</div>}
                 </div>
               ))}
             </div>
