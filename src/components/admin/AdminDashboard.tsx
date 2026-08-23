@@ -562,6 +562,20 @@ function computeLeaveDays(start: string, end: string): number {
   return diff > 0 ? diff : 1;
 }
 
+type RequestItem = {
+  id: string;
+  employee_id: string;
+  status: 'pending' | 'approved' | 'rejected';
+  type?: string;
+  start_date?: string;
+  end_date?: string;
+  days?: number;
+  amount?: number;
+  created_at: string;
+};
+type EmployeeBasic = Pick<Employee, 'id' | 'first_name' | 'last_name' | 'user_id'>;
+type LeaveBalance = { id: string; employee_id: string; entitled: number; used: number; carried_over?: number };
+
 function RequestList({ table, title, icon, amountKey }: {
   table: 'leave_requests' | 'advances' | 'claims';
   title: string;
@@ -570,12 +584,12 @@ function RequestList({ table, title, icon, amountKey }: {
 }) {
   const { t, localeTag } = useI18n();
   const tenant = useTenant();
-  const [items, setItems] = useState<any[]>([]);
-  const [employees, setEmployees] = useState<Record<string, Employee>>({});
-  const [balances, setBalances] = useState<Record<string, any>>({});
+  const [items, setItems] = useState<RequestItem[]>([]);
+  const [employees, setEmployees] = useState<Record<string, EmployeeBasic>>({});
+  const [balances, setBalances] = useState<Record<string, LeaveBalance>>({});
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState<any>({});
+  const [form, setForm] = useState<Record<string, unknown>>({});
 
   const isLeave = table === 'leave_requests';
   const thisYear = new Date().getFullYear();
@@ -583,19 +597,23 @@ function RequestList({ table, title, icon, amountKey }: {
   async function load() {
     if (!tenant) return;
     setLoading(true);
-    const calls: any[] = [
+    const calls: [
+      PromiseLike<{ data: RequestItem[] | null }>,
+      PromiseLike<{ data: EmployeeBasic[] | null }>,
+      PromiseLike<{ data: LeaveBalance[] | null }>?,
+    ] = [
       supabase.from(table).select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false }),
       supabase.from('employees').select('id, first_name, last_name, user_id').eq('tenant_id', tenant.id),
     ];
     if (isLeave) calls.push(supabase.from('leave_balances').select('*').eq('tenant_id', tenant.id).eq('type', 'annual').eq('year', thisYear));
     const [r, emps, bal] = await Promise.all(calls);
     setItems(r.data ?? []);
-    const map: Record<string, Employee> = {};
-    (emps.data ?? []).forEach((e: any) => { map[e.id] = e; });
+    const map: Record<string, EmployeeBasic> = {};
+    (emps.data ?? []).forEach((e) => { map[e.id] = e; });
     setEmployees(map);
     if (isLeave && bal) {
-      const bmap: Record<string, any> = {};
-      (bal.data ?? []).forEach((b: any) => { bmap[b.employee_id] = b; });
+      const bmap: Record<string, LeaveBalance> = {};
+      (bal.data ?? []).forEach((b) => { bmap[b.employee_id] = b; });
       setBalances(bmap);
     }
     setLoading(false);
@@ -615,7 +633,7 @@ function RequestList({ table, title, icon, amountKey }: {
     if (!tenant) return;
     await supabase.from(table).insert({ ...form, tenant_id: tenant.id, currency: tenant.currency, status: 'pending' });
     // Notify HR that a new request was submitted
-    const emp = employees[form.employee_id];
+    const emp = employees[form.employee_id as string];
     if (emp) {
       const { notifyHR } = await import('../../lib/notifications');
       await notifyHR(tenant.id, {
@@ -643,7 +661,7 @@ function RequestList({ table, title, icon, amountKey }: {
     // requests move in and out of "approved" (previously nothing ever
     // touched leave_balances, so quotas were never actually enforced).
     if (isLeave && item) {
-      const days = computeLeaveDays(item.start_date, item.end_date);
+      const days = computeLeaveDays(item.start_date ?? '', item.end_date ?? '');
       const wasApproved = item.status === 'approved';
       const willBeApproved = status === 'approved';
       if (!wasApproved && willBeApproved) {
@@ -722,13 +740,13 @@ function RequestList({ table, title, icon, amountKey }: {
                       {remainingFor(it.employee_id) === null ? (
                         <span className="text-slate-400 text-xs">—</span>
                       ) : (
-                        <span className={remainingFor(it.employee_id)! < it.days ? 'text-rose-500 font-medium' : 'text-slate-700 dark:text-white/70'}>
+                        <span className={remainingFor(it.employee_id)! < (it.days ?? 0) ? 'text-rose-500 font-medium' : 'text-slate-700 dark:text-white/70'}>
                           {remainingFor(it.employee_id)} j.
                         </span>
                       )}
                     </td>
                   </>}
-                  {amountKey && <td className="p-4 text-slate-700 dark:text-white/70">{new Intl.NumberFormat(localeTag).format(it[amountKey])} {tenant.currency}</td>}
+                  {amountKey && <td className="p-4 text-slate-700 dark:text-white/70">{new Intl.NumberFormat(localeTag).format(it[amountKey] ?? 0)} {tenant.currency}</td>}
                   <td className="p-4"><Badge color={it.status === 'approved' ? 'emerald' : it.status === 'rejected' ? 'rose' : 'amber'}>{it.status}</Badge></td>
                   <td className="p-4">
                     {it.status === 'pending' && (
@@ -767,17 +785,17 @@ function RequestList({ table, title, icon, amountKey }: {
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="label">Début</label><input type="date" className="input" onChange={(e) => {
                   const start = e.target.value;
-                  const days = form.end_date ? computeLeaveDays(start, form.end_date) : form.days;
+                  const days = form.end_date ? computeLeaveDays(start, form.end_date as string) : form.days;
                   setForm({ ...form, start_date: start, days });
                 }} /></div>
                 <div><label className="label">Fin</label><input type="date" className="input" onChange={(e) => {
                   const end = e.target.value;
-                  const days = form.start_date ? computeLeaveDays(form.start_date, end) : 1;
+                  const days = form.start_date ? computeLeaveDays(form.start_date as string, end) : 1;
                   setForm({ ...form, end_date: end, days });
                 }} /></div>
               </div>
               {form.start_date && form.end_date && (
-                <p className="text-xs text-slate-500 dark:text-white/50">Durée calculée : <strong>{form.days ?? computeLeaveDays(form.start_date, form.end_date)} jour(s)</strong></p>
+                <p className="text-xs text-slate-500 dark:text-white/50">Durée calculée : <strong>{(form.days as number) ?? computeLeaveDays(form.start_date as string, form.end_date as string)} jour(s)</strong></p>
               )}
             </>
           )}
