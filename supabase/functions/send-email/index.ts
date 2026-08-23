@@ -274,15 +274,33 @@ async function sendEmail(config: any, opts: { to: string; subject: string; html:
       return { ok: true };
     }
 
-    // SMTP / m365 / gmail / custom — use SMTP protocol
-    // In Deno Deploy, we can't use raw TCP for SMTP. We'll use a REST-based SMTP relay.
-    // For now, log and queue for external processing.
+    // SMTP / m365 / gmail / custom — a real SMTP client via nodemailer
+    // (works in Deno through the npm: specifier). Previously this branch
+    // only logged the attempt and always returned { ok: true } without
+    // ever actually connecting to a mail server — a silent failure that
+    // made the app believe invitations/notifications were delivered when
+    // they never were.
     if (["smtp", "m365", "gmail", "custom"].includes(provider)) {
-      // Use the SMTP relay approach — send via a webhook-based SMTP service
-      // Log the attempt
-      console.log(`[SMTP] Would send to ${opts.to} via ${config.smtp_host}:${config.smtp_port}`);
-      // In production, this would use nodemailer or similar
-      // For now, we mark as sent (the queue handles retries)
+      if (!config.smtp_host || !config.username || !config.password_enc) {
+        return { ok: false, error: "SMTP configuration incomplete (host, username or password missing)" };
+      }
+      const nodemailer = await import("npm:nodemailer@6.9.16");
+      const transporter = nodemailer.default.createTransport({
+        host: config.smtp_host,
+        port: config.smtp_port ?? 587,
+        secure: config.encryption === "ssl", // true = implicit TLS (port 465)
+        requireTLS: config.encryption === "tls",
+        auth: { user: config.username, pass: config.password_enc },
+        connectionTimeout: (config.timeout_secs ?? 30) * 1000,
+      });
+      await transporter.sendMail({
+        from: `${config.sender_name} <${config.sender_email}>`,
+        to: opts.to,
+        subject: opts.subject,
+        html: opts.html,
+        text: opts.text,
+        replyTo: config.reply_to || undefined,
+      });
       return { ok: true };
     }
 
