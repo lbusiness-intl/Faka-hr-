@@ -43,12 +43,28 @@ export default function Subscription() {
   }
 
   const plan = getPlan(activeTenant.plan as PlanId);
+  const isSuperAdminUser = user?.app_metadata?.role === 'super_admin';
   const trialEnds = activeTenant.trial_ends_at ? new Date(activeTenant.trial_ends_at) : null;
   const daysLeft = trialEnds ? Math.max(0, Math.ceil((trialEnds.getTime() - Date.now()) / 86400000)) : 0;
   const isTrial = activeTenant.status === 'trial';
   const isSuspended = activeTenant.status === 'suspended';
   const trialExpired = isTrial && trialEnds ? trialEnds.getTime() < Date.now() : false;
-  const isBlocked = isSuspended || trialExpired;
+  const isBlocked = !isSuperAdminUser && (isSuspended || trialExpired);
+
+  if (isSuperAdminUser) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-ink-900 flex items-center justify-center px-6">
+        <div className="card p-10 max-w-md text-center">
+          <Zap className="mx-auto text-blue-600" size={40} />
+          <h1 className="font-display text-xl font-bold text-slate-900 dark:text-white mt-4">Accès équipe LiAfrik</h1>
+          <p className="text-slate-600 dark:text-white/60 text-sm mt-2">
+            En tant que membre de l'équipe interne, votre accès à Faka est gratuit et illimité — aucun abonnement requis.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
 
   async function simulateCheckout(newPlan: PlanId) {
     if (!activeTenant || !user) return;

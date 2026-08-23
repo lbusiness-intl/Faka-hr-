@@ -1,5 +1,5 @@
-const CACHE = 'faka-v3';
-const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg'];
+const CACHE = 'faka-v4';
+const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

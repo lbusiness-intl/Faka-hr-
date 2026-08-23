@@ -220,7 +220,7 @@ function Hero() {
   return (
     <section className="relative overflow-hidden bg-sage-50 dark:bg-ink-900">
       <div className="absolute inset-0 opacity-70 dark:opacity-40" style={{
-        backgroundImage: 'radial-gradient(ellipse at 20% 0%, rgba(255,107,53,0.15), transparent 50%), radial-gradient(ellipse at 80% 20%, rgba(45,212,191,0.12), transparent 50%)',
+        backgroundImage: 'radial-gradient(ellipse at 20% 0%, rgba(0,112,224,0.15), transparent 50%), radial-gradient(ellipse at 80% 20%, rgba(45,212,191,0.12), transparent 50%)',
       }} />
       <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.02]" style={{
         backgroundImage: 'linear-gradient(rgba(15,23,42,1) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,1) 1px, transparent 1px)',

@@ -110,12 +110,16 @@ function Router() {
       );
     }
 
-    // Trial expired paywall: J+7 from created_at, no active plan
+    // Trial expired paywall: J+7 from created_at, no active plan.
+    // Super admins and internal LiAfrik staff (verified via the JWT
+    // app_metadata claim, not a tenant-writable value) never pay for a
+    // subscription and are never paywalled, on any tenant they access.
+    const isSuperAdminUser = user.app_metadata?.role === 'super_admin';
     const trialEnds = activeTenant.trial_ends_at ? new Date(activeTenant.trial_ends_at) : null;
     const trialExpired = activeTenant.status === 'trial' && trialEnds && trialEnds.getTime() < Date.now();
     const isSuspended = activeTenant.status === 'suspended';
 
-    if ((trialExpired || isSuspended) && !path.includes('/subscription')) {
+    if (!isSuperAdminUser && (trialExpired || isSuspended) && !path.includes('/subscription')) {
       return <ExpiredPaywall status={activeTenant.status} trialEnds={trialEnds} />;
     }
 
