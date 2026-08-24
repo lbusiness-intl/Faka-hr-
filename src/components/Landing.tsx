@@ -4,10 +4,12 @@ import {
   Check, Star, Menu, X, ArrowRight, Sparkles, Moon, Sun,
   Briefcase, UserCog,
   TrendingUp, Clock, Download,
+  Lock, KeyRound, History, FileLock2, MapPin,
 } from 'lucide-react';
 import { useI18n } from '../lib/i18n';
 import { Link, navigate } from '../lib/router';
 import { PLANS, recommendPlan, type PlanId } from '../lib/plans';
+import { COUNTRIES } from '../lib/geo';
 
 function useReveal<T extends HTMLElement = HTMLDivElement>() {
   const ref = useRef<T>(null);
@@ -275,7 +277,7 @@ function Hero() {
 }
 
 function LogoCloud() {
-  const logos = ['Sonatel', 'LIYAH GROUP', 'Earth Scientific', 'Max Capital', 'Lagos Logistics', 'Atlas Corp', 'Sahara Tech', 'Gulf Trading'];
+  const logos = ['Atlas Retail', 'Northwind Logistics', 'Meridian Capital', 'Earth Scientific', 'Sahara Tech', 'Gulf Trading Co.', 'Blue Harbor Group', 'Kestrel Partners'];
   return (
     <section className="border-y border-slate-200 dark:border-white/10 bg-white dark:bg-ink-900 py-10">
       <div className="section">
@@ -318,6 +320,93 @@ function Features() {
             <h3 className="font-display text-slate-900 dark:text-white font-bold text-lg">{f.title}</h3>
             <p className="mt-2 text-slate-600 dark:text-white/60 text-sm leading-relaxed">{f.desc}</p>
           </div>
+          </Reveal>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function GlobalPresence() {
+  const { t } = useI18n();
+  const countryCount = COUNTRIES.length;
+  const currencyCount = new Set(COUNTRIES.map((c) => c.currency)).size;
+  const regions = [
+    { name: 'Africa', count: COUNTRIES.filter((c) => c.timezone.startsWith('Africa/')).length },
+    { name: 'Europe', count: COUNTRIES.filter((c) => c.timezone.startsWith('Europe/')).length },
+    { name: 'Asia', count: COUNTRIES.filter((c) => c.timezone.startsWith('Asia/')).length },
+    { name: 'Americas', count: COUNTRIES.filter((c) => c.timezone.startsWith('America/')).length },
+    { name: 'Oceania', count: COUNTRIES.filter((c) => c.timezone.startsWith('Pacific/') || c.timezone.startsWith('Australia/')).length },
+  ];
+  return (
+    <section className="section py-24 border-t border-slate-200 dark:border-white/10 bg-white dark:bg-ink-900">
+      <Reveal className="text-center mb-14">
+        <div className="inline-flex items-center gap-2 rounded-full bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/30 px-3 py-1.5 text-xs text-teal-700 dark:text-teal-300 mb-4">
+          <Globe2 size={14} /> {t('global.badge')}
+        </div>
+        <h2 className="font-display text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{t('global.title')}</h2>
+        <p className="mt-3 text-slate-600 dark:text-white/60 max-w-2xl mx-auto">{t('global.subtitle')}</p>
+      </Reveal>
+
+      <div className="grid sm:grid-cols-3 gap-5 max-w-3xl mx-auto mb-12">
+        <Reveal className="card p-6 text-center">
+          <div className="text-3xl font-bold text-coral-600 font-display">{countryCount}+</div>
+          <div className="mt-1 text-xs text-slate-500 dark:text-white/50">{t('global.countries')}</div>
+        </Reveal>
+        <Reveal delay={80} className="card p-6 text-center">
+          <div className="text-3xl font-bold text-teal-600 font-display">{currencyCount}+</div>
+          <div className="mt-1 text-xs text-slate-500 dark:text-white/50">{t('global.currencies')}</div>
+        </Reveal>
+        <Reveal delay={160} className="card p-6 text-center">
+          <div className="text-3xl font-bold text-indigo-600 font-display">2</div>
+          <div className="mt-1 text-xs text-slate-500 dark:text-white/50">{t('global.languages')}</div>
+        </Reveal>
+      </div>
+
+      <Reveal delay={200}>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {regions.map((r) => (
+            <div key={r.name} className="inline-flex items-center gap-2 rounded-full border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-2 text-sm text-slate-600 dark:text-white/70">
+              <MapPin size={14} className="text-coral-500" />
+              <span className="font-medium text-slate-900 dark:text-white">{r.name}</span>
+              <span className="text-slate-400">· {r.count}</span>
+            </div>
+          ))}
+        </div>
+      </Reveal>
+    </section>
+  );
+}
+
+function Security() {
+  const { t } = useI18n();
+  const items = [
+    { icon: Lock, title: t('security.rls.title'), desc: t('security.rls.desc') },
+    { icon: FileLock2, title: t('security.docs.title'), desc: t('security.docs.desc') },
+    { icon: KeyRound, title: t('security.roles.title'), desc: t('security.roles.desc') },
+    { icon: History, title: t('security.audit.title'), desc: t('security.audit.desc') },
+  ];
+  return (
+    <section className="section py-24 border-t border-slate-200 dark:border-white/10 bg-sage-50/40 dark:bg-ink-900">
+      <Reveal className="text-center mb-14">
+        <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 px-3 py-1.5 text-xs text-indigo-700 dark:text-indigo-300 mb-4">
+          <ShieldCheck size={14} /> {t('security.badge')}
+        </div>
+        <h2 className="font-display text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{t('security.title')}</h2>
+        <p className="mt-3 text-slate-600 dark:text-white/60 max-w-2xl mx-auto">{t('security.subtitle')}</p>
+      </Reveal>
+      <div className="grid md:grid-cols-2 gap-5 max-w-4xl mx-auto">
+        {items.map((it, i) => (
+          <Reveal key={it.title} delay={i * 80}>
+            <div className="card p-6 flex gap-4 h-full">
+              <div className="w-11 h-11 shrink-0 rounded-xl bg-indigo-100 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 flex items-center justify-center">
+                <it.icon size={20} />
+              </div>
+              <div>
+                <h3 className="font-display text-slate-900 dark:text-white font-bold">{it.title}</h3>
+                <p className="mt-1.5 text-slate-600 dark:text-white/60 text-sm leading-relaxed">{it.desc}</p>
+              </div>
+            </div>
           </Reveal>
         ))}
       </div>
@@ -398,9 +487,9 @@ function Pricing() {
 function Testimonials() {
   const { t } = useI18n();
   const items = [
-    { name: 'Aïcha Diallo', role: 'CHRO, Sonatel (Senegal)', text: 'Faka cut our payroll processing time by 3x. The self-service portal transformed how our employees interact with HR.' },
-    { name: 'Jean-Paul Kamga', role: 'CEO, LIYAH GROUP (Cameroon)', text: 'Finally an HR tool designed for our reality. Mobile Money, multi-currency, bilingual contracts — everything is there.' },
-    { name: 'Funke Adeyemi', role: 'CFO, Lagos Logistics (Nigeria)', text: 'The multi-tenant isolation and analytics give us board-level visibility we never had before.' },
+    { name: 'A. Diallo', role: 'CHRO, mid-market services group', text: 'Faka cut our payroll processing time by 3x. The self-service portal transformed how our employees interact with HR.' },
+    { name: 'J. Kamga', role: 'CEO, regional distribution company', text: 'Finally an HR tool designed for our reality. Mobile Money, multi-currency, bilingual contracts — everything is there.' },
+    { name: 'F. Adeyemi', role: 'CFO, logistics group', text: 'The multi-tenant isolation and analytics give us board-level visibility we never had before.' },
   ];
   return (
     <section id="testimonials" className="section py-24 border-t border-slate-200 dark:border-white/10 bg-white dark:bg-ink-900">
@@ -509,6 +598,8 @@ export default function Landing() {
       <Hero />
       <LogoCloud />
       <Features />
+      <GlobalPresence />
+      <Security />
       <Pricing />
       <Testimonials />
       <CTASection />
