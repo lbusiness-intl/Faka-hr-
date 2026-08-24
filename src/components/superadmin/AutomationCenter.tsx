@@ -31,14 +31,24 @@ const CONDITIONS = [
   'leave_type', 'custom_fields', 'date', 'time',
 ];
 
+type Workflow = {
+  id: string; tenant_id: string; name: string; description: string | null; trigger: string;
+  conditions: string[]; actions: string[]; schedule_cron: string | null; is_enabled: boolean; created_at: string;
+};
+type WorkflowExecution = {
+  id: string; workflow_name: string; trigger: string; status: string;
+  duration_ms: number | null; errors: string | null; created_at: string;
+};
+type WorkflowForm = { name: string; description: string; trigger: string; conditions: string[]; actions: string[]; schedule_cron: string; is_enabled: boolean };
+
 export default function AutomationCenter() {
-  const [workflows, setWorkflows] = useState<any[]>([]);
-  const [executions, setExecutions] = useState<any[]>([]);
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [executions, setExecutions] = useState<WorkflowExecution[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'workflows' | 'history'>('workflows');
   const [modal, setModal] = useState(false);
-  const [editing, setEditing] = useState<any | null>(null);
-  const [form, setForm] = useState<any>({ name: '', description: '', trigger: '', conditions: [], actions: [], schedule_cron: '', is_enabled: true });
+  const [editing, setEditing] = useState<Workflow | null>(null);
+  const [form, setForm] = useState<WorkflowForm>({ name: '', description: '', trigger: '', conditions: [], actions: [], schedule_cron: '', is_enabled: true });
 
   async function load() {
     setLoading(true);
@@ -46,15 +56,15 @@ export default function AutomationCenter() {
     if (!user) return;
     // Get all tenants for super admin
     const { data: tenants } = await supabase.from('tenants').select('id');
-    const tenantIds = (tenants ?? []).map((x: any) => x.id);
+    const tenantIds = (tenants ?? []).map((x: { id: string }) => x.id);
     if (tenantIds.length === 0) { setLoading(false); return; }
 
     const [wfs, execs] = await Promise.all([
       supabase.from('workflows').select('*').in('tenant_id', tenantIds).order('created_at', { ascending: false }),
       supabase.from('workflow_executions').select('*').in('tenant_id', tenantIds).order('created_at', { ascending: false }).limit(100),
     ]);
-    setWorkflows(wfs.data ?? []);
-    setExecutions(execs.data ?? []);
+    setWorkflows((wfs.data as Workflow[]) ?? []);
+    setExecutions((execs.data as WorkflowExecution[]) ?? []);
     setLoading(false);
   }
   useEffect(() => { load(); }, []);
@@ -65,7 +75,7 @@ export default function AutomationCenter() {
     setModal(true);
   }
 
-  function startEdit(wf: any) {
+  function startEdit(wf: Workflow) {
     setEditing(wf);
     setForm({
       name: wf.name, description: wf.description ?? '', trigger: wf.trigger,
@@ -97,7 +107,7 @@ export default function AutomationCenter() {
     load();
   }
 
-  async function toggle(wf: any) {
+  async function toggle(wf: Workflow) {
     await supabase.from('workflows').update({ is_enabled: !wf.is_enabled }).eq('id', wf.id);
     load();
   }
