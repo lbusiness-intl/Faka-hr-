@@ -275,15 +275,17 @@ function EditTenantModal({ tenant, onClose, onSave }: {
 // ============================================================
 // Sales Agents — commercial tracking + leaderboard
 // ============================================================
+type SalesAgent = { id: string; name: string; email: string; sales_code: string; commission_rate: number; status: string; created_at: string };
+
 function SalesAgents({ tenants }: { tenants: TenantRow[] }) {
-  const [agents, setAgents] = useState<any[]>([]);
+  const [agents, setAgents] = useState<SalesAgent[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', sales_code: '', commission_rate: 10 });
 
   async function load() {
     const { data } = await supabase.from('sales_agents').select('*').order('created_at', { ascending: false });
-    setAgents(data ?? []);
+    setAgents((data as SalesAgent[]) ?? []);
     setLoading(false);
   }
   useEffect(() => { load(); }, []);
@@ -300,7 +302,7 @@ function SalesAgents({ tenants }: { tenants: TenantRow[] }) {
     load();
   }
 
-  async function inviteAgent(agent: any) {
+  async function inviteAgent(agent: SalesAgent) {
     const token = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '');
     await supabase.from('invitations').insert({
       email: agent.email,
@@ -402,13 +404,15 @@ function SalesAgents({ tenants }: { tenants: TenantRow[] }) {
 // ============================================================
 // Invitations — history of all sent invitations
 // ============================================================
+type InvitationRow = { id: string; email: string; role: string; sales_code: string | null; status: string; created_at: string; expires_at: string };
+
 function Invitations() {
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<InvitationRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function load() {
     const { data } = await supabase.from('invitations').select('*').order('created_at', { ascending: false });
-    setItems(data ?? []);
+    setItems((data as InvitationRow[]) ?? []);
     setLoading(false);
   }
   useEffect(() => { load(); }, []);
@@ -456,15 +460,18 @@ function Invitations() {
 // ============================================================
 // Plan Editor — edit prices, limits, features without code
 // ============================================================
+type PlanOverride = { id: string; plan_id: string; name: string; price_monthly: number; price_yearly: number; employee_limit: number | null; features: string[]; modules: string[] };
+type PlanOverrideForm = Partial<PlanOverride>;
+
 function PlanEditor() {
-  const [overrides, setOverrides] = useState<any[]>([]);
+  const [overrides, setOverrides] = useState<PlanOverride[]>([]);
   const [loading, setLoading] = useState(true);
   const [editPlan, setEditPlan] = useState<PlanId | null>(null);
-  const [form, setForm] = useState<any>({});
+  const [form, setForm] = useState<PlanOverrideForm>({});
 
   async function load() {
     const { data } = await supabase.from('plan_overrides').select('*');
-    setOverrides(data ?? []);
+    setOverrides((data as PlanOverride[]) ?? []);
     setLoading(false);
   }
   useEffect(() => { load(); }, []);
@@ -541,15 +548,17 @@ function PlanEditor() {
 // ============================================================
 // Promotions — promo codes
 // ============================================================
+type PromoCode = { id: string; code: string; description: string | null; discount_percent: number; discount_amount?: number; max_uses: number | null; used_count: number; valid_until: string | null; active: boolean };
+
 function Promotions() {
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<PromoCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ code: '', description: '', discount_percent: 10, discount_amount: 0, max_uses: 100, valid_until: '' });
 
   async function load() {
     const { data } = await supabase.from('promotions').select('*').order('created_at', { ascending: false });
-    setItems(data ?? []);
+    setItems((data as PromoCode[]) ?? []);
     setLoading(false);
   }
   useEffect(() => { load(); }, []);
