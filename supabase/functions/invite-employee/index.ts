@@ -121,7 +121,7 @@ Deno.serve(async (req: Request) => {
           status: "pending_invite",
         }).eq("id", employeeId);
       } else {
-        const { data: emp } = await adminClient.from("employees").insert({
+        const { data: emp, error: empInsErr } = await adminClient.from("employees").insert({
           tenant_id: tenantId,
           email: email.toLowerCase(),
           first_name: first_name || "",
@@ -134,6 +134,14 @@ Deno.serve(async (req: Request) => {
           contract_type: "cdi",
           status: "pending_invite",
         }).select("id").single();
+        if (empInsErr) {
+          const limitReached = empInsErr.message?.includes("EMPLOYEE_LIMIT_REACHED");
+          return json({
+            ok: false,
+            error: limitReached ? "EMPLOYEE_LIMIT_REACHED" : "EMPLOYEE_CREATE_FAILED",
+            detail: empInsErr.message,
+          }, limitReached ? 402 : 500);
+        }
         employeeId = emp?.id ?? null;
       }
 

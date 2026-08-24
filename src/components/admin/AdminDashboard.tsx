@@ -233,7 +233,13 @@ function Employees() {
         hire_date: form.start_date,
       }).select().single();
 
-      if (insErr) { setError(insErr.message); setSaving(false); return; }
+      if (insErr) {
+        setError(insErr.message.includes('EMPLOYEE_LIMIT_REACHED')
+          ? "Limite d'employés atteinte pour votre plan actuel. Passez à un plan supérieur pour en ajouter davantage."
+          : insErr.message);
+        setSaving(false);
+        return;
+      }
 
       // Auto-invite after creating the employee record
       if (data && form.email) {

@@ -84,6 +84,10 @@ export default function InviteWizard({ open, onClose, onDone }: {
         return 'Certains champs obligatoires sont manquants.';
       case 'INVITATION_FAILED':
         return `L'enregistrement de l'invitation a échoué.${detail ? ` (${detail})` : ''}`;
+      case 'EMPLOYEE_LIMIT_REACHED':
+        return "Limite d'employés atteinte pour votre plan actuel. Passez à un plan supérieur pour inviter davantage de collaborateurs.";
+      case 'EMPLOYEE_CREATE_FAILED':
+        return `La création de la fiche employé a échoué.${detail ? ` (${detail})` : ''}`;
       default:
         return `Erreur lors de l'envoi (${code || status}).${detail ? ` ${detail}` : ''}`;
     }
