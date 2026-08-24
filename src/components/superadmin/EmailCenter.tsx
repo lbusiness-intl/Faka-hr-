@@ -25,25 +25,35 @@ const PLACEHOLDERS = [
   '{{SupportEmail}}', '{{ResetLink}}',
 ];
 
+type TenantOption = { id: string; name: string };
+type EmailConfig = {
+  tenant_id: string; provider: string; smtp_host: string; smtp_port: number;
+  encryption: string; username: string; password_enc: string; sender_name: string;
+  sender_email: string; reply_to: string; timeout_secs: number; is_active: boolean;
+};
+type EmailTemplate = { id?: string; tenant_id?: string | null; template_key: string; name: string; subject: string; html_body: string; text_body?: string | null; is_system?: boolean };
+type EmailQueueItem = { id: string; to_email: string; subject: string; status: string; template_key: string | null; retry_count: number; max_retries: number; error_message: string | null; created_at: string };
+type EmailLogItem = { id: string; recipient: string; sender: string | null; email_type: string; status: string; failure_reason: string | null; created_at: string };
+
 export default function EmailCenter() {
   const [tab, setTab] = useState<'config' | 'templates' | 'queue' | 'logs' | 'test'>('config');
-  const [tenants, setTenants] = useState<any[]>([]);
+  const [tenants, setTenants] = useState<TenantOption[]>([]);
   const [selectedTenant, setSelectedTenant] = useState<string>('');
-  const [config, setConfig] = useState<any>(null);
+  const [config, setConfig] = useState<EmailConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testEmail, setTestEmail] = useState('');
   const [testResult, setTestResult] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
 
-  const [templates, setTemplates] = useState<any[]>([]);
-  const [editingTemplate, setEditingTemplate] = useState<any>(null);
-  const [queue, setQueue] = useState<any[]>([]);
-  const [logs, setLogs] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+  const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
+  const [queue, setQueue] = useState<EmailQueueItem[]>([]);
+  const [logs, setLogs] = useState<EmailLogItem[]>([]);
 
   const loadTenants = useCallback(async () => {
     const { data } = await supabase.from('tenants').select('id, name').order('name');
-    setTenants(data ?? []);
+    setTenants((data as TenantOption[]) ?? []);
     if (data && data.length > 0 && !selectedTenant) setSelectedTenant(data[0].id);
     setLoading(false);
   }, [selectedTenant]);
@@ -52,7 +62,7 @@ export default function EmailCenter() {
 
   async function loadConfig(tenantId: string) {
     const { data } = await supabase.from('email_config').select('*').eq('tenant_id', tenantId).maybeSingle();
-    setConfig(data ?? {
+    setConfig((data as EmailConfig) ?? {
       tenant_id: tenantId, provider: 'smtp', smtp_host: '', smtp_port: 587,
       encryption: 'tls', username: '', password_enc: '', sender_name: 'Faka HRMS',
       sender_email: '', reply_to: '', timeout_secs: 30, is_active: true,
@@ -67,10 +77,11 @@ export default function EmailCenter() {
   }, [selectedTenant, tab]);
 
   async function saveConfig() {
+    if (!config) return;
     setSaving(true);
     try {
       const { password_enc, ...rest } = config;
-      const payload = { ...rest, tenant_id: selectedTenant };
+      const payload: Record<string, unknown> = { ...rest, tenant_id: selectedTenant };
       if (password_enc) payload.password_enc = password_enc;
       await supabase.from('email_config').upsert(payload, { onConflict: 'tenant_id' });
     } finally { setSaving(false); }
@@ -89,8 +100,8 @@ export default function EmailCenter() {
       });
       const json = await res.json();
       setTestResult(json.ok ? 'Email de test envoyé avec succès!' : `Erreur: ${json.error ?? json.detail ?? 'Échec'}`);
-    } catch (err: any) {
-      setTestResult(`Erreur réseau: ${err?.message}`);
+    } catch (err) {
+      setTestResult(`Erreur réseau: ${err instanceof Error ? err.message : String(err)}`);
     }
     setTesting(false);
   }
@@ -108,20 +119,20 @@ export default function EmailCenter() {
 
   async function loadTemplates(tenantId: string) {
     const { data } = await supabase.from('email_templates').select('*').or(`tenant_id.is.null,tenant_id.eq.${tenantId}`).order('template_key');
-    setTemplates(data ?? []);
+    setTemplates((data as EmailTemplate[]) ?? []);
   }
 
   async function loadQueue(tenantId: string) {
     const { data } = await supabase.from('email_queue').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(100);
-    setQueue(data ?? []);
+    setQueue((data as EmailQueueItem[]) ?? []);
   }
 
   async function loadLogs(tenantId: string) {
     const { data } = await supabase.from('email_logs').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(100);
-    setLogs(data ?? []);
+    setLogs((data as EmailLogItem[]) ?? []);
   }
 
-  async function saveTemplate(tpl: any) {
+  async function saveTemplate(tpl: EmailTemplate) {
     const { id, ...rest } = tpl;
     if (id) {
       await supabase.from('email_templates').update(rest).eq('id', id);
@@ -266,7 +277,7 @@ export default function EmailCenter() {
                 )}
                 <div className="flex justify-end gap-2 mt-5">
                   <button onClick={() => setEditingTemplate(null)} className="btn-ghost text-sm">Annuler</button>
-                  <button onClick={() => saveTemplate(editingTemplate)} className="btn-primary text-sm">Enregistrer</button>
+                  <button onClick={() => editingTemplate && saveTemplate(editingTemplate)} className="btn-primary text-sm">Enregistrer</button>
                 </div>
               </Modal>
             </div>
