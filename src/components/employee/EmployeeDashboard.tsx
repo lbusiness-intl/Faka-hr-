@@ -629,12 +629,14 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
 // ============================================================
 // Assets request (Staff can request equipment)
 // ============================================================
+type AssetRow = { id: string; name: string; category: string | null; serial: string | null; assigned_to: string | null; status: string };
+
 function StaffAssets() {
   const { t } = useI18n();
   const tenant = useTenant();
   const { user } = useAuth();
   const { me } = useMe(tenant?.id, user?.email);
-  const [assets, setAssets] = useState<any[]>([]);
+  const [assets, setAssets] = useState<AssetRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [req, setReq] = useState({ name: '', category: '', reason: '' });
@@ -642,7 +644,7 @@ function StaffAssets() {
   async function load() {
     if (!tenant || !me) return;
     const { data } = await supabase.from('assets').select('*').eq('tenant_id', tenant.id).or(`assigned_to.eq.${me.id},status.eq.available`).order('created_at', { ascending: false });
-    setAssets(data ?? []);
+    setAssets((data as AssetRow[]) ?? []);
     setLoading(false);
   }
   useEffect(() => { load(); }, [tenant, me]);
@@ -700,17 +702,19 @@ function StaffAssets() {
 // ============================================================
 // Events + WhatsApp assistant
 // ============================================================
+type CompanyEventView = { id: string; title: string; description: string | null; location: string | null; event_date: string | null; scope: string; rsvp: Record<string, string> };
+
 function EventsView() {
   const { t } = useI18n();
   const tenant = useTenant();
   const { user } = useAuth();
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<CompanyEventView[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!tenant) return;
     supabase.from('events').select('*').or(`tenant_id.eq.${tenant.id},scope.eq.panafrican`).order('event_date', { ascending: false }).then(({ data }) => {
-      setItems(data ?? []);
+      setItems((data as CompanyEventView[]) ?? []);
       setLoading(false);
     });
   }, [tenant]);
@@ -755,12 +759,14 @@ function EventsView() {
 // ============================================================
 // Documents — employee sees HR uploads + own uploads + signed contracts
 // ============================================================
+type MyDocumentRow = { id: string; employee_id: string; name: string; type: string; storage_path: string; signed?: boolean; uploaded_by_role?: string; created_at: string };
+
 function MyDocuments() {
   const { t } = useI18n();
   const tenant = useTenant();
   const { user } = useAuth();
   const { me } = useMe(tenant?.id, user?.email);
-  const [docs, setDocs] = useState<any[]>([]);
+  const [docs, setDocs] = useState<MyDocumentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ name: '', type: 'other' });
@@ -769,7 +775,7 @@ function MyDocuments() {
   async function load() {
     if (!tenant || !me) return;
     const { data } = await supabase.from('documents').select('*').eq('tenant_id', tenant.id).eq('employee_id', me.id).order('created_at', { ascending: false });
-    setDocs(data ?? []);
+    setDocs((data as MyDocumentRow[]) ?? []);
     setLoading(false);
   }
   useEffect(() => { load(); }, [tenant, me]);
@@ -856,18 +862,20 @@ function MyDocuments() {
 // ============================================================
 // Payslips (employee view — see own payslips)
 // ============================================================
+type PayslipRow = { id: string; employee_id: string; period?: string; gross: number; bonus?: number; deductions: number; net: number; currency: string; status: string; created_at: string };
+
 function MyPayslips() {
   const { t, localeTag } = useI18n();
   const tenant = useTenant();
   const { user } = useAuth();
   const { me } = useMe(tenant?.id, user?.email);
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<PayslipRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function load() {
     if (!tenant || !me) return;
     const { data } = await supabase.from('payslips').select('*').eq('tenant_id', tenant.id).eq('employee_id', me.id).order('created_at', { ascending: false });
-    setItems(data ?? []);
+    setItems((data as PayslipRow[]) ?? []);
     setLoading(false);
   }
   useEffect(() => { load(); }, [tenant, me]);
@@ -917,12 +925,14 @@ function MyPayslips() {
 // ============================================================
 // Overtime (employee view — submit + see own)
 // ============================================================
+type OvertimeRow = { id: string; employee_id: string; date: string; hours: number; rate?: number; amount: number; currency: string; status: string };
+
 function MyOvertime() {
   const { t, localeTag } = useI18n();
   const tenant = useTenant();
   const { user } = useAuth();
   const { me } = useMe(tenant?.id, user?.email);
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<OvertimeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), hours: 1, notes: '' });
@@ -930,7 +940,7 @@ function MyOvertime() {
   async function load() {
     if (!tenant || !me) return;
     const { data } = await supabase.from('overtime').select('*').eq('tenant_id', tenant.id).eq('employee_id', me.id).order('created_at', { ascending: false });
-    setItems(data ?? []);
+    setItems((data as OvertimeRow[]) ?? []);
     setLoading(false);
   }
   useEffect(() => { load(); }, [tenant, me]);
