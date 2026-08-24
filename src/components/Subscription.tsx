@@ -19,7 +19,7 @@ type Invoice = {
 
 export default function Subscription() {
   const { t } = useI18n();
-  const { activeTenant, user, refresh } = useAuth();
+  const { activeTenant, user } = useAuth();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState<PlanId | null>(null);

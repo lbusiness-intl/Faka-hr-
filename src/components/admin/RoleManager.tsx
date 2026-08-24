@@ -158,10 +158,10 @@ export default function RoleManager() {
         userId: membership.user_id,
         category: 'role',
         title: 'Rôle modifié',
-        body: `Votre rôle est maintenant: ${t(`role.${newRole}` as any) ?? newRole}`,
+        body: `Votre rôle est maintenant: ${t(`role.${newRole}`) ?? newRole}`,
         priority: 'high',
       });
-      setSuccessMsg(`Rôle de ${membership.employee?.first_name ?? membership.email} mis à jour: ${t(`role.${newRole}` as any) ?? newRole}`);
+      setSuccessMsg(`Rôle de ${membership.employee?.first_name ?? membership.email} mis à jour: ${t(`role.${newRole}`) ?? newRole}`);
       setTimeout(() => setSuccessMsg(null), 4000);
       setConfirmAssign(null);
       loadMembers();
@@ -426,7 +426,7 @@ export default function RoleManager() {
                   <td className="p-4 text-slate-700 dark:text-white/70">{m.employee?.department ?? '—'}</td>
                   <td className="p-4">
                     <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold text-white" style={{ backgroundColor: ROLE_COLORS[m.role as string] ?? '#6b7280' }}>
-                      {t(`role.${m.role}` as any) ?? m.role}
+                      {t(`role.${m.role}`) ?? m.role}
                     </span>
                   </td>
                   <td className="p-4">
@@ -436,7 +436,7 @@ export default function RoleManager() {
                       onChange={(e) => { assignRole(m, e.target.value as AppRole); e.target.value = m.role; }}
                     >
                       {ALL_STANDARD_ROLES.map((r) => (
-                        <option key={r} value={r} className="bg-white dark:bg-ink-700">{t(`role.${r}` as any) ?? r}</option>
+                        <option key={r} value={r} className="bg-white dark:bg-ink-700">{t(`role.${r}`) ?? r}</option>
                       ))}
                     </select>
                   </td>
@@ -490,11 +490,11 @@ export default function RoleManager() {
               </div>
               <div className="flex items-center justify-center gap-3 py-2">
                 <span className="px-3 py-1 rounded-full text-xs font-semibold text-white" style={{ backgroundColor: ROLE_COLORS[confirmAssign.membership.role as string] ?? '#6b7280' }}>
-                  {t(`role.${confirmAssign.membership.role}` as any) ?? confirmAssign.membership.role}
+                  {t(`role.${confirmAssign.membership.role}`) ?? confirmAssign.membership.role}
                 </span>
                 <span className="text-slate-400">→</span>
                 <span className="px-3 py-1 rounded-full text-xs font-semibold text-white" style={{ backgroundColor: ROLE_COLORS[confirmAssign.newRole] ?? '#6b7280' }}>
-                  {t(`role.${confirmAssign.newRole}` as any) ?? confirmAssign.newRole}
+                  {t(`role.${confirmAssign.newRole}`) ?? confirmAssign.newRole}
                 </span>
               </div>
               <p className="text-sm text-slate-600 dark:text-white/60 text-center">
@@ -527,7 +527,7 @@ export default function RoleManager() {
               </div>
               <p className="text-sm text-slate-600 dark:text-white/60 text-center">
                 Attribuer le rôle personnalisé <strong>{confirmCustomAssign.customRoleName}</strong> à cette personne ?
-                Ses permissions précises remplaceront celles de son rôle standard ({t(`role.${confirmCustomAssign.membership.role}` as any) ?? confirmCustomAssign.membership.role}).
+                Ses permissions précises remplaceront celles de son rôle standard ({t(`role.${confirmCustomAssign.membership.role}`) ?? confirmCustomAssign.membership.role}).
               </p>
             </div>
           )}
@@ -555,9 +555,9 @@ export default function RoleManager() {
                       {h.employee?.first_name ?? 'Utilisateur'} {h.employee?.last_name ?? ''}
                     </div>
                     <div className="flex items-center gap-2 text-xs mt-0.5">
-                      <span className="text-slate-400">{h.old_role ? t(`role.${h.old_role}` as any) ?? h.old_role : '—'}</span>
+                      <span className="text-slate-400">{h.old_role ? t(`role.${h.old_role}`) ?? h.old_role : '—'}</span>
                       <span className="text-slate-400">→</span>
-                      <span className="text-coral-600 dark:text-coral-400 font-medium">{t(`role.${h.new_role}` as any) ?? h.new_role}</span>
+                      <span className="text-coral-600 dark:text-coral-400 font-medium">{t(`role.${h.new_role}`) ?? h.new_role}</span>
                     </div>
                     {h.reason && <div className="text-xs text-slate-400 mt-0.5">{h.reason}</div>}
                   </div>

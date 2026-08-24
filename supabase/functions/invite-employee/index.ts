@@ -1,6 +1,13 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 
+type Invitation = {
+  id: string; tenant_id: string; email: string; role: string; token: string;
+  status: string; expires_at: string; sales_code?: string | null;
+  custom_role?: { employee_id?: string; branch_id?: string; department_id?: string } | null;
+};
+type AuthUser = { id: string; email?: string };
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -187,7 +194,7 @@ Deno.serve(async (req: Request) => {
       // Create or update auth user
       let authUserId: string;
       const { data: { users: existingUsers } } = await adminClient.auth.admin.listUsers();
-      const existingUser = existingUsers.find((u: any) => u.email === inv.email);
+      const existingUser = existingUsers.find((u: AuthUser) => u.email === inv.email);
 
       if (existingUser) {
         authUserId = existingUser.id;
@@ -220,7 +227,7 @@ Deno.serve(async (req: Request) => {
       if (memErr) return json({ ok: false, error: "MEMBERSHIP_FAILED", detail: memErr.message }, 500);
 
       // Link employee record
-      const meta = (inv.custom_role ?? {}) as any;
+      const meta = inv.custom_role ?? {};
       if (meta?.employee_id) {
         await adminClient.from("employees").update({
           user_id: authUserId,
@@ -259,7 +266,7 @@ Deno.serve(async (req: Request) => {
       if (!email || !password) return json({ ok: false, error: "MISSING_FIELDS" }, 400);
 
       // Find invitation by token OR by email + code
-      let inv: any = null;
+      let inv: Invitation | null = null;
       if (token) {
         const { data } = await adminClient
           .from("invitations")
@@ -292,7 +299,7 @@ Deno.serve(async (req: Request) => {
       // Create or update auth user
       let authUserId: string;
       const { data: { users: existingUsers } } = await adminClient.auth.admin.listUsers();
-      const existingUser = existingUsers.find((u: any) => u.email === inv.email);
+      const existingUser = existingUsers.find((u: AuthUser) => u.email === inv.email);
 
       if (existingUser) {
         authUserId = existingUser.id;
@@ -323,7 +330,7 @@ Deno.serve(async (req: Request) => {
       if (memErr) return json({ ok: false, error: "MEMBERSHIP_FAILED", detail: memErr.message }, 500);
 
       // Link employee record
-      const meta = (inv.custom_role ?? {}) as any;
+      const meta = inv.custom_role ?? {};
       if (meta?.employee_id) {
         await adminClient.from("employees").update({
           user_id: authUserId,
@@ -370,7 +377,7 @@ Deno.serve(async (req: Request) => {
     }
 
     return json({ ok: false, error: "UNKNOWN_ACTION" }, 400);
-  } catch (err: any) {
-    return json({ ok: false, error: "INTERNAL_ERROR", detail: err?.message }, 500);
+  } catch (err) {
+    return json({ ok: false, error: "INTERNAL_ERROR", detail: err instanceof Error ? err.message : String(err) }, 500);
   }
 });

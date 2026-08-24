@@ -59,7 +59,7 @@ export async function notifyHR(tenantId: string, opts: {
       .in('role', ['admin', 'hr_manager', 'hr_assistant']);
     if (!memberships || memberships.length === 0) return;
     await Promise.all(
-      memberships.map((m: any) =>
+      memberships.map((m: { user_id: string }) =>
         supabase.from('notifications').insert({
           tenant_id: tenantId,
           user_id: m.user_id,

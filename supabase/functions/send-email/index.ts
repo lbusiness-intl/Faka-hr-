@@ -1,5 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
+type EmailConfig = {
+  provider: string; smtp_host?: string; smtp_port?: number; encryption?: string;
+  username?: string; password_enc?: string; sender_name: string; sender_email: string;
+  reply_to?: string; timeout_secs?: number;
+};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -121,12 +127,12 @@ Deno.serve(async (req: Request) => {
             });
             failed++;
           }
-        } catch (err: any) {
+        } catch (err) {
           const retryCount = (item.retry_count ?? 0) + 1;
           await adminClient.from("email_queue").update({
             status: retryCount < (item.max_retries ?? 3) ? "retrying" : "failed",
             retry_count: retryCount,
-            error_message: err?.message ?? "Unknown error",
+            error_message: err instanceof Error ? err.message : "Unknown error",
           }).eq("id", item.id);
           failed++;
         }
@@ -171,13 +177,13 @@ Deno.serve(async (req: Request) => {
     }
 
     return json({ ok: false, error: "UNKNOWN_ACTION" }, 400);
-  } catch (err: any) {
-    return json({ ok: false, error: "INTERNAL_ERROR", detail: err?.message }, 500);
+  } catch (err) {
+    return json({ ok: false, error: "INTERNAL_ERROR", detail: err instanceof Error ? err.message : String(err) }, 500);
   }
 });
 
 // ── Email sending abstraction ──────────────────────────────────────────────
-async function sendEmail(config: any, opts: { to: string; subject: string; html: string; text?: string }): Promise<{ ok: boolean; error?: string }> {
+async function sendEmail(config: EmailConfig, opts: { to: string; subject: string; html: string; text?: string }): Promise<{ ok: boolean; error?: string }> {
   const provider = config.provider;
 
   try {
@@ -305,7 +311,7 @@ async function sendEmail(config: any, opts: { to: string; subject: string; html:
     }
 
     return { ok: false, error: `Unknown provider: ${provider}` };
-  } catch (err: any) {
-    return { ok: false, error: err?.message ?? "Unknown error" };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Unknown error" };
   }
 }
