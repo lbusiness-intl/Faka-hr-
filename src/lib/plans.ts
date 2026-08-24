@@ -15,8 +15,8 @@ export const PLANS: Plan[] = [
   {
     id: 'starter',
     name: 'Starter',
-    priceMonthly: 9,
-    priceYearly: 86,
+    priceMonthly: 19,
+    priceYearly: 190,
     employeeLimit: 15,
     features: ['Core HR', 'Contrats', 'Paie de base', 'Portail employé', 'Support email'],
     modules: ['dashboard', 'employees', 'payroll', 'leaves', 'attendance', 'documents', 'overtime', 'subscription'],
@@ -24,8 +24,8 @@ export const PLANS: Plan[] = [
   {
     id: 'pro',
     name: 'Pro',
-    priceMonthly: 19,
-    priceYearly: 182,
+    priceMonthly: 39,
+    priceYearly: 390,
     employeeLimit: 50,
     features: ['Tout Starter', 'Recrutement + Kanban', 'Formation / LMS', 'Avances & notes de frais', 'Support prioritaire'],
     modules: ['dashboard', 'employees', 'payroll', 'leaves', 'attendance', 'recruitment', 'training', 'advances', 'claims', 'subscription'],
@@ -33,8 +33,8 @@ export const PLANS: Plan[] = [
   {
     id: 'premium',
     name: 'Premium',
-    priceMonthly: 49,
-    priceYearly: 470,
+    priceMonthly: 69,
+    priceYearly: 690,
     employeeLimit: 150,
     highlight: true,
     features: ['Tout Pro', 'Conformité + lettres RH', 'Performance / OKR', 'Évaluations 360°', 'Gestion des actifs'],
@@ -43,8 +43,8 @@ export const PLANS: Plan[] = [
   {
     id: 'enterprise',
     name: 'Enterprise',
-    priceMonthly: 129,
-    priceYearly: 1238,
+    priceMonthly: 299,
+    priceYearly: 2990,
     employeeLimit: null,
     features: ['Tout Premium', 'Workflow Automation', 'Multi-sites illimité', 'SSO/SAML', 'Account manager dédié'],
     modules: [

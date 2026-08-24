@@ -5,11 +5,11 @@ import { supabase } from '../../lib/supabase';
 import { DashboardShell } from '../DashboardShell';
 import { Modal, Badge, Spinner, EmptyState, StatCard } from '../ui';
 import { useRoute, navigate } from '../../lib/router';
-import { getPlan, type PlanId } from '../../lib/plans';
+import { getPlan, isModuleUnlocked, type PlanId } from '../../lib/plans';
 import {
   Users, Wallet, CalendarClock, BanknoteIcon, Receipt, Clock, UserPlus, GraduationCap,
   Target, Star, Package, ShieldCheck, CalendarDays, Settings as SettingsIcon,
-  Plus, Check, X, FileText, TrendingUp,
+  Plus, Check, X, FileText, TrendingUp, Lock,
   Send,
 } from 'lucide-react';
 import BranchManager from './BranchManager';
@@ -2072,6 +2072,33 @@ export default function AdminDashboard() {
 
   // Determine module from route
   const module = route.split('/dashboard/admin/')[1]?.split('?')[0] ?? 'dashboard';
+
+  // SECURITY/COHERENCE: the sidebar already hides locked modules behind an
+  // upgrade prompt, but that was only a navigation nicety — nothing stopped
+  // an admin from typing a premium module's URL directly and reaching the
+  // real component (which would then happily query real tenant data via
+  // RLS, since RLS only checks role, not the subscription plan). Re-check
+  // the plan here too, so the module itself refuses to render when it
+  // isn't included in the tenant's current plan.
+  const isSuperAdmin = user.app_metadata?.role === 'super_admin';
+  const planId = (activeTenant.plan ?? 'starter') as PlanId;
+  const baseModule = module.split('/')[0];
+  if (!isSuperAdmin && !isModuleUnlocked(planId, baseModule)) {
+    return (
+      <DashboardShell role="admin">
+        <div className="flex items-center justify-center py-24">
+          <div className="card p-8 max-w-md text-center">
+            <div className="w-12 h-12 rounded-xl bg-coral-100 dark:bg-coral-500/10 text-coral-600 dark:text-coral-400 flex items-center justify-center mx-auto mb-4">
+              <Lock size={22} />
+            </div>
+            <h2 className="text-slate-900 dark:text-white font-display text-xl font-bold mb-2">Module non inclus dans votre plan</h2>
+            <p className="text-slate-600 dark:text-white/60 text-sm mb-5">Passez à un plan supérieur pour débloquer cette fonctionnalité.</p>
+            <button onClick={() => navigate('/dashboard/admin/subscription')} className="btn-primary">Voir les plans</button>
+          </div>
+        </div>
+      </DashboardShell>
+    );
+  }
 
   let content: ReactNode;
   switch (module) {

@@ -53,7 +53,7 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
-        display: ['Glacial Indifference', 'Inter', 'system-ui', 'sans-serif'],
+        display: ['Inter', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
         glow: '0 0 40px -10px rgba(0,112,224,0.45)',

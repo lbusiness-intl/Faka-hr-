@@ -1,18 +1,4 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-@font-face {
-  font-family: 'Glacial Indifference';
-  src: url('https://fonts.cdnfonts.com/s/51470/GlacialIndifference-Regular.woff') format('woff');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Glacial Indifference';
-  src: url('https://fonts.cdnfonts.com/s/51470/GlacialIndifference-Bold.woff') format('woff');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
 
 @tailwind base;
 @tailwind components;

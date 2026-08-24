@@ -221,19 +221,15 @@ function Hero() {
   const { t } = useI18n();
   return (
     <section className="relative overflow-hidden bg-sage-50 dark:bg-ink-900">
-      <div className="absolute inset-0 opacity-70 dark:opacity-40" style={{
-        backgroundImage: 'radial-gradient(ellipse at 20% 0%, rgba(0,112,224,0.15), transparent 50%), radial-gradient(ellipse at 80% 20%, rgba(45,212,191,0.12), transparent 50%)',
+      <div className="absolute inset-0 opacity-60 dark:opacity-30" style={{
+        backgroundImage: 'radial-gradient(ellipse at 50% -10%, rgba(0,112,224,0.14), transparent 55%)',
       }} />
-      <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.02]" style={{
-        backgroundImage: 'linear-gradient(rgba(15,23,42,1) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,1) 1px, transparent 1px)',
-        backgroundSize: '56px 56px',
-      }} />
-      <div className="relative section pt-20 pb-28 grid lg:grid-cols-2 gap-12 items-center">
+      <div className="relative section pt-24 pb-24 grid lg:grid-cols-2 gap-14 items-center">
         <div className="animate-fade-in">
           <div className="inline-flex items-center gap-2 rounded-full bg-coral-50 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 px-3 py-1.5 text-xs text-coral-700 dark:text-coral-300 mb-6">
             <Sparkles size={14} /> {t('app.badge')}
           </div>
-          <h1 className="font-display text-4xl md:text-5xl lg:text-[3.5rem] font-bold text-slate-900 dark:text-white leading-[1.08] tracking-tight">
+          <h1 className="font-display text-4xl md:text-5xl lg:text-[3.4rem] font-bold text-slate-900 dark:text-white leading-[1.1] tracking-tight">
             {t('hero.title')}
           </h1>
           <p className="mt-6 text-lg text-slate-600 dark:text-white/70 leading-relaxed max-w-xl">
@@ -247,7 +243,7 @@ function Hero() {
               {t('hero.cta.demo')}
             </Link>
           </div>
-          <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-500 dark:text-white/50">
+          <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-500 dark:text-white/50">
             <div className="flex items-center gap-2"><Check size={16} className="text-emerald-500" /> {t('pricing.trial')}</div>
             <div className="flex items-center gap-2"><ShieldCheck size={16} className="text-emerald-500" /> GDPR / ISO 27001 ready</div>
             <div className="flex items-center gap-2"><Globe2 size={16} className="text-emerald-500" /> FR / EN</div>
@@ -255,21 +251,6 @@ function Hero() {
         </div>
         <div className="relative animate-scale-in">
           <DashboardMockup />
-          {/* Floating cards */}
-          <div className="absolute -bottom-5 -left-5 card p-3.5 w-52 hidden sm:block animate-float">
-            <div className="flex items-center gap-2 mb-1.5">
-              <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-500/15 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                <Check size={14} />
-              </div>
-              <div className="text-xs font-semibold text-slate-900 dark:text-white">Payroll approved</div>
-            </div>
-            <div className="text-[11px] text-slate-500 dark:text-white/50">248 employees · $182K net</div>
-          </div>
-          <div className="absolute -top-4 -right-4 card p-3 w-44 hidden sm:block animate-float" style={{ animationDelay: '1.2s' }}>
-            <div className="flex items-center gap-2 text-coral-600 text-xs mb-1"><MessageSquare size={13} /> Employee chat</div>
-            <div className="text-slate-700 dark:text-white/70 text-[11px]">"Can I see my payslip?"</div>
-            <div className="mt-1.5 text-[10px] text-emerald-500 font-medium">Auto-replied in 0.3s</div>
-          </div>
         </div>
       </div>
     </section>
@@ -281,7 +262,7 @@ function LogoCloud() {
   return (
     <section className="border-y border-slate-200 dark:border-white/10 bg-white dark:bg-ink-900 py-10">
       <div className="section">
-        <Reveal><p className="text-center text-xs uppercase tracking-widest text-slate-400 mb-6">Trusted by teams across Africa, the Middle East & beyond</p></Reveal>
+        <Reveal><p className="text-center text-xs uppercase tracking-widest text-slate-400 mb-6">Trusted by growing teams worldwide</p></Reveal>
         <Reveal delay={100}>
         <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
           {logos.map((l) => (
@@ -520,7 +501,7 @@ function CTASection() {
   const { t } = useI18n();
   return (
     <section className="section py-20 bg-sage-50/40 dark:bg-ink-900 border-t border-slate-200 dark:border-white/10">
-      <div className="card p-10 text-center max-w-2xl mx-auto bg-gradient-to-br from-coral-50 to-sage-50 dark:from-ink-800 dark:to-ink-700 border-coral-200 dark:border-white/10">
+      <div className="card p-10 text-center max-w-2xl mx-auto">
         <h2 className="font-display text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">{t('hero.cta.start')}</h2>
         <p className="mt-3 text-slate-600 dark:text-white/60 text-sm max-w-md mx-auto">{t('hero.subtitle')}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
