@@ -1323,6 +1323,7 @@ function Recruitment() {
   const [candidateModal, setCandidateModal] = useState(false);
   const [form, setForm] = useState({ title: '', department: '', location: '', description: '' });
   const [candidateForm, setCandidateForm] = useState({ posting_id: '', full_name: '', email: '', phone: '', notes: '' });
+  const [recruitError, setRecruitError] = useState<string | null>(null);
 
   async function load() {
     if (!tenant) return;
@@ -1337,9 +1338,16 @@ function Recruitment() {
   }
   useEffect(() => { load(); }, [tenant]);
 
+  function friendlyError(msg: string): string {
+    return msg.includes('TENANT_INACTIVE')
+      ? "Votre abonnement n'est pas actif. Renouvelez votre plan pour continuer."
+      : msg;
+  }
+
   async function addPosting() {
     if (!tenant) return;
-    await supabase.from('recruitment_postings').insert({ ...form, tenant_id: tenant.id, status: 'open' });
+    const { error: postErr } = await supabase.from('recruitment_postings').insert({ ...form, tenant_id: tenant.id, status: 'open' });
+    if (postErr) { setRecruitError(friendlyError(postErr.message)); return; }
     setModal(false);
     setForm({ title: '', department: '', location: '', description: '' });
     load();
@@ -1347,7 +1355,7 @@ function Recruitment() {
 
   async function addCandidate() {
     if (!tenant || !candidateForm.full_name.trim()) return;
-    await supabase.from('recruitment_candidates').insert({
+    const { error: candErr } = await supabase.from('recruitment_candidates').insert({
       tenant_id: tenant.id,
       posting_id: candidateForm.posting_id || null,
       full_name: candidateForm.full_name.trim(),
@@ -1356,13 +1364,15 @@ function Recruitment() {
       notes: candidateForm.notes.trim() || null,
       stage: 'applied',
     });
+    if (candErr) { setRecruitError(friendlyError(candErr.message)); return; }
     setCandidateModal(false);
     setCandidateForm({ posting_id: '', full_name: '', email: '', phone: '', notes: '' });
     load();
   }
 
   async function moveCandidate(id: string, stage: string) {
-    await supabase.from('recruitment_candidates').update({ stage }).eq('id', id);
+    const { error: moveErr } = await supabase.from('recruitment_candidates').update({ stage }).eq('id', id);
+    if (moveErr) { setRecruitError(friendlyError(moveErr.message)); return; }
     load();
   }
 
@@ -1378,6 +1388,12 @@ function Recruitment() {
             <button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> Offre</button>
           </div>
         } />
+      {recruitError && (
+        <div className="card p-4 mb-6 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-sm text-rose-700 dark:text-rose-300 flex items-start justify-between gap-3">
+          <span>{recruitError}</span>
+          <button onClick={() => setRecruitError(null)} className="text-rose-400 hover:text-rose-600 shrink-0"><X size={16} /></button>
+        </div>
+      )}
       {loading ? <Spinner /> : (
         <>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
@@ -1666,6 +1682,7 @@ function Events() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', location: '', event_date: '' });
+  const [eventError, setEventError] = useState<string | null>(null);
 
   async function load() {
     if (!tenant) return;
@@ -1678,9 +1695,15 @@ function Events() {
 
   async function add() {
     if (!tenant) return;
-    await supabase.from('events').insert({
+    const { error: addErr } = await supabase.from('events').insert({
       ...form, tenant_id: tenant.id, scope: 'company', event_date: form.event_date ? new Date(form.event_date).toISOString() : null,
     });
+    if (addErr) {
+      setEventError(addErr.message.includes('TENANT_INACTIVE')
+        ? "Votre abonnement n'est pas actif. Renouvelez votre plan pour créer un événement."
+        : `Échec de la création : ${addErr.message}`);
+      return;
+    }
     setModal(false);
     setForm({ title: '', description: '', location: '', event_date: '' });
     load();
@@ -1690,7 +1713,8 @@ function Events() {
     if (!tenant || !user) return;
     const { data } = await supabase.from('events').select('rsvp').eq('id', id).single();
     const rsvp = { ...(data?.rsvp ?? {}), [user.id]: status };
-    await supabase.from('events').update({ rsvp }).eq('id', id);
+    const { error: rsvpErr } = await supabase.from('events').update({ rsvp }).eq('id', id);
+    if (rsvpErr) { setEventError(`Échec de la réponse : ${rsvpErr.message}`); return; }
     load();
   }
 
@@ -1699,6 +1723,12 @@ function Events() {
     <div>
       <PageHeader title={t('dash.events')} icon={<CalendarDays size={20} />}
         action={<button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> Événement</button>} />
+      {eventError && (
+        <div className="card p-4 mb-6 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-sm text-rose-700 dark:text-rose-300 flex items-start justify-between gap-3">
+          <span>{eventError}</span>
+          <button onClick={() => setEventError(null)} className="text-rose-400 hover:text-rose-600 shrink-0"><X size={16} /></button>
+        </div>
+      )}
       {loading ? <Spinner /> : items.length === 0 ? (
         <EmptyState icon={<CalendarDays size={48} />} title="Aucun événement" />
       ) : (
@@ -1904,7 +1934,7 @@ function Documents() {
     const path = `${tenant.id}/${form.employee_id}/${Date.now()}-${file.name}`;
     const { error: upErr } = await supabase.storage.from('documents').upload(path, file);
     if (upErr) { alert(`Le téléversement a échoué : ${upErr.message}`); return; }
-    await supabase.from('documents').insert({
+    const { error: docErr } = await supabase.from('documents').insert({
       tenant_id: tenant.id,
       employee_id: form.employee_id,
       name: form.name,
@@ -1915,6 +1945,15 @@ function Documents() {
       uploaded_by: user?.id,
       uploaded_by_role: 'hr',
     });
+    if (docErr) {
+      // The file made it to storage but the record couldn't be created —
+      // clean up the orphaned file rather than leaving it dangling.
+      await supabase.storage.from('documents').remove([path]);
+      alert(docErr.message.includes('TENANT_INACTIVE')
+        ? "Votre abonnement n'est pas actif. Renouvelez votre plan pour téléverser un document."
+        : `L'enregistrement du document a échoué : ${docErr.message}`);
+      return;
+    }
     setModal(false);
     setForm({ employee_id: '', name: '', type: 'contract' });
     setFile(null);
@@ -1923,7 +1962,8 @@ function Documents() {
 
   async function remove(id: string, path: string) {
     await supabase.storage.from('documents').remove([path]);
-    await supabase.from('documents').delete().eq('id', id);
+    const { error: delErr } = await supabase.from('documents').delete().eq('id', id);
+    if (delErr) { alert(`Échec de la suppression : ${delErr.message}`); return; }
     load();
   }
 
@@ -2013,6 +2053,7 @@ function Overtime() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ employee_id: '', date: new Date().toISOString().slice(0, 10), hours: 1, rate: 1.5, notes: '' });
+  const [otError, setOtError] = useState<string | null>(null);
 
   async function load() {
     if (!tenant) return;
@@ -2039,11 +2080,17 @@ function Overtime() {
     if (!tenant || !form.employee_id) return;
     const emp = employees.find((x) => x.id === form.employee_id);
     const amount = Number(form.hours) * Number(form.rate) * (emp?.salary ?? 0) / 173.33;
-    await supabase.from('overtime').insert({
+    const { error: addErr } = await supabase.from('overtime').insert({
       tenant_id: tenant.id, employee_id: form.employee_id, date: form.date,
       hours: Number(form.hours), rate: Number(form.rate), amount,
       currency: tenant.currency, status: 'pending', notes: form.notes,
     });
+    if (addErr) {
+      setOtError(addErr.message.includes('TENANT_INACTIVE')
+        ? "Votre abonnement n'est pas actif. Renouvelez votre plan pour soumettre des heures sup."
+        : `Échec de la soumission : ${addErr.message}`);
+      return;
+    }
     // Notify HR
     const { notifyHR } = await import('../../lib/notifications');
     await notifyHR(tenant.id, { category: 'attendance', title: 'Demande d\'heures sup.', body: `${emp?.first_name} ${emp?.last_name} a soumis ${form.hours}h sup.`, priority: 'normal' });
@@ -2053,7 +2100,8 @@ function Overtime() {
   }
 
   async function setStatus(id: string, status: string) {
-    await supabase.from('overtime').update({ status }).eq('id', id);
+    const { error: statusErr } = await supabase.from('overtime').update({ status }).eq('id', id);
+    if (statusErr) { setOtError(`Échec de la mise à jour : ${statusErr.message}`); return; }
     // Notify employee
     const item = items.find((it) => it.id === id);
     const emp = item ? employees.find((e) => e.id === item.employee_id) : null;
@@ -2071,6 +2119,12 @@ function Overtime() {
     <div>
       <PageHeader title="Heures supplémentaires" icon={<Clock size={20} />}
         action={<button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> {t('common.add')}</button>} />
+      {otError && (
+        <div className="card p-4 mb-6 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-sm text-rose-700 dark:text-rose-300 flex items-start justify-between gap-3">
+          <span>{otError}</span>
+          <button onClick={() => setOtError(null)} className="text-rose-400 hover:text-rose-600 shrink-0"><X size={16} /></button>
+        </div>
+      )}
       {loading ? <Spinner /> : items.length === 0 ? (
         <EmptyState icon={<Clock size={48} />} title="Aucune heure supplémentaire" />
       ) : (
