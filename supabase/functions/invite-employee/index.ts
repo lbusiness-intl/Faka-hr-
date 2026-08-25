@@ -112,7 +112,7 @@ Deno.serve(async (req: Request) => {
 
       if (existing) {
         employeeId = existing.id;
-        await adminClient.from("employees").update({
+        const { error: empUpdErr } = await adminClient.from("employees").update({
           first_name: first_name || existing.first_name,
           last_name: last_name || existing.last_name,
           position: position || null,
@@ -120,6 +120,14 @@ Deno.serve(async (req: Request) => {
           department_id: department_id || null,
           status: "pending_invite",
         }).eq("id", employeeId);
+        if (empUpdErr) {
+          const tenantInactive = empUpdErr.message?.includes("TENANT_INACTIVE");
+          return json({
+            ok: false,
+            error: tenantInactive ? "TENANT_INACTIVE" : "EMPLOYEE_UPDATE_FAILED",
+            detail: empUpdErr.message,
+          }, tenantInactive ? 402 : 500);
+        }
       } else {
         const { data: emp, error: empInsErr } = await adminClient.from("employees").insert({
           tenant_id: tenantId,
@@ -136,11 +144,12 @@ Deno.serve(async (req: Request) => {
         }).select("id").single();
         if (empInsErr) {
           const limitReached = empInsErr.message?.includes("EMPLOYEE_LIMIT_REACHED");
+          const tenantInactive = empInsErr.message?.includes("TENANT_INACTIVE");
           return json({
             ok: false,
-            error: limitReached ? "EMPLOYEE_LIMIT_REACHED" : "EMPLOYEE_CREATE_FAILED",
+            error: limitReached ? "EMPLOYEE_LIMIT_REACHED" : tenantInactive ? "TENANT_INACTIVE" : "EMPLOYEE_CREATE_FAILED",
             detail: empInsErr.message,
-          }, limitReached ? 402 : 500);
+          }, limitReached || tenantInactive ? 402 : 500);
         }
         employeeId = emp?.id ?? null;
       }

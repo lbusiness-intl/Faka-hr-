@@ -86,8 +86,12 @@ export default function InviteWizard({ open, onClose, onDone }: {
         return `L'enregistrement de l'invitation a échoué.${detail ? ` (${detail})` : ''}`;
       case 'EMPLOYEE_LIMIT_REACHED':
         return "Limite d'employés atteinte pour votre plan actuel. Passez à un plan supérieur pour inviter davantage de collaborateurs.";
+      case 'TENANT_INACTIVE':
+        return "Votre abonnement n'est pas actif (essai expiré ou paiement en attente). Renouvelez votre plan pour inviter de nouveaux collaborateurs.";
       case 'EMPLOYEE_CREATE_FAILED':
         return `La création de la fiche employé a échoué.${detail ? ` (${detail})` : ''}`;
+      case 'EMPLOYEE_UPDATE_FAILED':
+        return `La mise à jour de la fiche employé a échoué.${detail ? ` (${detail})` : ''}`;
       default:
         return `Erreur lors de l'envoi (${code || status}).${detail ? ` ${detail}` : ''}`;
     }
