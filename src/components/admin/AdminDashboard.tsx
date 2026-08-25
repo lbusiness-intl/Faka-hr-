@@ -838,6 +838,7 @@ function Payroll() {
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [runError, setRunError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editModal, setEditModal] = useState(false);
   const [editingEmp, setEditingEmp] = useState<Employee | null>(null);
@@ -894,7 +895,7 @@ function Payroll() {
     // "consumed" right away. Bonus / overtime / one-off tax corrections stay pending
     // (consumed = false) until the next payroll run actually uses them.
     const isRecurring = field === 'salary' || field === 'allowances' || field === 'deductions';
-    await supabase.from('payroll_adjustments').insert({
+    const { error: adjErr } = await supabase.from('payroll_adjustments').insert({
       tenant_id: tenant.id,
       employee_id: editingEmp.id,
       field,
@@ -904,12 +905,23 @@ function Payroll() {
       changed_by: user?.id,
       consumed: isRecurring,
     });
+    if (adjErr) {
+      setRunError(adjErr.message.includes('TENANT_INACTIVE')
+        ? "Votre abonnement n'est pas actif. Renouvelez votre plan pour effectuer cet ajustement."
+        : `Échec de l'ajustement : ${adjErr.message}`);
+      return;
+    }
+    let updErr = null;
     if (field === 'salary') {
-      await supabase.from('employees').update({ salary: adjustForm.new_value }).eq('id', editingEmp.id);
+      ({ error: updErr } = await supabase.from('employees').update({ salary: adjustForm.new_value }).eq('id', editingEmp.id));
     } else if (field === 'allowances') {
-      await supabase.from('employees').update({ allowances: adjustForm.new_value }).eq('id', editingEmp.id);
+      ({ error: updErr } = await supabase.from('employees').update({ allowances: adjustForm.new_value }).eq('id', editingEmp.id));
     } else if (field === 'deductions') {
-      await supabase.from('employees').update({ recurring_deductions: adjustForm.new_value }).eq('id', editingEmp.id);
+      ({ error: updErr } = await supabase.from('employees').update({ recurring_deductions: adjustForm.new_value }).eq('id', editingEmp.id));
+    }
+    if (updErr) {
+      setRunError(`Échec de la mise à jour de la fiche employé : ${updErr.message}`);
+      return;
     }
     await supabase.from('audit_logs').insert({
       tenant_id: tenant.id, actor: user?.id,
@@ -929,6 +941,7 @@ function Payroll() {
       return;
     }
     setRunning(true);
+    setRunError(null);
     const selectedEmps = selected.size > 0 ? employees.filter((e) => selected.has(e.id)) : employees;
     const empIds = selectedEmps.map((e) => e.id);
 
@@ -983,9 +996,16 @@ function Payroll() {
 
     const gross = computed.reduce((s, c) => s + c.gross, 0);
     const net = computed.reduce((s, c) => s + c.net, 0);
-    const { data: run } = await supabase.from('payroll_runs').insert({
+    const { data: run, error: runErr } = await supabase.from('payroll_runs').insert({
       tenant_id: tenant.id, period, status: 'completed', total_gross: gross, total_net: net, currency: tenant.currency,
     }).select().single();
+    if (runErr) {
+      setRunError(runErr.message.includes('TENANT_INACTIVE')
+        ? "Votre abonnement n'est pas actif. Renouvelez votre plan pour lancer la paie."
+        : `Échec du lancement de la paie : ${runErr.message}`);
+      setRunning(false);
+      return;
+    }
     if (run) {
       const payslips = computed.map((c) => ({
         tenant_id: tenant.id, run_id: run.id, employee_id: c.employee.id,
@@ -993,7 +1013,12 @@ function Payroll() {
         bonus: c.bonus, allowances: c.allowances, overtime_pay: c.overtime_pay, taxes: c.taxes,
         currency: tenant.currency, status: 'pending',
       }));
-      await supabase.from('payslips').insert(payslips);
+      const { error: slipsErr } = await supabase.from('payslips').insert(payslips);
+      if (slipsErr) {
+        setRunError(`La création des bulletins a échoué : ${slipsErr.message}`);
+        setRunning(false);
+        return;
+      }
 
       // Mark the one-off adjustments as used so they aren't applied again next month
       const consumedIds = computed.flatMap((c) => c.consumedIds);
@@ -1027,7 +1052,13 @@ function Payroll() {
     if (!tenant) return;
     const { data: pending } = await supabase.from('payslips').select('id').eq('tenant_id', tenant.id).eq('status', 'pending');
     if (pending && pending.length > 0) {
-      await supabase.from('payslips').update({ status: 'paid', paid_at: new Date().toISOString() }).in('id', pending.map((p: { id: string }) => p.id));
+      const { error: payErr } = await supabase.from('payslips').update({ status: 'paid', paid_at: new Date().toISOString() }).in('id', pending.map((p: { id: string }) => p.id));
+      if (payErr) {
+        setRunError(payErr.message.includes('TENANT_INACTIVE')
+          ? "Votre abonnement n'est pas actif. Renouvelez votre plan pour marquer les bulletins comme payés."
+          : `Échec du paiement : ${payErr.message}`);
+        return;
+      }
     }
     load();
   }
@@ -1048,6 +1079,13 @@ function Payroll() {
             </button>
           </div>
         } />
+
+      {runError && (
+        <div className="card p-4 mb-6 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-sm text-rose-700 dark:text-rose-300 flex items-start justify-between gap-3">
+          <span>{runError}</span>
+          <button onClick={() => setRunError(null)} className="text-rose-400 hover:text-rose-600 shrink-0"><X size={16} /></button>
+        </div>
+      )}
 
       {/* Employee payroll table */}
       <div className="card overflow-x-auto mb-6">
