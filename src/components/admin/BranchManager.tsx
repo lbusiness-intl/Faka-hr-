@@ -17,6 +17,7 @@ export default function BranchManager() {
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<Branch | null>(null);
   const [form, setForm] = useState({ name: '', location: '', manager_id: '' });
+  const [error, setError] = useState<string | null>(null);
 
   async function load() {
     if (!activeTenant) return;
@@ -43,20 +44,27 @@ export default function BranchManager() {
     setModal(true);
   }
 
+  function friendlyError(msg: string): string {
+    return msg.includes('TENANT_INACTIVE')
+      ? "Votre abonnement n'est pas actif. Renouvelez votre plan pour continuer."
+      : msg;
+  }
+
   async function save() {
     if (!activeTenant || !form.name.trim()) return;
+    setError(null);
     const payload = { name: form.name.trim(), location: form.location || null, manager_id: form.manager_id || null };
-    if (editing) {
-      await supabase.from('branches').update(payload).eq('id', editing.id);
-    } else {
-      await supabase.from('branches').insert({ ...payload, tenant_id: activeTenant.id });
-    }
+    const { error: saveErr } = editing
+      ? await supabase.from('branches').update(payload).eq('id', editing.id)
+      : await supabase.from('branches').insert({ ...payload, tenant_id: activeTenant.id });
+    if (saveErr) { setError(friendlyError(saveErr.message)); return; }
     setModal(false);
     load();
   }
 
   async function remove(id: string) {
-    await supabase.from('branches').delete().eq('id', id);
+    const { error: delErr } = await supabase.from('branches').delete().eq('id', id);
+    if (delErr) { setError(friendlyError(delErr.message)); return; }
     load();
   }
 
@@ -80,6 +88,13 @@ export default function BranchManager() {
         </div>
         <button onClick={openAdd} className="btn-primary text-sm"><Plus size={16} /> {t('branch.add')}</button>
       </div>
+
+      {error && (
+        <div className="card p-4 mb-6 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-sm text-rose-700 dark:text-rose-300 flex items-start justify-between gap-3">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-rose-400 hover:text-rose-600 shrink-0">✕</button>
+        </div>
+      )}
 
       {loading ? <Spinner className="mx-auto mt-8" /> : branches.length === 0 ? (
         <EmptyState icon={<GitBranch size={48} />} title={t('branch.none')} hint="Créez votre première agence pour organiser vos équipes." />

@@ -21,6 +21,7 @@ export default function LeaveBalanceManager() {
     employee_id: '', type: 'annual', year: new Date().getFullYear(),
     entitled: 18, used: 0, carried_over: 0
   });
+  const [error, setError] = useState<string | null>(null);
 
   async function load() {
     if (!activeTenant) return;
@@ -59,6 +60,7 @@ export default function LeaveBalanceManager() {
 
   async function save() {
     if (!activeTenant) return;
+    setError(null);
     const payload = {
       tenant_id: activeTenant.id,
       employee_id: form.employee_id,
@@ -69,10 +71,14 @@ export default function LeaveBalanceManager() {
       carried_over: Number(form.carried_over)
     };
 
-    if (editing) {
-      await supabase.from('leave_balances').update(payload).eq('id', editing.id);
-    } else {
-      await supabase.from('leave_balances').insert(payload);
+    const { error: saveErr } = editing
+      ? await supabase.from('leave_balances').update(payload).eq('id', editing.id)
+      : await supabase.from('leave_balances').insert(payload);
+    if (saveErr) {
+      setError(saveErr.message.includes('TENANT_INACTIVE')
+        ? "Votre abonnement n'est pas actif. Renouvelez votre plan pour continuer."
+        : saveErr.message);
+      return;
     }
     setModal(false);
     load();
@@ -80,7 +86,8 @@ export default function LeaveBalanceManager() {
 
   async function remove(id: string) {
     if (!window.confirm('Supprimer ce solde ?')) return;
-    await supabase.from('leave_balances').delete().eq('id', id);
+    const { error: delErr } = await supabase.from('leave_balances').delete().eq('id', id);
+    if (delErr) { setError(delErr.message); return; }
     load();
   }
 
@@ -107,6 +114,13 @@ export default function LeaveBalanceManager() {
           <Plus size={16} /> Allouer un solde
         </button>
       </div>
+
+      {error && (
+        <div className="card p-4 mb-6 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-sm text-rose-700 dark:text-rose-300 flex items-start justify-between gap-3">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-rose-400 hover:text-rose-600 shrink-0">✕</button>
+        </div>
+      )}
 
       {loading ? <Spinner /> : items.length === 0 ? (
         <EmptyState icon={<CalendarClock size={48} />} title="Aucun solde alloué" hint="Allouez un quota de congés à un collaborateur." />

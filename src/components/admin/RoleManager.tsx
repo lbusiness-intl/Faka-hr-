@@ -80,6 +80,7 @@ export default function RoleManager() {
   const [confirmCustomAssign, setConfirmCustomAssign] = useState<{ membership: Membership; customRoleId: string | null; customRoleName: string } | null>(null);
   const [assigning, setAssigning] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [roleError, setRoleError] = useState<string | null>(null);
 
   async function load() {
     if (!activeTenant) return;
@@ -137,8 +138,15 @@ export default function RoleManager() {
     const { membership, newRole } = confirmAssign;
     const oldRole = membership.role;
     setAssigning(true);
+    setRoleError(null);
     try {
-      await supabase.from('tenant_memberships').update({ role: newRole }).eq('id', membership.id);
+      const { error: updErr } = await supabase.from('tenant_memberships').update({ role: newRole }).eq('id', membership.id);
+      if (updErr) {
+        setRoleError(updErr.message.includes('Only a verified super administrator')
+          ? "Seul un super administrateur peut attribuer le rôle super_admin."
+          : `Échec de la mise à jour du rôle : ${updErr.message}`);
+        return;
+      }
       await supabase.from('role_history').insert({
         tenant_id: activeTenant.id,
         user_id: membership.user_id,
@@ -181,8 +189,10 @@ export default function RoleManager() {
     if (!confirmCustomAssign || !activeTenant || !user) return;
     const { membership, customRoleId, customRoleName } = confirmCustomAssign;
     setAssigning(true);
+    setRoleError(null);
     try {
-      await supabase.from('tenant_memberships').update({ custom_role_id: customRoleId }).eq('id', membership.id);
+      const { error: updErr } = await supabase.from('tenant_memberships').update({ custom_role_id: customRoleId }).eq('id', membership.id);
+      if (updErr) { setRoleError(`Échec de la mise à jour : ${updErr.message}`); return; }
       await supabase.from('audit_logs').insert({
         tenant_id: activeTenant.id, actor: user.id,
         action: 'custom_role.assigned',
@@ -244,18 +254,24 @@ export default function RoleManager() {
 
   async function save() {
     if (!activeTenant || !form.name.trim()) return;
+    setRoleError(null);
     const payload = { name: form.name.trim(), color: form.color, permissions: form.permissions };
-    if (editing) {
-      await supabase.from('custom_roles').update(payload).eq('id', editing.id);
-    } else {
-      await supabase.from('custom_roles').insert({ ...payload, tenant_id: activeTenant.id });
+    const { error: saveErr } = editing
+      ? await supabase.from('custom_roles').update(payload).eq('id', editing.id)
+      : await supabase.from('custom_roles').insert({ ...payload, tenant_id: activeTenant.id });
+    if (saveErr) {
+      setRoleError(saveErr.message.includes('TENANT_INACTIVE')
+        ? "Votre abonnement n'est pas actif. Renouvelez votre plan pour continuer."
+        : `Échec de l'enregistrement : ${saveErr.message}`);
+      return;
     }
     setModal(false);
     load();
   }
 
   async function remove(id: string) {
-    await supabase.from('custom_roles').delete().eq('id', id);
+    const { error: delErr } = await supabase.from('custom_roles').delete().eq('id', id);
+    if (delErr) { setRoleError(`Échec de la suppression : ${delErr.message}`); return; }
     load();
   }
 
@@ -470,6 +486,14 @@ export default function RoleManager() {
         {successMsg && (
           <div className="fixed bottom-6 right-6 z-50 bg-emerald-500 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-scale-in">
             <Check size={18} /> {successMsg}
+          </div>
+        )}
+
+        {/* Error toast */}
+        {roleError && (
+          <div className="fixed bottom-6 right-6 z-50 bg-rose-600 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-3 animate-scale-in max-w-md">
+            <span className="text-sm">{roleError}</span>
+            <button onClick={() => setRoleError(null)} className="text-white/80 hover:text-white shrink-0">✕</button>
           </div>
         )}
 

@@ -47,6 +47,7 @@ export default function CommunicationsPanel({ isEmployee = false }: { isEmployee
   const [branches, setBranches] = useState<Branch[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [form, setForm] = useState({
     type: 'announcement',
     subject: '',
@@ -96,8 +97,9 @@ export default function CommunicationsPanel({ isEmployee = false }: { isEmployee
     if (!activeTenant || !user || !form.subject.trim() || !form.body.trim()) return;
     if ((form.recipient_scope === 'branch' || form.recipient_scope === 'department') && !form.recipient_target_id) return;
     setSending(true);
+    setSendError(null);
     try {
-      await supabase.from('communications').insert({
+      const { error: sendErr } = await supabase.from('communications').insert({
         tenant_id: activeTenant.id,
         sender_id: user.id,
         type: form.type,
@@ -110,6 +112,12 @@ export default function CommunicationsPanel({ isEmployee = false }: { isEmployee
         sent_at: form.scheduled_at ? null : new Date().toISOString(),
         is_draft: form.is_draft,
       });
+      if (sendErr) {
+        setSendError(sendErr.message.includes('TENANT_INACTIVE')
+          ? "Votre abonnement n'est pas actif. Renouvelez votre plan pour envoyer une communication."
+          : `Échec de l'envoi : ${sendErr.message}`);
+        return;
+      }
       setForm({ type: 'announcement', subject: '', body: '', recipient_scope: 'all', recipient_target_id: '', scheduled_at: '', is_draft: false });
       setView('inbox');
       load();
@@ -214,6 +222,12 @@ export default function CommunicationsPanel({ isEmployee = false }: { isEmployee
       {view === 'compose' && !isEmployee && (
         <div className="card p-6">
           <h3 className="text-slate-900 dark:text-white font-semibold mb-4">{t('comms.compose')}</h3>
+          {sendError && (
+            <div className="mb-4 rounded-xl border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 p-3 text-sm text-rose-700 dark:text-rose-300 flex items-start justify-between gap-3">
+              <span>{sendError}</span>
+              <button onClick={() => setSendError(null)} className="text-rose-400 hover:text-rose-600 shrink-0">✕</button>
+            </div>
+          )}
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
