@@ -9,7 +9,7 @@ import { notifyHR } from '../../lib/notifications';
 import {
   Clock, CalendarClock, Banknote, Receipt, CalendarDays,
   Play, Pause, Square, Camera, TrendingUp,
-  FileText, Package, Plus, Check, Wallet, Users, Bell, Download, Upload,
+  FileText, Package, Plus, Check, X, Wallet, Users, Bell, Download, Upload,
 } from 'lucide-react';
 import CommunicationsPanel from '../admin/CommunicationsPanel';
 
@@ -346,6 +346,7 @@ function Attendance() {
   const [logs, setLogs] = useState<AttendanceLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [selfie, setSelfie] = useState<string | null>(null);
+  const [attError, setAttError] = useState<string | null>(null);
 
   async function load() {
     if (!tenant || !me) return;
@@ -362,16 +363,29 @@ function Attendance() {
 
   async function action(type: 'in' | 'break' | 'resume' | 'out') {
     if (!tenant || !me) return;
+    setAttError(null);
     const now = new Date().toISOString();
     if (!today) {
-      const { data } = await supabase.from('attendance').insert({ tenant_id: tenant.id, employee_id: me.id, check_in: now, selfie_url: selfie }).select().single();
+      const { data, error: insErr } = await supabase.from('attendance').insert({ tenant_id: tenant.id, employee_id: me.id, check_in: now, selfie_url: selfie }).select().single();
+      if (insErr) {
+        setAttError(insErr.message.includes('TENANT_INACTIVE')
+          ? "L'abonnement de votre entreprise n'est pas actif. Contactez votre RH."
+          : `Échec du pointage : ${insErr.message}`);
+        return;
+      }
       setToday(data as AttendanceLog);
     } else {
       const patch: Partial<AttendanceLog> = {};
       if (type === 'break') patch.break_start = now;
       if (type === 'resume') patch.break_end = now;
       if (type === 'out') patch.check_out = now;
-      await supabase.from('attendance').update(patch).eq('id', today.id);
+      const { error: updErr } = await supabase.from('attendance').update(patch).eq('id', today.id);
+      if (updErr) {
+        setAttError(updErr.message.includes('TENANT_INACTIVE')
+          ? "L'abonnement de votre entreprise n'est pas actif. Contactez votre RH."
+          : `Échec du pointage : ${updErr.message}`);
+        return;
+      }
       setToday({ ...today, ...patch });
     }
     setSelfie(null);
@@ -382,6 +396,12 @@ function Attendance() {
   return (
     <div>
       <PageHeader title={t('dash.attendance')} icon={<Clock size={20} />} />
+      {attError && (
+        <div className="card p-4 mb-6 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-sm text-rose-700 dark:text-rose-300 flex items-start justify-between gap-3">
+          <span>{attError}</span>
+          <button onClick={() => setAttError(null)} className="text-rose-400 hover:text-rose-600 shrink-0"><X size={16} /></button>
+        </div>
+      )}
       {loading ? <Spinner /> : (
         <>
           <div className="card p-6 mb-6">
@@ -475,6 +495,7 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState<Record<string, unknown>>({});
+  const [reqError, setReqError] = useState<string | null>(null);
 
   const isLeave = table === 'leave_requests';
   const thisYear = new Date().getFullYear();
@@ -502,6 +523,7 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
 
   async function submit() {
     if (!tenant || !me) return;
+    setReqError(null);
     const payload: Record<string, unknown> = { ...form, tenant_id: tenant.id, employee_id: me.id, currency: tenant.currency, status: 'pending' };
     if (table === 'leave_requests') {
       const days = computeLeaveDays(form.start_date as string, form.end_date as string);
@@ -514,7 +536,13 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
         }
       }
     }
-    await supabase.from(table).insert(payload);
+    const { error: subErr } = await supabase.from(table).insert(payload);
+    if (subErr) {
+      setReqError(subErr.message.includes('TENANT_INACTIVE')
+        ? "L'abonnement de votre entreprise n'est pas actif. Contactez votre RH."
+        : `Échec de la soumission : ${subErr.message}`);
+      return;
+    }
     // Notify HR
     const cat = table === 'leave_requests' ? 'leave' : table === 'advances' ? 'advance' : 'claim';
     const label = table === 'leave_requests' ? 'Congé' : table === 'advances' ? 'Avance' : 'Note de frais';
@@ -530,6 +558,12 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
   return (
     <div>
       <PageHeader title={title} icon={icon} />
+      {reqError && (
+        <div className="card p-4 mb-4 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-sm text-rose-700 dark:text-rose-300 flex items-start justify-between gap-3">
+          <span>{reqError}</span>
+          <button onClick={() => setReqError(null)} className="text-rose-400 hover:text-rose-600 shrink-0"><X size={16} /></button>
+        </div>
+      )}
       {isLeave && balance && (
         <div className="card p-4 mb-4 flex items-center gap-6 max-w-md">
           <div>
@@ -723,7 +757,8 @@ function EventsView() {
     if (!tenant || !user) return;
     const { data } = await supabase.from('events').select('rsvp').eq('id', id).single();
     const rsvp = { ...(data?.rsvp ?? {}), [user.id]: status };
-    await supabase.from('events').update({ rsvp }).eq('id', id);
+    const { error: rsvpErr } = await supabase.from('events').update({ rsvp }).eq('id', id);
+    if (rsvpErr) { alert(`Échec de la réponse : ${rsvpErr.message}`); return; }
     setItems((prev) => prev.map((e) => e.id === id ? { ...e, rsvp } : e));
   }
 
@@ -785,7 +820,7 @@ function MyDocuments() {
     const path = `${tenant.id}/${me.id}/${Date.now()}-${file.name}`;
     const { error: upErr } = await supabase.storage.from('documents').upload(path, file);
     if (upErr) { alert(`Le téléversement a échoué : ${upErr.message}`); return; }
-    await supabase.from('documents').insert({
+    const { error: docErr } = await supabase.from('documents').insert({
       tenant_id: tenant.id,
       employee_id: me.id,
       name: form.name,
@@ -796,6 +831,13 @@ function MyDocuments() {
       uploaded_by: user?.id,
       uploaded_by_role: 'employee',
     });
+    if (docErr) {
+      await supabase.storage.from('documents').remove([path]);
+      alert(docErr.message.includes('TENANT_INACTIVE')
+        ? "L'abonnement de votre entreprise n'est pas actif. Contactez votre RH."
+        : `L'enregistrement du document a échoué : ${docErr.message}`);
+      return;
+    }
     setModal(false);
     setForm({ name: '', type: 'other' });
     setFile(null);
@@ -936,6 +978,7 @@ function MyOvertime() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), hours: 1, notes: '' });
+  const [otError, setOtError] = useState<string | null>(null);
 
   async function load() {
     if (!tenant || !me) return;
@@ -947,9 +990,15 @@ function MyOvertime() {
 
   async function submit() {
     if (!tenant || !me) return;
-    await supabase.from('overtime').insert({
+    const { error: subErr } = await supabase.from('overtime').insert({
       tenant_id: tenant.id, employee_id: me.id, date: form.date, hours: Number(form.hours), rate: 1.5, amount: 0, currency: tenant.currency, status: 'pending', notes: form.notes,
     });
+    if (subErr) {
+      setOtError(subErr.message.includes('TENANT_INACTIVE')
+        ? "L'abonnement de votre entreprise n'est pas actif. Contactez votre RH."
+        : `Échec de la soumission : ${subErr.message}`);
+      return;
+    }
     // Notify HR
     await notifyHR(tenant.id, { category: 'attendance', title: 'Demande d\'heures sup.', body: `${me.first_name} ${me.last_name} a soumis ${form.hours}h sup.`, priority: 'normal' });
     setModal(false);
@@ -966,6 +1015,12 @@ function MyOvertime() {
         <PageHeader title="Heures supplémentaires" icon={<Clock size={20} />} />
         <button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> Demander</button>
       </div>
+      {otError && (
+        <div className="card p-4 mb-6 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-sm text-rose-700 dark:text-rose-300 flex items-start justify-between gap-3">
+          <span>{otError}</span>
+          <button onClick={() => setOtError(null)} className="text-rose-400 hover:text-rose-600 shrink-0"><X size={16} /></button>
+        </div>
+      )}
       {loading ? <Spinner /> : items.length === 0 ? (
         <EmptyState icon={<Clock size={48} />} title="Aucune heure supplémentaire" />
       ) : (
