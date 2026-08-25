@@ -267,6 +267,7 @@ function Employees() {
   async function inviteEmployee(employeeId: string, email: string) {
     if (!tenant || !email) return;
     setInviting(true);
+    setError(null);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-employee`, {
@@ -285,13 +286,22 @@ function Employees() {
         // Update invitation status to 'sent'
         await supabase.from('invitations').update({ status: 'sent' }).eq('token', json.token);
         load();
+      } else {
+        setError(
+          json.error === 'EMPLOYEE_LIMIT_REACHED' ? "Limite d'employés atteinte pour votre plan actuel."
+          : json.error === 'TENANT_INACTIVE' ? "Votre abonnement n'est pas actif. Renouvelez votre plan."
+          : json.detail || json.error || `Échec de l'invitation (${res.status})`
+        );
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur réseau lors de l'invitation.");
+    }
     setInviting(false);
   }
 
   async function cancelInvitation(token: string) {
-    await supabase.from('invitations').update({ status: 'cancelled' }).eq('token', token);
+    const { error: cancelErr } = await supabase.from('invitations').update({ status: 'cancelled' }).eq('token', token);
+    if (cancelErr) { setError(`Échec de l'annulation : ${cancelErr.message}`); return; }
     load();
   }
 
@@ -301,9 +311,15 @@ function Employees() {
 
   async function offboard(reason: string, notes: string) {
     if (!offboarding || !tenant) return;
-    await supabase.from('employees').update({
+    const { error: offErr } = await supabase.from('employees').update({
       status: 'exited', exit_date: new Date().toISOString().slice(0, 10), exit_reason: reason, exit_notes: notes,
     }).eq('id', offboarding.id);
+    if (offErr) {
+      setError(offErr.message.includes('TENANT_INACTIVE')
+        ? "Votre abonnement n'est pas actif. Renouvelez votre plan pour effectuer cette action."
+        : `Échec de l'enregistrement du départ : ${offErr.message}`);
+      return;
+    }
     await supabase.from('audit_logs').insert({ tenant_id: tenant.id, actor: user?.id, action: 'employee.offboarded', details: { employee_id: offboarding.id, reason } });
     // Notify the employee
     if (offboarding.user_id) {
@@ -324,6 +340,12 @@ function Employees() {
         action={
           <button onClick={() => setInviteWizard(true)} className="btn-primary text-sm"><UserPlus size={16} /> Inviter</button>
         } />
+      {error && (
+        <div className="card p-4 mb-6 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-sm text-rose-700 dark:text-rose-300 flex items-start justify-between gap-3">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-rose-400 hover:text-rose-600 shrink-0"><X size={16} /></button>
+        </div>
+      )}
       {loading ? <Spinner /> : items.length === 0 ? (
         <EmptyState icon={<Users size={48} />} title="Aucun employé" hint="Invitez votre premier employé — il recevra un lien d'activation sécurisé." />
       ) : (
@@ -596,6 +618,7 @@ function RequestList({ table, title, icon, amountKey }: {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState<Record<string, unknown>>({});
+  const [reqError, setReqError] = useState<string | null>(null);
 
   const isLeave = table === 'leave_requests';
   const thisYear = new Date().getFullYear();
@@ -637,7 +660,14 @@ function RequestList({ table, title, icon, amountKey }: {
 
   async function add() {
     if (!tenant) return;
-    await supabase.from(table).insert({ ...form, tenant_id: tenant.id, currency: tenant.currency, status: 'pending' });
+    setReqError(null);
+    const { error: addErr } = await supabase.from(table).insert({ ...form, tenant_id: tenant.id, currency: tenant.currency, status: 'pending' });
+    if (addErr) {
+      setReqError(addErr.message.includes('TENANT_INACTIVE')
+        ? "Votre abonnement n'est pas actif. Renouvelez votre plan pour soumettre une demande."
+        : `Échec de la soumission : ${addErr.message}`);
+      return;
+    }
     // Notify HR that a new request was submitted
     const emp = employees[form.employee_id as string];
     if (emp) {
@@ -662,6 +692,7 @@ function RequestList({ table, title, icon, amountKey }: {
 
   async function update(id: string, status: string) {
     const item = items.find((it) => it.id === id);
+    setReqError(null);
 
     // Leave-specific: keep the employee's remaining balance accurate as
     // requests move in and out of "approved" (previously nothing ever
@@ -680,17 +711,25 @@ function RequestList({ table, title, icon, amountKey }: {
           if (!proceed) return;
         }
         if (b) {
-          await supabase.from('leave_balances').update({ used: Number(b.used) + days }).eq('id', b.id);
+          const { error: balErr } = await supabase.from('leave_balances').update({ used: Number(b.used) + days }).eq('id', b.id);
+          if (balErr) { setReqError(`Échec de la mise à jour du solde : ${balErr.message}`); return; }
         }
       } else if (wasApproved && !willBeApproved) {
         const b = balances[item.employee_id];
         if (b) {
-          await supabase.from('leave_balances').update({ used: Math.max(0, Number(b.used) - days) }).eq('id', b.id);
+          const { error: balErr } = await supabase.from('leave_balances').update({ used: Math.max(0, Number(b.used) - days) }).eq('id', b.id);
+          if (balErr) { setReqError(`Échec de la mise à jour du solde : ${balErr.message}`); return; }
         }
       }
     }
 
-    await supabase.from(table).update({ status }).eq('id', id);
+    const { error: updErr } = await supabase.from(table).update({ status }).eq('id', id);
+    if (updErr) {
+      setReqError(updErr.message.includes('TENANT_INACTIVE')
+        ? "Votre abonnement n'est pas actif. Renouvelez votre plan pour traiter cette demande."
+        : `Échec de la mise à jour : ${updErr.message}`);
+      return;
+    }
     // Notify the employee
     const emp = item ? employees[item.employee_id] : null;
     if (emp?.user_id && tenant) {
@@ -715,6 +754,12 @@ function RequestList({ table, title, icon, amountKey }: {
     <div>
       <PageHeader title={title} icon={icon}
         action={<button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> {t('common.add')}</button>} />
+      {reqError && (
+        <div className="card p-4 mb-6 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-sm text-rose-700 dark:text-rose-300 flex items-start justify-between gap-3">
+          <span>{reqError}</span>
+          <button onClick={() => setReqError(null)} className="text-rose-400 hover:text-rose-600 shrink-0"><X size={16} /></button>
+        </div>
+      )}
       {loading ? <Spinner /> : items.length === 0 ? (
         <EmptyState icon={icon} title="Aucune demande" />
       ) : (
