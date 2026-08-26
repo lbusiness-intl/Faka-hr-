@@ -26,6 +26,7 @@ export default function SuperAdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [edit, setEdit] = useState<TenantRow | null>(null);
   const [tab, setTab] = useState<'overview' | 'tenants' | 'sales' | 'invitations' | 'plans' | 'promotions' | 'geo' | 'email' | 'automation'>('overview');
+  const [error, setError] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -36,7 +37,9 @@ export default function SuperAdminDashboard() {
   useEffect(() => { load(); }, []);
 
   async function updateTenant(id: string, patch: Partial<TenantRow>) {
-    await supabase.from('tenants').update(patch).eq('id', id);
+    setError(null);
+    const { error: updErr } = await supabase.from('tenants').update(patch).eq('id', id);
+    if (updErr) { setError(`Échec de la mise à jour : ${updErr.message}`); return; }
     setEdit(null);
     load();
   }
@@ -88,6 +91,12 @@ export default function SuperAdminDashboard() {
       </header>
 
       <div className="section py-8">
+        {error && (
+          <div className="card p-4 mb-6 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-sm text-rose-700 dark:text-rose-300 flex items-start justify-between gap-3">
+            <span>{error}</span>
+            <button onClick={() => setError(null)} className="text-rose-400 hover:text-rose-600 shrink-0">✕</button>
+          </div>
+        )}
         {/* Tabs */}
         <div className="flex gap-2 mb-6 flex-wrap">
           {([
@@ -282,6 +291,7 @@ function SalesAgents({ tenants }: { tenants: TenantRow[] }) {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', sales_code: '', commission_rate: 10 });
+  const [error, setError] = useState<string | null>(null);
 
   async function load() {
     const { data } = await supabase.from('sales_agents').select('*').order('created_at', { ascending: false });
@@ -291,20 +301,23 @@ function SalesAgents({ tenants }: { tenants: TenantRow[] }) {
   useEffect(() => { load(); }, []);
 
   async function add() {
-    await supabase.from('sales_agents').insert({ ...form, status: 'active' });
+    setError(null);
+    const { error: addErr } = await supabase.from('sales_agents').insert({ ...form, status: 'active' });
+    if (addErr) { setError(`Échec de l'ajout : ${addErr.message}`); return; }
     setModal(false);
     setForm({ name: '', email: '', sales_code: '', commission_rate: 10 });
     load();
   }
 
   async function remove(id: string) {
-    await supabase.from('sales_agents').delete().eq('id', id);
+    const { error: delErr } = await supabase.from('sales_agents').delete().eq('id', id);
+    if (delErr) { setError(`Échec de la suppression : ${delErr.message}`); return; }
     load();
   }
 
   async function inviteAgent(agent: SalesAgent) {
     const token = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '');
-    await supabase.from('invitations').insert({
+    const { error: invErr } = await supabase.from('invitations').insert({
       email: agent.email,
       role: 'commercial',
       token,
@@ -312,6 +325,7 @@ function SalesAgents({ tenants }: { tenants: TenantRow[] }) {
       created_by: (await supabase.auth.getUser()).data.user?.id,
       status: 'pending',
     });
+    if (invErr) { setError(`Échec de l'invitation : ${invErr.message}`); return; }
     alert(`Lien d'invitation (commercial) : ${window.location.origin}/accept-invite?token=${token}`);
   }
 
@@ -333,6 +347,13 @@ function SalesAgents({ tenants }: { tenants: TenantRow[] }) {
         </div>
         <button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> Ajouter</button>
       </div>
+
+      {error && (
+        <div className="card p-4 mb-6 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-sm text-rose-700 dark:text-rose-300 flex items-start justify-between gap-3">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-rose-400 hover:text-rose-600 shrink-0">✕</button>
+        </div>
+      )}
 
       {loading ? <Spinner /> : stats.length === 0 ? (
         <EmptyState icon={<Trophy size={48} />} title="Aucun commercial" hint="Ajoutez vos agents de vente et suivez leurs conversions." />
@@ -468,6 +489,7 @@ function PlanEditor() {
   const [loading, setLoading] = useState(true);
   const [editPlan, setEditPlan] = useState<PlanId | null>(null);
   const [form, setForm] = useState<PlanOverrideForm>({});
+  const [error, setError] = useState<string | null>(null);
 
   async function load() {
     const { data } = await supabase.from('plan_overrides').select('*');
@@ -492,7 +514,8 @@ function PlanEditor() {
   }
 
   async function save() {
-    await supabase.from('plan_overrides').upsert({
+    setError(null);
+    const { error: saveErr } = await supabase.from('plan_overrides').upsert({
       plan_id: form.plan_id,
       name: form.name,
       price_monthly: Number(form.price_monthly),
@@ -501,6 +524,7 @@ function PlanEditor() {
       features: form.features,
       modules: form.modules,
     }, { onConflict: 'plan_id' });
+    if (saveErr) { setError(`Échec de l'enregistrement : ${saveErr.message}`); return; }
     setEditPlan(null);
     load();
   }
@@ -513,6 +537,12 @@ function PlanEditor() {
         <div className="w-10 h-10 rounded-xl bg-coral-100 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 flex items-center justify-center text-coral-600 dark:text-coral-300"><DollarSign size={20} /></div>
         <h1 className="font-display text-xl font-bold text-slate-900 dark:text-white">Contrôle des plans</h1>
       </div>
+      {error && (
+        <div className="card p-4 mb-6 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-sm text-rose-700 dark:text-rose-300 flex items-start justify-between gap-3">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-rose-400 hover:text-rose-600 shrink-0">✕</button>
+        </div>
+      )}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {PLANS.map((p) => {
           const ov = overrides.find((o) => o.plan_id === p.id);
@@ -555,6 +585,7 @@ function Promotions() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ code: '', description: '', discount_percent: 10, discount_amount: 0, max_uses: 100, valid_until: '' });
+  const [error, setError] = useState<string | null>(null);
 
   async function load() {
     const { data } = await supabase.from('promotions').select('*').order('created_at', { ascending: false });
@@ -564,7 +595,8 @@ function Promotions() {
   useEffect(() => { load(); }, []);
 
   async function add() {
-    await supabase.from('promotions').insert({
+    setError(null);
+    const { error: addErr } = await supabase.from('promotions').insert({
       code: form.code.toUpperCase(),
       description: form.description,
       discount_percent: Number(form.discount_percent),
@@ -573,18 +605,21 @@ function Promotions() {
       valid_until: form.valid_until || null,
       active: true,
     });
+    if (addErr) { setError(`Échec de la création : ${addErr.message}`); return; }
     setModal(false);
     setForm({ code: '', description: '', discount_percent: 10, discount_amount: 0, max_uses: 100, valid_until: '' });
     load();
   }
 
   async function toggle(id: string, active: boolean) {
-    await supabase.from('promotions').update({ active: !active }).eq('id', id);
+    const { error: toggleErr } = await supabase.from('promotions').update({ active: !active }).eq('id', id);
+    if (toggleErr) { setError(`Échec de la mise à jour : ${toggleErr.message}`); return; }
     load();
   }
 
   async function remove(id: string) {
-    await supabase.from('promotions').delete().eq('id', id);
+    const { error: delErr } = await supabase.from('promotions').delete().eq('id', id);
+    if (delErr) { setError(`Échec de la suppression : ${delErr.message}`); return; }
     load();
   }
 
@@ -597,6 +632,12 @@ function Promotions() {
         </div>
         <button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> Créer</button>
       </div>
+      {error && (
+        <div className="card p-4 mb-6 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-sm text-rose-700 dark:text-rose-300 flex items-start justify-between gap-3">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-rose-400 hover:text-rose-600 shrink-0">✕</button>
+        </div>
+      )}
       {loading ? <Spinner /> : items.length === 0 ? (
         <EmptyState icon={<Percent size={48} />} title="Aucune promotion" hint="Créez des codes promo pour des utilisateurs ou groupes." />
       ) : (
