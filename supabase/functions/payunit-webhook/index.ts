@@ -2,13 +2,16 @@
 //
 // Handles PayUnit's payment notification callback.
 //
-// IMPORTANT SECURITY NOTE: unlike Stripe, PayUnit's documented API does not
+// Built directly against PayUnit's official, dated REST API reference:
+//   https://developer.payunit.net/rest-api/get-payment-status
+//
+// IMPORTANT SECURITY NOTE: unlike Stripe, PayUnit's REST API does not
 // provide a signed-webhook mechanism (no equivalent of Stripe-Signature /
-// a webhook signing secret) — see https://developer.payunit.net. That means
-// we can never fully trust the body of an inbound POST to this URL on its
-// own: anyone who learns this endpoint's URL could POST a fake "SUCCESS"
-// payload claiming to be PayUnit, which is exactly the class of exploit
-// already fixed once this session for the old fake Stripe flow.
+// a webhook signing secret). That means we can never fully trust the body
+// of an inbound POST to this URL on its own: anyone who learns this
+// endpoint's URL could POST a fake "SUCCESS" payload claiming to be
+// PayUnit — exactly the class of exploit already fixed once this session
+// for the old fake Stripe flow.
 //
 // To stay safe without a signature scheme, this handler treats the inbound
 // notification ONLY as a hint to re-check a transaction — it never trusts
@@ -17,9 +20,10 @@
 //   2. Looks up that transaction_id in OUR OWN `payunit_transactions` table
 //      (created by create-payunit-checkout when the checkout began — an
 //      unrecognized transaction_id is rejected outright).
-//   3. Calls PayUnit's GET status endpoint SERVER-TO-SERVER, authenticated
-//      with our own API credentials, to get the real, current status
-//      directly from PayUnit — the only source of truth trusted here.
+//   3. Calls PayUnit's GET payment-status endpoint SERVER-TO-SERVER,
+//      authenticated with our own API credentials, to get the real,
+//      current status directly from PayUnit — the only source of truth
+//      trusted here.
 //   4. Only activates the tenant's subscription based on that authenticated
 //      response, never based on the original POST body.
 //
@@ -59,10 +63,10 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     // PayUnit's notify payload shape isn't guaranteed here — pull the
     // transaction_id defensively from a couple of plausible locations,
-    // but nothing else from this body is trusted.
+    // but nothing else from this body is trusted or used for the actual
+    // status confirmation below.
     const transactionId: string | undefined =
       body?.transaction_id ?? body?.data?.transaction_id ?? body?.transaction?.transaction_id;
-    const checkoutId: string | undefined = body?.checkout_id ?? body?.data?.checkout_id;
 
     if (!transactionId) {
       return json({ ok: false, error: "MISSING_TRANSACTION_ID" }, 400);
@@ -87,10 +91,11 @@ Deno.serve(async (req: Request) => {
     }
 
     // Confirm the REAL status directly from PayUnit — server-to-server,
-    // authenticated with our own credentials. This is the only status
+    // authenticated with our own credentials, using the SAME transaction_id
+    // we generated when creating the checkout (never anything taken from
+    // this inbound, unauthenticated request). This is the only status
     // value this function ever acts on.
-    const lookupId = checkoutId ?? transactionId;
-    const statusRes = await fetch(`${PAYUNIT_BASE_URL}/api/gateway/checkout/status/${lookupId}`, {
+    const statusRes = await fetch(`${PAYUNIT_BASE_URL}/api/gateway/paymentstatus/${transactionId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -100,7 +105,7 @@ Deno.serve(async (req: Request) => {
       },
     });
     const statusJson = await statusRes.json();
-    const realStatus: string | undefined = statusJson?.data?.status ?? statusJson?.data?.transaction?.status;
+    const realStatus: string | undefined = statusJson?.data?.transaction_status;
 
     if (!statusRes.ok || !realStatus) {
       return json({ ok: false, error: "STATUS_CHECK_FAILED", detail: statusJson?.message }, 502);

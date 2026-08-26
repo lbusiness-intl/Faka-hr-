@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS public.payunit_transactions (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id     uuid NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
   transaction_id text NOT NULL UNIQUE,
+  checkout_id   text,
   plan          text NOT NULL,
   interval      text NOT NULL DEFAULT 'monthly' CHECK (interval IN ('monthly','yearly')),
   amount        numeric(14,2) NOT NULL DEFAULT 0,
