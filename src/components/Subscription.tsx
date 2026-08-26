@@ -66,13 +66,14 @@ export default function Subscription() {
   }
 
 
-  async function startCheckout(newPlan: PlanId) {
+  async function startCheckout(newPlan: PlanId, provider: 'stripe' | 'payunit') {
     if (!activeTenant || !user) return;
     setPaying(newPlan);
     setError(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`;
+      const fnName = provider === 'payunit' ? 'create-payunit-checkout' : 'create-checkout-session';
+      const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${fnName}`;
       const res = await fetch(fnUrl, {
         method: 'POST',
         headers: {
@@ -83,15 +84,15 @@ export default function Subscription() {
       });
       const json = await res.json();
       if (!res.ok || json.ok === false) {
-        if (json.error === 'CHECKOUT_NOT_CONFIGURED') {
+        if (json.error === 'CHECKOUT_NOT_CONFIGURED' || json.error === 'PAYUNIT_NOT_CONFIGURED') {
           setError(t('sub.checkout.not_configured'));
         } else {
           setError(json.detail || json.error || `HTTP ${res.status}`);
         }
         return;
       }
-      // Real redirect to Stripe's hosted checkout page — payment is
-      // collected there, never inside this app.
+      // Real redirect to the payment provider's hosted checkout page —
+      // payment is collected there, never inside this app.
       window.location.href = json.url;
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -163,12 +164,21 @@ export default function Subscription() {
                   ))}
                 </ul>
                 <button
-                  onClick={() => startCheckout(p.id)}
+                  onClick={() => startCheckout(p.id, 'payunit')}
                   disabled={current || paying !== null}
                   className={`mt-4 w-full rounded-xl px-3 py-2.5 text-sm font-semibold transition ${current ? 'bg-slate-100 dark:bg-white/5 text-slate-400 dark:text-white/40 cursor-not-allowed' : p.highlight ? 'btn-primary' : 'btn-ghost'}`}
                 >
-                  {paying === p.id ? <Spinner /> : current ? 'Plan actuel' : `${t('sub.paynow')} →`}
+                  {paying === p.id ? <Spinner /> : current ? 'Plan actuel' : `${t('sub.paynow')} (Mobile Money) →`}
                 </button>
+                {!current && (
+                  <button
+                    onClick={() => startCheckout(p.id, 'stripe')}
+                    disabled={paying !== null}
+                    className="mt-2 w-full rounded-xl px-3 py-2 text-xs font-medium text-slate-500 dark:text-white/50 hover:text-slate-700 dark:hover:text-white/80 transition"
+                  >
+                    {t('sub.paynow')} (carte bancaire) →
+                  </button>
+                )}
               </div>
             );
           })}
