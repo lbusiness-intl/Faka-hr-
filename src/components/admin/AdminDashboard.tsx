@@ -98,7 +98,7 @@ function Overview() {
       setHistory(months);
       setLoading(false);
     })();
-  }, [tenant]);
+  }, [tenant, localeTag]);
 
   if (!tenant) return null;
   const fmt = (n: number) => new Intl.NumberFormat(localeTag).format(Math.round(n));
