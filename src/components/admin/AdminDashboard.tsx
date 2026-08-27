@@ -619,6 +619,7 @@ function RequestList({ table, title, icon, amountKey }: {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState<Record<string, unknown>>({});
   const [reqError, setReqError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
 
   const isLeave = table === 'leave_requests';
   const thisYear = new Date().getFullYear();
@@ -763,6 +764,34 @@ function RequestList({ table, title, icon, amountKey }: {
       {loading ? <Spinner /> : items.length === 0 ? (
         <EmptyState icon={icon} title="Aucune demande" />
       ) : (
+        <>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <StatCard label="En attente" value={String(items.filter((it) => it.status === 'pending').length)} icon={<Clock size={18} />} color="amber" />
+            <StatCard label="Approuvées" value={String(items.filter((it) => it.status === 'approved').length)} icon={<Check size={18} />} color="teal" />
+            <StatCard label="Refusées" value={String(items.filter((it) => it.status === 'rejected').length)} icon={<X size={18} />} color="coral" />
+            {amountKey && (
+              <StatCard
+                label="Montant en attente"
+                value={`${new Intl.NumberFormat(localeTag).format(items.filter((it) => it.status === 'pending').reduce((s, it) => s + Number(it[amountKey] ?? 0), 0))} ${tenant.currency}`}
+                icon={<BanknoteIcon size={18} />} color="indigo"
+              />
+            )}
+          </div>
+          <div className="flex gap-2 mb-4">
+            {(['all', 'pending', 'approved', 'rejected'] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+                  statusFilter === s
+                    ? 'bg-coral-500 border-coral-500 text-white'
+                    : 'border-slate-200 dark:border-white/10 text-slate-500 dark:text-white/50 hover:border-coral-300'
+                }`}
+              >
+                {s === 'all' ? 'Toutes' : s === 'pending' ? 'En attente' : s === 'approved' ? 'Approuvées' : 'Refusées'}
+              </button>
+            ))}
+          </div>
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-slate-500 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
@@ -780,7 +809,7 @@ function RequestList({ table, title, icon, amountKey }: {
               </tr>
             </thead>
             <tbody>
-              {items.map((it) => (
+              {items.filter((it) => statusFilter === 'all' || it.status === statusFilter).map((it) => (
                 <tr key={it.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5">
                   <td className="p-4 text-slate-900 dark:text-white">{empName(it.employee_id)}</td>
                   {table === 'leave_requests' && <>
@@ -812,6 +841,7 @@ function RequestList({ table, title, icon, amountKey }: {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       <Modal open={modal} onClose={() => setModal(false)} title={`Nouvelle demande — ${title}`}>
