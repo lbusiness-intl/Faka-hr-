@@ -113,7 +113,7 @@ Deno.serve(async (req: Request) => {
     );
   } catch (err) {
     return new Response(
-      JSON.stringify({ ok: false, error: "INTERNAL_ERROR", detail: err.message }),
+      JSON.stringify({ ok: false, error: "INTERNAL_ERROR", detail: err instanceof Error ? err.message : String(err) }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
