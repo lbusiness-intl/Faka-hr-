@@ -229,7 +229,7 @@ function Hero() {
           <div className="inline-flex items-center gap-2 rounded-full bg-coral-50 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 px-3 py-1.5 text-xs text-coral-700 dark:text-coral-300 mb-6">
             <Sparkles size={14} /> {t('app.badge')}
           </div>
-          <h1 className="font-display text-4xl md:text-5xl lg:text-[3.4rem] font-bold text-slate-900 dark:text-white leading-[1.1] tracking-tight">
+          <h1 className="font-display text-4xl md:text-5xl lg:text-[3.5rem] font-extrabold text-slate-900 dark:text-white leading-[1.08] tracking-tight">
             {t('hero.title')}
           </h1>
           <p className="mt-6 text-lg text-slate-600 dark:text-white/70 leading-relaxed max-w-xl">
@@ -288,6 +288,9 @@ function Features() {
   return (
     <section id="features" className="section py-24 bg-white dark:bg-ink-900">
       <Reveal className="text-center mb-14">
+        <div className="inline-flex items-center gap-2 rounded-full bg-coral-50 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 px-3 py-1.5 text-xs text-coral-700 dark:text-coral-300 mb-4">
+          <Briefcase size={14} /> {t('features.badge')}
+        </div>
         <h2 className="font-display text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{t('features.title')}</h2>
         <p className="mt-3 text-slate-600 dark:text-white/60 max-w-2xl mx-auto">{t('features.subtitle')}</p>
       </Reveal>
@@ -410,6 +413,9 @@ function Pricing() {
   return (
     <section id="pricing" className="section py-24 border-t border-slate-200 dark:border-white/10 bg-sage-50/40 dark:bg-ink-900">
       <Reveal className="text-center mb-12">
+        <div className="inline-flex items-center gap-2 rounded-full bg-coral-50 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 px-3 py-1.5 text-xs text-coral-700 dark:text-coral-300 mb-4">
+          <Wallet size={14} /> {t('pricing.badge')}
+        </div>
         <h2 className="font-display text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{t('pricing.title')}</h2>
         <p className="mt-3 text-slate-600 dark:text-white/60">{t('pricing.subtitle')}</p>
       </Reveal>
@@ -475,6 +481,9 @@ function Testimonials() {
   return (
     <section id="testimonials" className="section py-24 border-t border-slate-200 dark:border-white/10 bg-white dark:bg-ink-900">
       <Reveal className="text-center mb-12">
+        <div className="inline-flex items-center gap-2 rounded-full bg-coral-50 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 px-3 py-1.5 text-xs text-coral-700 dark:text-coral-300 mb-4">
+          <Star size={14} /> {t('testimonials.badge')}
+        </div>
         <h2 className="font-display text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{t('testimonials.title')}</h2>
       </Reveal>
       <div className="grid md:grid-cols-3 gap-5">
