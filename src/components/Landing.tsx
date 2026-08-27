@@ -57,7 +57,7 @@ function useTheme() {
 function Logo() {
   return (
     <div className="flex items-center gap-2.5">
-      <img src="/icon-192.png" alt="Faka" className="w-9 h-9 rounded-xl shadow-glow" />
+      <img src="/icon-192.png" alt="Faka" className="w-8 h-8 rounded-lg" />
       <span className="font-display text-xl font-bold text-slate-900 dark:text-white tracking-tight">Faka</span>
     </div>
   );
@@ -220,16 +220,16 @@ function DashboardMockup() {
 function Hero() {
   const { t } = useI18n();
   return (
-    <section className="relative overflow-hidden bg-sage-50 dark:bg-ink-900">
+    <section className="relative overflow-hidden bg-slate-50 dark:bg-ink-900">
       <div className="absolute inset-0 opacity-60 dark:opacity-30" style={{
-        backgroundImage: 'radial-gradient(ellipse at 50% -10%, rgba(0,112,224,0.14), transparent 55%)',
+        backgroundImage: 'radial-gradient(ellipse at 50% -10%, rgba(0,112,224,0.08), transparent 55%)',
       }} />
       <div className="relative section pt-24 pb-24 grid lg:grid-cols-2 gap-14 items-center">
         <div className="animate-fade-in">
           <div className="inline-flex items-center gap-2 rounded-full bg-coral-50 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 px-3 py-1.5 text-xs text-coral-700 dark:text-coral-300 mb-6">
             <Sparkles size={14} /> {t('app.badge')}
           </div>
-          <h1 className="font-display text-4xl md:text-5xl lg:text-[3.5rem] font-extrabold text-slate-900 dark:text-white leading-[1.08] tracking-tight">
+          <h1 className="font-display text-4xl md:text-5xl lg:text-[3.25rem] font-bold text-slate-900 dark:text-white leading-[1.1] tracking-tight">
             {t('hero.title')}
           </h1>
           <p className="mt-6 text-lg text-slate-600 dark:text-white/70 leading-relaxed max-w-xl">
@@ -291,14 +291,14 @@ function Features() {
         <div className="inline-flex items-center gap-2 rounded-full bg-coral-50 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 px-3 py-1.5 text-xs text-coral-700 dark:text-coral-300 mb-4">
           <Briefcase size={14} /> {t('features.badge')}
         </div>
-        <h2 className="font-display text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{t('features.title')}</h2>
+        <h2 className="font-display text-2xl md:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{t('features.title')}</h2>
         <p className="mt-3 text-slate-600 dark:text-white/60 max-w-2xl mx-auto">{t('features.subtitle')}</p>
       </Reveal>
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
         {items.map((f, i) => (
           <Reveal key={f.title} delay={i * 80}>
           <div className="card p-6 hover:border-coral-300 hover:shadow-lg transition group h-full">
-            <div className="w-11 h-11 rounded-xl bg-coral-100 text-coral-600 dark:bg-coral-500/10 dark:text-coral-400 flex items-center justify-center mb-4 group-hover:scale-110 transition">
+            <div className="w-10 h-10 rounded-lg bg-coral-50 text-coral-600 dark:bg-coral-500/10 dark:text-coral-400 flex items-center justify-center mb-4 group-hover:bg-coral-100 dark:group-hover:bg-coral-500/20 transition-colors">
               <f.icon size={22} />
             </div>
             <h3 className="font-display text-slate-900 dark:text-white font-bold text-lg">{f.title}</h3>
@@ -328,7 +328,7 @@ function GlobalPresence() {
         <div className="inline-flex items-center gap-2 rounded-full bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/30 px-3 py-1.5 text-xs text-teal-700 dark:text-teal-300 mb-4">
           <Globe2 size={14} /> {t('global.badge')}
         </div>
-        <h2 className="font-display text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{t('global.title')}</h2>
+        <h2 className="font-display text-2xl md:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{t('global.title')}</h2>
         <p className="mt-3 text-slate-600 dark:text-white/60 max-w-2xl mx-auto">{t('global.subtitle')}</p>
       </Reveal>
 
@@ -371,12 +371,12 @@ function Security() {
     { icon: History, title: t('security.audit.title'), desc: t('security.audit.desc') },
   ];
   return (
-    <section className="section py-24 border-t border-slate-200 dark:border-white/10 bg-sage-50/40 dark:bg-ink-900">
+    <section className="section py-24 border-t border-slate-200 dark:border-white/10 bg-slate-50/60 dark:bg-ink-900">
       <Reveal className="text-center mb-14">
         <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 px-3 py-1.5 text-xs text-indigo-700 dark:text-indigo-300 mb-4">
           <ShieldCheck size={14} /> {t('security.badge')}
         </div>
-        <h2 className="font-display text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{t('security.title')}</h2>
+        <h2 className="font-display text-2xl md:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{t('security.title')}</h2>
         <p className="mt-3 text-slate-600 dark:text-white/60 max-w-2xl mx-auto">{t('security.subtitle')}</p>
       </Reveal>
       <div className="grid md:grid-cols-2 gap-5 max-w-4xl mx-auto">
@@ -411,12 +411,12 @@ function Pricing() {
   }
 
   return (
-    <section id="pricing" className="section py-24 border-t border-slate-200 dark:border-white/10 bg-sage-50/40 dark:bg-ink-900">
+    <section id="pricing" className="section py-24 border-t border-slate-200 dark:border-white/10 bg-slate-50/60 dark:bg-ink-900">
       <Reveal className="text-center mb-12">
         <div className="inline-flex items-center gap-2 rounded-full bg-coral-50 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 px-3 py-1.5 text-xs text-coral-700 dark:text-coral-300 mb-4">
           <Wallet size={14} /> {t('pricing.badge')}
         </div>
-        <h2 className="font-display text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{t('pricing.title')}</h2>
+        <h2 className="font-display text-2xl md:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{t('pricing.title')}</h2>
         <p className="mt-3 text-slate-600 dark:text-white/60">{t('pricing.subtitle')}</p>
       </Reveal>
 
@@ -445,7 +445,7 @@ function Pricing() {
           const price = yearly ? plan.priceYearly : plan.priceMonthly;
           const isRec = recommended.id === plan.id;
           return (
-            <div key={plan.id} className={`card p-6 relative flex flex-col transition ${plan.highlight ? 'border-coral-400 shadow-glow' : ''} ${isRec ? 'ring-2 ring-coral-300' : ''}`}>
+            <div key={plan.id} className={`card p-6 relative flex flex-col transition-shadow ${plan.highlight ? 'border-coral-300 shadow-popover' : ''} ${isRec ? 'ring-2 ring-coral-200' : ''}`}>
               {plan.highlight && <div className="absolute -top-3 left-1/2 -translate-x-1/2 badge bg-coral-500 text-white font-bold">Popular</div>}
               <h3 className="text-slate-900 dark:text-white font-display text-xl font-bold">{plan.name}</h3>
               <div className="mt-3 flex items-baseline gap-1">
@@ -484,7 +484,7 @@ function Testimonials() {
         <div className="inline-flex items-center gap-2 rounded-full bg-coral-50 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 px-3 py-1.5 text-xs text-coral-700 dark:text-coral-300 mb-4">
           <Star size={14} /> {t('testimonials.badge')}
         </div>
-        <h2 className="font-display text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{t('testimonials.title')}</h2>
+        <h2 className="font-display text-2xl md:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{t('testimonials.title')}</h2>
       </Reveal>
       <div className="grid md:grid-cols-3 gap-5">
         {items.map((it, i) => (
@@ -509,7 +509,7 @@ function Testimonials() {
 function CTASection() {
   const { t } = useI18n();
   return (
-    <section className="section py-20 bg-sage-50/40 dark:bg-ink-900 border-t border-slate-200 dark:border-white/10">
+    <section className="section py-20 bg-slate-50/60 dark:bg-ink-900 border-t border-slate-200 dark:border-white/10">
       <div className="card p-10 text-center max-w-2xl mx-auto">
         <h2 className="font-display text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">{t('hero.cta.start')}</h2>
         <p className="mt-3 text-slate-600 dark:text-white/60 text-sm max-w-md mx-auto">{t('hero.subtitle')}</p>
@@ -525,7 +525,7 @@ function CTASection() {
 function Footer() {
   const { t } = useI18n();
   return (
-    <footer className="border-t border-slate-200 dark:border-white/10 bg-sage-50 dark:bg-ink-900">
+    <footer className="border-t border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-ink-900">
       <div className="section py-12 grid md:grid-cols-4 gap-8">
         <div className="md:col-span-2">
           <Logo />
