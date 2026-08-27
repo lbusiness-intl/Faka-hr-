@@ -1341,6 +1341,14 @@ function Attendance() {
 type JobPosting = { id: string; title: string; department: string | null; location: string | null; description: string | null; status: string; created_at: string };
 type Candidate = { id: string; posting_id: string | null; full_name: string; email: string | null; phone: string | null; notes: string | null; stage: string; created_at: string };
 
+const STAGE_META: Record<string, { label: string; dot: string }> = {
+  applied: { label: 'Candidature', dot: 'bg-slate-400' },
+  screening: { label: 'Présélection', dot: 'bg-indigo-400' },
+  interview: { label: 'Entretien', dot: 'bg-amber-400' },
+  offer: { label: 'Offre envoyée', dot: 'bg-teal-400' },
+  hired: { label: 'Embauché', dot: 'bg-emerald-500' },
+};
+
 function Recruitment() {
   const { t } = useI18n();
   const tenant = useTenant();
@@ -1425,46 +1433,88 @@ function Recruitment() {
       {loading ? <Spinner /> : (
         <>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-            {postings.map((p) => (
-              <div key={p.id} className="card p-5">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-slate-900 dark:text-white font-semibold">{p.title}</h3>
-                  <Badge color={p.status === 'open' ? 'emerald' : 'slate'}>{p.status}</Badge>
+            {postings.map((p) => {
+              const count = candidates.filter((c) => c.posting_id === p.id).length;
+              return (
+                <div key={p.id} className="card p-5">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-slate-900 dark:text-white font-semibold">{p.title}</h3>
+                    <Badge color={p.status === 'open' ? 'emerald' : 'slate'}>{p.status}</Badge>
+                  </div>
+                  <div className="text-slate-500 dark:text-white/50 text-xs mt-1">{p.department} · {p.location}</div>
+                  <p className="text-slate-600 dark:text-white/60 text-sm mt-3 line-clamp-2">{p.description}</p>
+                  <div className="text-slate-400 dark:text-white/40 text-xs mt-3 flex items-center gap-1.5">
+                    <Users size={12} /> {count} candidat{count > 1 ? 's' : ''}
+                  </div>
                 </div>
-                <div className="text-slate-500 dark:text-white/50 text-xs mt-1">{p.department} · {p.location}</div>
-                <p className="text-slate-600 dark:text-white/60 text-sm mt-3">{p.description}</p>
-              </div>
-            ))}
+              );
+            })}
             {postings.length === 0 && <div className="text-slate-400 dark:text-white/40 text-sm">Aucune offre.</div>}
           </div>
 
           <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white mb-4">Pipeline candidats</h3>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {stages.map((stage) => (
-              <div key={stage} className="card p-3 min-h-[200px]">
-                <div className="text-xs uppercase tracking-wide text-slate-400 dark:text-white/40 mb-3 capitalize">{stage}</div>
-                <div className="space-y-2">
-                  {candidates.filter((c) => c.stage === stage).map((c) => (
-                    <div key={c.id} className="rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 p-2.5">
-                      <div className="text-slate-900 dark:text-white text-sm font-medium">{c.full_name}</div>
-                      <div className="text-slate-400 dark:text-white/40 text-xs truncate">{c.email}</div>
-                      {c.posting_id && (
-                        <div className="text-slate-400 dark:text-white/40 text-[10px] truncate mt-0.5">
-                          {postings.find((p) => p.id === c.posting_id)?.title ?? ''}
-                        </div>
-                      )}
-                      <select
-                        value={c.stage}
-                        onChange={(e) => moveCandidate(c.id, e.target.value)}
-                        className="mt-2 w-full text-xs bg-white dark:bg-ink-700 border border-slate-200 dark:border-white/10 rounded px-1.5 py-1 text-slate-700 dark:text-white/70"
-                      >
-                        {stages.map((s) => <option key={s} value={s} className="bg-white dark:bg-ink-700 capitalize">{s}</option>)}
-                      </select>
+            {stages.map((stage) => {
+              const meta = STAGE_META[stage] ?? { label: stage, dot: 'bg-slate-400' };
+              const stageCandidates = candidates.filter((c) => c.stage === stage);
+              return (
+                <div
+                  key={stage}
+                  className="card p-3 min-h-[220px] transition-colors"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const id = e.dataTransfer.getData('text/candidate-id');
+                    if (id) moveCandidate(id, stage);
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-slate-500 dark:text-white/50">
+                      <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
+                      {meta.label}
                     </div>
-                  ))}
+                    <span className="text-[11px] font-semibold text-slate-400 dark:text-white/40 bg-slate-100 dark:bg-white/10 rounded-full px-1.5">{stageCandidates.length}</span>
+                  </div>
+                  <div className="space-y-2">
+                    {stageCandidates.map((c) => (
+                      <div
+                        key={c.id}
+                        draggable
+                        onDragStart={(e) => e.dataTransfer.setData('text/candidate-id', c.id)}
+                        className="rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 p-2.5 cursor-grab active:cursor-grabbing hover:border-coral-300 dark:hover:border-coral-500/40 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-coral-100 dark:bg-coral-500/20 text-coral-600 dark:text-coral-300 text-[10px] font-bold flex items-center justify-center shrink-0">
+                            {c.full_name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-slate-900 dark:text-white text-sm font-medium truncate">{c.full_name}</div>
+                            <div className="text-slate-400 dark:text-white/40 text-[11px] truncate">{c.email || '—'}</div>
+                          </div>
+                        </div>
+                        {c.posting_id && (
+                          <div className="text-slate-400 dark:text-white/40 text-[10px] truncate mt-1.5">
+                            {postings.find((p) => p.id === c.posting_id)?.title ?? ''}
+                          </div>
+                        )}
+                        <select
+                          value={c.stage}
+                          onChange={(e) => moveCandidate(c.id, e.target.value)}
+                          className="mt-2 w-full text-xs bg-white dark:bg-ink-700 border border-slate-200 dark:border-white/10 rounded px-1.5 py-1 text-slate-700 dark:text-white/70"
+                        >
+                          {stages.map((s) => <option key={s} value={s} className="bg-white dark:bg-ink-700">{STAGE_META[s]?.label ?? s}</option>)}
+                        </select>
+                      </div>
+                    ))}
+                    {stageCandidates.length === 0 && (
+                      <div className="text-slate-300 dark:text-white/20 text-[11px] text-center py-6 border border-dashed border-slate-200 dark:border-white/10 rounded-lg">
+                        Glissez ici
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
