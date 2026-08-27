@@ -1251,7 +1251,7 @@ function Payroll() {
 // ============================================================
 // Attendance
 // ============================================================
-type AttendanceEntry = { id: string; employee_id: string; check_in: string | null; check_out: string | null };
+type AttendanceEntry = { id: string; employee_id: string; check_in: string | null; check_out: string | null; break_start: string | null; break_end: string | null };
 type EmployeeNameOnly = { id: string; first_name: string; last_name: string };
 
 function Attendance() {
@@ -1277,31 +1277,59 @@ function Attendance() {
   useEffect(() => { load(); }, [tenant]);
 
   if (!tenant) return null;
+
+  const todayKey = new Date().toDateString();
+  const todayItems = items.filter((a) => a.check_in && new Date(a.check_in).toDateString() === todayKey);
+  const presentToday = todayItems.length;
+  const onBreak = todayItems.filter((a) => a.break_start && !a.break_end).length;
+  const stillIn = todayItems.filter((a) => !a.check_out).length;
+  const closed = todayItems.filter((a) => a.check_in && a.check_out);
+  const avgHoursToday = closed.length
+    ? closed.reduce((sum, a) => sum + (new Date(a.check_out!).getTime() - new Date(a.check_in!).getTime()), 0) / closed.length / 3_600_000
+    : 0;
+
   return (
     <div>
       <PageHeader title={t('dash.attendance')} icon={<Clock size={20} />} />
-      {loading ? <Spinner /> : items.length === 0 ? (
-        <EmptyState icon={<Clock size={48} />} title="Aucun pointage" />
-      ) : (
-        <div className="card overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-slate-500 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
-              <tr><th className="text-left p-4">Employé</th><th className="text-left p-4">Entrée</th><th className="text-left p-4">Sortie</th></tr>
-            </thead>
-            <tbody>
-              {items.map((a) => {
-                const e = employees[a.employee_id];
-                return (
-                  <tr key={a.id} className="border-b border-slate-100 dark:border-white/5">
-                    <td className="p-4 text-slate-900 dark:text-white">{e ? `${e.first_name} ${e.last_name}` : '—'}</td>
-                    <td className="p-4 text-slate-700 dark:text-white/70 text-xs">{a.check_in ? new Date(a.check_in).toLocaleString() : '—'}</td>
-                    <td className="p-4 text-slate-700 dark:text-white/70 text-xs">{a.check_out ? new Date(a.check_out).toLocaleString() : '—'}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+      {loading ? <Spinner /> : (
+        <>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <StatCard label="Présents aujourd'hui" value={String(presentToday)} icon={<Users size={18} />} color="coral" />
+            <StatCard label="Encore sur place" value={String(stillIn)} icon={<Clock size={18} />} color="teal" />
+            <StatCard label="En pause" value={String(onBreak)} icon={<Clock size={18} />} color="amber" />
+            <StatCard label="Moyenne heures/jour" value={`${avgHoursToday.toFixed(1)}h`} icon={<TrendingUp size={18} />} color="indigo" />
+          </div>
+          {items.length === 0 ? (
+            <EmptyState icon={<Clock size={48} />} title="Aucun pointage" />
+          ) : (
+            <div className="card overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-slate-500 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+                  <tr><th className="text-left p-4">Employé</th><th className="text-left p-4">Entrée</th><th className="text-left p-4">Sortie</th><th className="text-left p-4">Statut</th></tr>
+                </thead>
+                <tbody>
+                  {items.map((a) => {
+                    const e = employees[a.employee_id];
+                    const status = !a.check_in ? null : a.check_out ? 'done' : a.break_start && !a.break_end ? 'break' : 'working';
+                    return (
+                      <tr key={a.id} className="border-b border-slate-100 dark:border-white/5">
+                        <td className="p-4 text-slate-900 dark:text-white">{e ? `${e.first_name} ${e.last_name}` : '—'}</td>
+                        <td className="p-4 text-slate-700 dark:text-white/70 text-xs">{a.check_in ? new Date(a.check_in).toLocaleString() : '—'}</td>
+                        <td className="p-4 text-slate-700 dark:text-white/70 text-xs">{a.check_out ? new Date(a.check_out).toLocaleString() : '—'}</td>
+                        <td className="p-4">
+                          {status === 'done' && <Badge color="emerald">Terminé</Badge>}
+                          {status === 'working' && <Badge color="coral">En poste</Badge>}
+                          {status === 'break' && <Badge color="amber">En pause</Badge>}
+                          {!status && <Badge color="slate">—</Badge>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
