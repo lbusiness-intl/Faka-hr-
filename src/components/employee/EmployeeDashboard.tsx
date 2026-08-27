@@ -337,6 +337,23 @@ type AttendanceLog = {
   break_start: string | null; break_end: string | null; selfie_url: string | null; created_at: string;
 };
 
+function useNow(intervalMs = 1000) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs]);
+  return now;
+}
+
+function formatDuration(ms: number): string {
+  if (ms < 0) ms = 0;
+  const totalMinutes = Math.floor(ms / 60000);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${h}h ${String(m).padStart(2, '0')}min`;
+}
+
 function Attendance() {
   const { t } = useI18n();
   const tenant = useTenant();
@@ -347,6 +364,7 @@ function Attendance() {
   const [loading, setLoading] = useState(true);
   const [selfie, setSelfie] = useState<string | null>(null);
   const [attError, setAttError] = useState<string | null>(null);
+  const now = useNow();
 
   async function load() {
     if (!tenant || !me) return;
@@ -404,47 +422,120 @@ function Attendance() {
       )}
       {loading ? <Spinner /> : (
         <>
-          <div className="card p-6 mb-6">
-            <div className="flex flex-wrap gap-3">
-              <button onClick={() => action('in')} disabled={!!today?.check_in} className="btn-primary text-sm disabled:opacity-40"><Play size={16} /> {t('emp.checkin')}</button>
-              <button onClick={() => action('break')} disabled={!today?.check_in || !!today?.break_start} className="btn-ghost text-sm disabled:opacity-40"><Pause size={16} /> {t('emp.break')}</button>
-              <button onClick={() => action('resume')} disabled={!today?.break_start || !!today?.break_end} className="btn-ghost text-sm disabled:opacity-40"><Play size={16} /> Reprendre</button>
-              <button onClick={() => action('out')} disabled={!today?.check_in || !!today?.check_out} className="btn-ghost text-sm disabled:opacity-40"><Square size={16} /> {t('emp.checkout')}</button>
-              <label className="btn-ghost text-sm cursor-pointer">
-                <Camera size={16} /> Selfie
-                <input type="file" accept="image/*" capture="user" className="hidden" onChange={(e) => {
-                  const f = e.target.files?.[0]; if (!f) return;
-                  const reader = new FileReader();
-                  reader.onload = () => setSelfie(reader.result as string);
-                  reader.readAsDataURL(f);
-                }} />
-              </label>
-            </div>
-            {selfie && <img src={selfie} alt="selfie" className="mt-4 w-24 h-24 rounded-xl object-cover" />}
-            {today && (
-              <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                <div><div className="text-slate-400 text-xs">Entrée</div><div className="text-slate-900 dark:text-white">{today.check_in ? new Date(today.check_in).toLocaleTimeString() : '—'}</div></div>
-                <div><div className="text-slate-400 text-xs">Pause</div><div className="text-slate-900 dark:text-white">{today.break_start ? new Date(today.break_start).toLocaleTimeString() : '—'}</div></div>
-                <div><div className="text-slate-400 text-xs">Reprise</div><div className="text-slate-900 dark:text-white">{today.break_end ? new Date(today.break_end).toLocaleTimeString() : '—'}</div></div>
-                <div><div className="text-slate-400 text-xs">Sortie</div><div className="text-slate-900 dark:text-white">{today.check_out ? new Date(today.check_out).toLocaleTimeString() : '—'}</div></div>
+          {(() => {
+            const status: 'idle' | 'working' | 'break' | 'done' =
+              !today?.check_in ? 'idle'
+              : today?.check_out ? 'done'
+              : today?.break_start && !today?.break_end ? 'break'
+              : 'working';
+            const statusMeta = {
+              idle: { label: 'Pas encore pointé', color: 'text-slate-500 dark:text-white/50', dot: 'bg-slate-300 dark:bg-white/20' },
+              working: { label: 'En poste', color: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500 animate-pulse' },
+              break: { label: 'En pause', color: 'text-amber-600 dark:text-amber-400', dot: 'bg-amber-500 animate-pulse' },
+              done: { label: 'Journée terminée', color: 'text-coral-600 dark:text-coral-400', dot: 'bg-coral-500' },
+            }[status];
+
+            // Elapsed worked time today, excluding break time, updates live.
+            let workedMs = 0;
+            if (today?.check_in) {
+              const inT = new Date(today.check_in).getTime();
+              const outT = today.check_out ? new Date(today.check_out).getTime() : now.getTime();
+              workedMs = outT - inT;
+              if (today.break_start) {
+                const bStart = new Date(today.break_start).getTime();
+                const bEnd = today.break_end ? new Date(today.break_end).getTime() : (status === 'break' ? now.getTime() : bStart);
+                workedMs -= Math.max(0, bEnd - bStart);
+              }
+            }
+
+            return (
+              <div className="card p-6 mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`w-2 h-2 rounded-full ${statusMeta.dot}`} />
+                      <span className={`text-sm font-semibold ${statusMeta.color}`}>{statusMeta.label}</span>
+                    </div>
+                    <div className="font-display text-4xl font-bold text-slate-900 dark:text-white tabular-nums">
+                      {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    </div>
+                    <div className="text-sm text-slate-500 dark:text-white/50 mt-1">
+                      {now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
+                    </div>
+                  </div>
+                  <div className="sm:text-right">
+                    <div className="text-xs uppercase tracking-wide text-slate-400 dark:text-white/40">Temps travaillé aujourd'hui</div>
+                    <div className="font-display text-3xl font-bold text-coral-600 dark:text-coral-400 tabular-nums">{formatDuration(workedMs)}</div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-3 mt-6">
+                  <button onClick={() => action('in')} disabled={!!today?.check_in} className="btn-primary text-sm disabled:opacity-40"><Play size={16} /> {t('emp.checkin')}</button>
+                  <button onClick={() => action('break')} disabled={!today?.check_in || !!today?.break_start} className="btn-ghost text-sm disabled:opacity-40"><Pause size={16} /> {t('emp.break')}</button>
+                  <button onClick={() => action('resume')} disabled={!today?.break_start || !!today?.break_end} className="btn-ghost text-sm disabled:opacity-40"><Play size={16} /> Reprendre</button>
+                  <button onClick={() => action('out')} disabled={!today?.check_in || !!today?.check_out} className="btn-ghost text-sm disabled:opacity-40"><Square size={16} /> {t('emp.checkout')}</button>
+                  <label className="btn-ghost text-sm cursor-pointer">
+                    <Camera size={16} /> Selfie
+                    <input type="file" accept="image/*" capture="user" className="hidden" onChange={(e) => {
+                      const f = e.target.files?.[0]; if (!f) return;
+                      const reader = new FileReader();
+                      reader.onload = () => setSelfie(reader.result as string);
+                      reader.readAsDataURL(f);
+                    }} />
+                  </label>
+                </div>
+                {selfie && <img src={selfie} alt="selfie" className="mt-4 w-24 h-24 rounded-xl object-cover" />}
+
+                {today && (
+                  <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm pt-5 border-t border-slate-100 dark:border-white/10">
+                    <div><div className="text-slate-400 text-xs mb-0.5">Entrée</div><div className="text-slate-900 dark:text-white font-medium">{today.check_in ? new Date(today.check_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</div></div>
+                    <div><div className="text-slate-400 text-xs mb-0.5">Pause</div><div className="text-slate-900 dark:text-white font-medium">{today.break_start ? new Date(today.break_start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</div></div>
+                    <div><div className="text-slate-400 text-xs mb-0.5">Reprise</div><div className="text-slate-900 dark:text-white font-medium">{today.break_end ? new Date(today.break_end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</div></div>
+                    <div><div className="text-slate-400 text-xs mb-0.5">Sortie</div><div className="text-slate-900 dark:text-white font-medium">{today.check_out ? new Date(today.check_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</div></div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()}
+
           <div className="card overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-slate-400 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
-                <tr><th className="text-left p-4">Date</th><th className="text-left p-4">Entrée</th><th className="text-left p-4">Sortie</th></tr>
-              </thead>
-              <tbody>
-                {logs.map((l) => (
-                  <tr key={l.id} className="border-b border-slate-100 dark:border-white/5">
-                    <td className="p-4 text-slate-700 dark:text-white/70">{new Date(l.created_at).toLocaleDateString()}</td>
-                    <td className="p-4 text-slate-700 dark:text-white/70 text-xs">{l.check_in ? new Date(l.check_in).toLocaleTimeString() : '—'}</td>
-                    <td className="p-4 text-slate-700 dark:text-white/70 text-xs">{l.check_out ? new Date(l.check_out).toLocaleTimeString() : '—'}</td>
+            <div className="p-5 pb-0 flex items-center justify-between">
+              <h3 className="text-slate-900 dark:text-white font-semibold text-sm">Historique récent</h3>
+              <Badge color="slate">{logs.length} derniers pointages</Badge>
+            </div>
+            {logs.length === 0 ? (
+              <EmptyState icon={<Clock size={40} />} title="Aucun pointage" />
+            ) : (
+              <table className="w-full text-sm mt-3">
+                <thead className="text-slate-400 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+                  <tr>
+                    <th className="text-left p-4">Date</th>
+                    <th className="text-left p-4">Entrée</th>
+                    <th className="text-left p-4">Sortie</th>
+                    <th className="text-left p-4">Durée</th>
+                    <th className="text-left p-4">Statut</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {logs.map((l) => {
+                    const dur = l.check_in
+                      ? (l.check_out ? new Date(l.check_out).getTime() : Date.now()) - new Date(l.check_in).getTime()
+                      : 0;
+                    return (
+                      <tr key={l.id} className="border-b border-slate-100 dark:border-white/5">
+                        <td className="p-4 text-slate-700 dark:text-white/70">{new Date(l.created_at).toLocaleDateString()}</td>
+                        <td className="p-4 text-slate-700 dark:text-white/70 text-xs">{l.check_in ? new Date(l.check_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                        <td className="p-4 text-slate-700 dark:text-white/70 text-xs">{l.check_out ? new Date(l.check_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                        <td className="p-4 text-slate-700 dark:text-white/70 text-xs">{l.check_in ? formatDuration(dur) : '—'}</td>
+                        <td className="p-4">
+                          {l.check_out ? <Badge color="emerald">Terminé</Badge> : <Badge color="amber">En cours</Badge>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
         </>
       )}
