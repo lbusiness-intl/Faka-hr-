@@ -56,9 +56,10 @@ export default {
         display: ['Inter', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        glow: '0 0 40px -10px rgba(0,112,224,0.45)',
-        card: '0 1px 3px rgba(16,24,40,0.04), 0 8px 24px -12px rgba(16,24,40,0.10)',
-        'card-dark': '0 1px 3px rgba(0,0,0,0.3), 0 12px 32px -12px rgba(0,0,0,0.5)',
+        glow: '0 0 40px -10px rgba(0,112,224,0.35)',
+        card: '0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.06)',
+        'card-dark': '0 1px 2px rgba(0,0,0,0.3), 0 4px 12px -4px rgba(0,0,0,0.4)',
+        popover: '0 4px 6px -2px rgba(16,24,40,0.05), 0 12px 16px -4px rgba(16,24,40,0.08)',
       },
       keyframes: {
         'fade-in': { '0%': { opacity: '0', transform: 'translateY(8px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
