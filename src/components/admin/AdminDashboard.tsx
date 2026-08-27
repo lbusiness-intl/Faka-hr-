@@ -1707,16 +1707,51 @@ function SimpleList({ table, title, icon, fields, extraInsert }: {
         <EmptyState icon={icon} title="Rien pour le moment" />
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {items.map((it) => (
-            <div key={String(it.id)} className="card p-5">
-              {fields.map((f) => (
-                <div key={f.key} className="mb-1">
-                  {f.key === fields[0].key && <div className="text-slate-900 dark:text-white font-semibold">{f.type === 'employee_select' ? empName(it[f.key] as string) : String(it[f.key] ?? '—')}</div>}
-                  {f.key !== fields[0].key && <div className="text-slate-500 dark:text-white/50 text-xs">{f.label}: {f.type === 'employee_select' ? empName(it[f.key] as string) : String(it[f.key] ?? '—')}</div>}
-                </div>
-              ))}
-            </div>
-          ))}
+          {items.map((it) => {
+            const progressField = fields.find((f) => f.key === 'progress');
+            const ratingField = fields.find((f) => f.key === 'rating');
+            return (
+              <div key={String(it.id)} className="card p-5">
+                {fields.map((f) => {
+                  if (f.key === 'progress' || f.key === 'rating') return null;
+                  const val = f.type === 'employee_select' ? empName(it[f.key] as string) : String(it[f.key] ?? '—');
+                  return f.key === fields[0].key ? (
+                    <div key={f.key} className="text-slate-900 dark:text-white font-semibold mb-1">{val}</div>
+                  ) : (
+                    <div key={f.key} className="text-slate-500 dark:text-white/50 text-xs mb-1">{f.label}: {val}</div>
+                  );
+                })}
+                {progressField && (() => {
+                  const pct = Math.max(0, Math.min(100, Number(it.progress ?? 0)));
+                  return (
+                    <div className="mt-3">
+                      <div className="flex items-center justify-between text-xs mb-1.5">
+                        <span className="text-slate-400 dark:text-white/40">Progression</span>
+                        <span className="font-semibold text-slate-700 dark:text-white/80">{pct}%</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-coral-500' : 'bg-amber-500'}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
+                {ratingField && (() => {
+                  const rating = Number(it.rating ?? 0);
+                  return (
+                    <div className="mt-3 flex items-center gap-0.5">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <Star key={n} size={16} className={n <= rating ? 'fill-amber-400 text-amber-400' : 'text-slate-200 dark:text-white/15'} />
+                      ))}
+                      <span className="text-xs text-slate-400 dark:text-white/40 ml-1.5">{rating || '—'}/5</span>
+                    </div>
+                  );
+                })()}
+              </div>
+            );
+          })}
         </div>
       )}
       <Modal open={modal} onClose={() => setModal(false)} title={`Ajouter — ${title}`}>
