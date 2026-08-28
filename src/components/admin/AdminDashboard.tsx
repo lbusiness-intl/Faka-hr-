@@ -98,7 +98,7 @@ function Overview() {
       setHistory(months);
       setLoading(false);
     })();
-  }, [tenant]);
+  }, [tenant, localeTag]);
 
   if (!tenant) return null;
   const fmt = (n: number) => new Intl.NumberFormat(localeTag).format(Math.round(n));
@@ -619,6 +619,7 @@ function RequestList({ table, title, icon, amountKey }: {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState<Record<string, unknown>>({});
   const [reqError, setReqError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
 
   const isLeave = table === 'leave_requests';
   const thisYear = new Date().getFullYear();
@@ -763,6 +764,34 @@ function RequestList({ table, title, icon, amountKey }: {
       {loading ? <Spinner /> : items.length === 0 ? (
         <EmptyState icon={icon} title="Aucune demande" />
       ) : (
+        <>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <StatCard label="En attente" value={String(items.filter((it) => it.status === 'pending').length)} icon={<Clock size={18} />} color="amber" />
+            <StatCard label="Approuvées" value={String(items.filter((it) => it.status === 'approved').length)} icon={<Check size={18} />} color="teal" />
+            <StatCard label="Refusées" value={String(items.filter((it) => it.status === 'rejected').length)} icon={<X size={18} />} color="coral" />
+            {amountKey && (
+              <StatCard
+                label="Montant en attente"
+                value={`${new Intl.NumberFormat(localeTag).format(items.filter((it) => it.status === 'pending').reduce((s, it) => s + Number(it[amountKey] ?? 0), 0))} ${tenant.currency}`}
+                icon={<BanknoteIcon size={18} />} color="indigo"
+              />
+            )}
+          </div>
+          <div className="flex gap-2 mb-4">
+            {(['all', 'pending', 'approved', 'rejected'] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+                  statusFilter === s
+                    ? 'bg-coral-500 border-coral-500 text-white'
+                    : 'border-slate-200 dark:border-white/10 text-slate-500 dark:text-white/50 hover:border-coral-300'
+                }`}
+              >
+                {s === 'all' ? 'Toutes' : s === 'pending' ? 'En attente' : s === 'approved' ? 'Approuvées' : 'Refusées'}
+              </button>
+            ))}
+          </div>
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-slate-500 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
@@ -780,7 +809,7 @@ function RequestList({ table, title, icon, amountKey }: {
               </tr>
             </thead>
             <tbody>
-              {items.map((it) => (
+              {items.filter((it) => statusFilter === 'all' || it.status === statusFilter).map((it) => (
                 <tr key={it.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5">
                   <td className="p-4 text-slate-900 dark:text-white">{empName(it.employee_id)}</td>
                   {table === 'leave_requests' && <>
@@ -812,6 +841,7 @@ function RequestList({ table, title, icon, amountKey }: {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       <Modal open={modal} onClose={() => setModal(false)} title={`Nouvelle demande — ${title}`}>
@@ -1251,7 +1281,7 @@ function Payroll() {
 // ============================================================
 // Attendance
 // ============================================================
-type AttendanceEntry = { id: string; employee_id: string; check_in: string | null; check_out: string | null };
+type AttendanceEntry = { id: string; employee_id: string; check_in: string | null; check_out: string | null; break_start: string | null; break_end: string | null };
 type EmployeeNameOnly = { id: string; first_name: string; last_name: string };
 
 function Attendance() {
@@ -1277,31 +1307,59 @@ function Attendance() {
   useEffect(() => { load(); }, [tenant]);
 
   if (!tenant) return null;
+
+  const todayKey = new Date().toDateString();
+  const todayItems = items.filter((a) => a.check_in && new Date(a.check_in).toDateString() === todayKey);
+  const presentToday = todayItems.length;
+  const onBreak = todayItems.filter((a) => a.break_start && !a.break_end).length;
+  const stillIn = todayItems.filter((a) => !a.check_out).length;
+  const closed = todayItems.filter((a) => a.check_in && a.check_out);
+  const avgHoursToday = closed.length
+    ? closed.reduce((sum, a) => sum + (new Date(a.check_out!).getTime() - new Date(a.check_in!).getTime()), 0) / closed.length / 3_600_000
+    : 0;
+
   return (
     <div>
       <PageHeader title={t('dash.attendance')} icon={<Clock size={20} />} />
-      {loading ? <Spinner /> : items.length === 0 ? (
-        <EmptyState icon={<Clock size={48} />} title="Aucun pointage" />
-      ) : (
-        <div className="card overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-slate-500 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
-              <tr><th className="text-left p-4">Employé</th><th className="text-left p-4">Entrée</th><th className="text-left p-4">Sortie</th></tr>
-            </thead>
-            <tbody>
-              {items.map((a) => {
-                const e = employees[a.employee_id];
-                return (
-                  <tr key={a.id} className="border-b border-slate-100 dark:border-white/5">
-                    <td className="p-4 text-slate-900 dark:text-white">{e ? `${e.first_name} ${e.last_name}` : '—'}</td>
-                    <td className="p-4 text-slate-700 dark:text-white/70 text-xs">{a.check_in ? new Date(a.check_in).toLocaleString() : '—'}</td>
-                    <td className="p-4 text-slate-700 dark:text-white/70 text-xs">{a.check_out ? new Date(a.check_out).toLocaleString() : '—'}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+      {loading ? <Spinner /> : (
+        <>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <StatCard label="Présents aujourd'hui" value={String(presentToday)} icon={<Users size={18} />} color="coral" />
+            <StatCard label="Encore sur place" value={String(stillIn)} icon={<Clock size={18} />} color="teal" />
+            <StatCard label="En pause" value={String(onBreak)} icon={<Clock size={18} />} color="amber" />
+            <StatCard label="Moyenne heures/jour" value={`${avgHoursToday.toFixed(1)}h`} icon={<TrendingUp size={18} />} color="indigo" />
+          </div>
+          {items.length === 0 ? (
+            <EmptyState icon={<Clock size={48} />} title="Aucun pointage" />
+          ) : (
+            <div className="card overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-slate-500 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+                  <tr><th className="text-left p-4">Employé</th><th className="text-left p-4">Entrée</th><th className="text-left p-4">Sortie</th><th className="text-left p-4">Statut</th></tr>
+                </thead>
+                <tbody>
+                  {items.map((a) => {
+                    const e = employees[a.employee_id];
+                    const status = !a.check_in ? null : a.check_out ? 'done' : a.break_start && !a.break_end ? 'break' : 'working';
+                    return (
+                      <tr key={a.id} className="border-b border-slate-100 dark:border-white/5">
+                        <td className="p-4 text-slate-900 dark:text-white">{e ? `${e.first_name} ${e.last_name}` : '—'}</td>
+                        <td className="p-4 text-slate-700 dark:text-white/70 text-xs">{a.check_in ? new Date(a.check_in).toLocaleString() : '—'}</td>
+                        <td className="p-4 text-slate-700 dark:text-white/70 text-xs">{a.check_out ? new Date(a.check_out).toLocaleString() : '—'}</td>
+                        <td className="p-4">
+                          {status === 'done' && <Badge color="emerald">Terminé</Badge>}
+                          {status === 'working' && <Badge color="coral">En poste</Badge>}
+                          {status === 'break' && <Badge color="amber">En pause</Badge>}
+                          {!status && <Badge color="slate">—</Badge>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -1312,6 +1370,14 @@ function Attendance() {
 // ============================================================
 type JobPosting = { id: string; title: string; department: string | null; location: string | null; description: string | null; status: string; created_at: string };
 type Candidate = { id: string; posting_id: string | null; full_name: string; email: string | null; phone: string | null; notes: string | null; stage: string; created_at: string };
+
+const STAGE_META: Record<string, { label: string; dot: string }> = {
+  applied: { label: 'Candidature', dot: 'bg-slate-400' },
+  screening: { label: 'Présélection', dot: 'bg-indigo-400' },
+  interview: { label: 'Entretien', dot: 'bg-amber-400' },
+  offer: { label: 'Offre envoyée', dot: 'bg-teal-400' },
+  hired: { label: 'Embauché', dot: 'bg-emerald-500' },
+};
 
 function Recruitment() {
   const { t } = useI18n();
@@ -1397,46 +1463,88 @@ function Recruitment() {
       {loading ? <Spinner /> : (
         <>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-            {postings.map((p) => (
-              <div key={p.id} className="card p-5">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-slate-900 dark:text-white font-semibold">{p.title}</h3>
-                  <Badge color={p.status === 'open' ? 'emerald' : 'slate'}>{p.status}</Badge>
+            {postings.map((p) => {
+              const count = candidates.filter((c) => c.posting_id === p.id).length;
+              return (
+                <div key={p.id} className="card p-5">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-slate-900 dark:text-white font-semibold">{p.title}</h3>
+                    <Badge color={p.status === 'open' ? 'emerald' : 'slate'}>{p.status}</Badge>
+                  </div>
+                  <div className="text-slate-500 dark:text-white/50 text-xs mt-1">{p.department} · {p.location}</div>
+                  <p className="text-slate-600 dark:text-white/60 text-sm mt-3 line-clamp-2">{p.description}</p>
+                  <div className="text-slate-400 dark:text-white/40 text-xs mt-3 flex items-center gap-1.5">
+                    <Users size={12} /> {count} candidat{count > 1 ? 's' : ''}
+                  </div>
                 </div>
-                <div className="text-slate-500 dark:text-white/50 text-xs mt-1">{p.department} · {p.location}</div>
-                <p className="text-slate-600 dark:text-white/60 text-sm mt-3">{p.description}</p>
-              </div>
-            ))}
+              );
+            })}
             {postings.length === 0 && <div className="text-slate-400 dark:text-white/40 text-sm">Aucune offre.</div>}
           </div>
 
           <h3 className="font-display text-lg font-semibold text-slate-900 dark:text-white mb-4">Pipeline candidats</h3>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {stages.map((stage) => (
-              <div key={stage} className="card p-3 min-h-[200px]">
-                <div className="text-xs uppercase tracking-wide text-slate-400 dark:text-white/40 mb-3 capitalize">{stage}</div>
-                <div className="space-y-2">
-                  {candidates.filter((c) => c.stage === stage).map((c) => (
-                    <div key={c.id} className="rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 p-2.5">
-                      <div className="text-slate-900 dark:text-white text-sm font-medium">{c.full_name}</div>
-                      <div className="text-slate-400 dark:text-white/40 text-xs truncate">{c.email}</div>
-                      {c.posting_id && (
-                        <div className="text-slate-400 dark:text-white/40 text-[10px] truncate mt-0.5">
-                          {postings.find((p) => p.id === c.posting_id)?.title ?? ''}
-                        </div>
-                      )}
-                      <select
-                        value={c.stage}
-                        onChange={(e) => moveCandidate(c.id, e.target.value)}
-                        className="mt-2 w-full text-xs bg-white dark:bg-ink-700 border border-slate-200 dark:border-white/10 rounded px-1.5 py-1 text-slate-700 dark:text-white/70"
-                      >
-                        {stages.map((s) => <option key={s} value={s} className="bg-white dark:bg-ink-700 capitalize">{s}</option>)}
-                      </select>
+            {stages.map((stage) => {
+              const meta = STAGE_META[stage] ?? { label: stage, dot: 'bg-slate-400' };
+              const stageCandidates = candidates.filter((c) => c.stage === stage);
+              return (
+                <div
+                  key={stage}
+                  className="card p-3 min-h-[220px] transition-colors"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const id = e.dataTransfer.getData('text/candidate-id');
+                    if (id) moveCandidate(id, stage);
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-slate-500 dark:text-white/50">
+                      <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
+                      {meta.label}
                     </div>
-                  ))}
+                    <span className="text-[11px] font-semibold text-slate-400 dark:text-white/40 bg-slate-100 dark:bg-white/10 rounded-full px-1.5">{stageCandidates.length}</span>
+                  </div>
+                  <div className="space-y-2">
+                    {stageCandidates.map((c) => (
+                      <div
+                        key={c.id}
+                        draggable
+                        onDragStart={(e) => e.dataTransfer.setData('text/candidate-id', c.id)}
+                        className="rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 p-2.5 cursor-grab active:cursor-grabbing hover:border-coral-300 dark:hover:border-coral-500/40 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-coral-100 dark:bg-coral-500/20 text-coral-600 dark:text-coral-300 text-[10px] font-bold flex items-center justify-center shrink-0">
+                            {c.full_name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-slate-900 dark:text-white text-sm font-medium truncate">{c.full_name}</div>
+                            <div className="text-slate-400 dark:text-white/40 text-[11px] truncate">{c.email || '—'}</div>
+                          </div>
+                        </div>
+                        {c.posting_id && (
+                          <div className="text-slate-400 dark:text-white/40 text-[10px] truncate mt-1.5">
+                            {postings.find((p) => p.id === c.posting_id)?.title ?? ''}
+                          </div>
+                        )}
+                        <select
+                          value={c.stage}
+                          onChange={(e) => moveCandidate(c.id, e.target.value)}
+                          className="mt-2 w-full text-xs bg-white dark:bg-ink-700 border border-slate-200 dark:border-white/10 rounded px-1.5 py-1 text-slate-700 dark:text-white/70"
+                        >
+                          {stages.map((s) => <option key={s} value={s} className="bg-white dark:bg-ink-700">{STAGE_META[s]?.label ?? s}</option>)}
+                        </select>
+                      </div>
+                    ))}
+                    {stageCandidates.length === 0 && (
+                      <div className="text-slate-300 dark:text-white/20 text-[11px] text-center py-6 border border-dashed border-slate-200 dark:border-white/10 rounded-lg">
+                        Glissez ici
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
@@ -1629,16 +1737,51 @@ function SimpleList({ table, title, icon, fields, extraInsert }: {
         <EmptyState icon={icon} title="Rien pour le moment" />
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {items.map((it) => (
-            <div key={String(it.id)} className="card p-5">
-              {fields.map((f) => (
-                <div key={f.key} className="mb-1">
-                  {f.key === fields[0].key && <div className="text-slate-900 dark:text-white font-semibold">{f.type === 'employee_select' ? empName(it[f.key] as string) : String(it[f.key] ?? '—')}</div>}
-                  {f.key !== fields[0].key && <div className="text-slate-500 dark:text-white/50 text-xs">{f.label}: {f.type === 'employee_select' ? empName(it[f.key] as string) : String(it[f.key] ?? '—')}</div>}
-                </div>
-              ))}
-            </div>
-          ))}
+          {items.map((it) => {
+            const progressField = fields.find((f) => f.key === 'progress');
+            const ratingField = fields.find((f) => f.key === 'rating');
+            return (
+              <div key={String(it.id)} className="card p-5">
+                {fields.map((f) => {
+                  if (f.key === 'progress' || f.key === 'rating') return null;
+                  const val = f.type === 'employee_select' ? empName(it[f.key] as string) : String(it[f.key] ?? '—');
+                  return f.key === fields[0].key ? (
+                    <div key={f.key} className="text-slate-900 dark:text-white font-semibold mb-1">{val}</div>
+                  ) : (
+                    <div key={f.key} className="text-slate-500 dark:text-white/50 text-xs mb-1">{f.label}: {val}</div>
+                  );
+                })}
+                {progressField && (() => {
+                  const pct = Math.max(0, Math.min(100, Number(it.progress ?? 0)));
+                  return (
+                    <div className="mt-3">
+                      <div className="flex items-center justify-between text-xs mb-1.5">
+                        <span className="text-slate-400 dark:text-white/40">Progression</span>
+                        <span className="font-semibold text-slate-700 dark:text-white/80">{pct}%</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-coral-500' : 'bg-amber-500'}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
+                {ratingField && (() => {
+                  const rating = Number(it.rating ?? 0);
+                  return (
+                    <div className="mt-3 flex items-center gap-0.5">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <Star key={n} size={16} className={n <= rating ? 'fill-amber-400 text-amber-400' : 'text-slate-200 dark:text-white/15'} />
+                      ))}
+                      <span className="text-xs text-slate-400 dark:text-white/40 ml-1.5">{rating || '—'}/5</span>
+                    </div>
+                  );
+                })()}
+              </div>
+            );
+          })}
         </div>
       )}
       <Modal open={modal} onClose={() => setModal(false)} title={`Ajouter — ${title}`}>

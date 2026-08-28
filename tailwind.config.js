@@ -62,6 +62,7 @@ export default {
         glow: '0 2px 8px -2px rgba(109,79,224,0.18)',
         card: '0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.05)',
         'card-dark': '0 1px 2px rgba(0,0,0,0.25), 0 4px 16px -8px rgba(0,0,0,0.4)',
+        popover: '0 4px 6px -2px rgba(16,24,40,0.05), 0 12px 16px -4px rgba(16,24,40,0.08)',
       },
       keyframes: {
         'fade-in': { '0%': { opacity: '0', transform: 'translateY(8px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },

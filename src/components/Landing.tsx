@@ -298,7 +298,7 @@ function Features() {
         {items.map((f, i) => (
           <Reveal key={f.title} delay={i * 80}>
           <div className="card p-6 hover:border-coral-300 hover:shadow-lg transition group h-full">
-            <div className="w-11 h-11 rounded-xl bg-coral-100 text-coral-600 dark:bg-coral-500/10 dark:text-coral-400 flex items-center justify-center mb-4 group-hover:scale-110 transition">
+            <div className="w-10 h-10 rounded-lg bg-coral-50 text-coral-600 dark:bg-coral-500/10 dark:text-coral-400 flex items-center justify-center mb-4 group-hover:bg-coral-100 dark:group-hover:bg-coral-500/20 transition-colors">
               <f.icon size={22} />
             </div>
             <h3 className="font-display text-slate-900 dark:text-white font-semibold text-lg">{f.title}</h3>
