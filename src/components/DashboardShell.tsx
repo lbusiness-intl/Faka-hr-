@@ -127,11 +127,11 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
 
   return (
     <div className="min-h-screen bg-white flex dark:bg-ink-900">
-      <aside className={`fixed lg:static inset-y-0 left-0 z-40 w-64 border-r flex flex-col transition-transform ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} bg-sage-100 border-sage-200 dark:bg-sage-950 dark:border-white/10`}>
-        <div className="h-16 flex items-center justify-between px-5 border-b border-sage-200 dark:border-white/10">
+      <aside className={`fixed lg:static inset-y-0 left-0 z-40 w-64 border-r flex flex-col transition-transform ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} bg-white border-slate-200 dark:bg-ink-800 dark:border-white/10`}>
+        <div className="h-16 flex items-center justify-between px-5 border-b border-slate-100 dark:border-white/10">
           <Link to="/" className="flex items-center gap-2.5">
-            <img src="/icon-192.png" alt="Faka" className="w-8 h-8 rounded-lg shadow-glow" />
-            <span className="font-display text-lg font-bold text-slate-900 dark:text-white">Faka</span>
+            <img src="/icon-192.png" alt="Faka" className="w-8 h-8 rounded-lg" />
+            <span className="font-display text-lg font-semibold text-slate-900 dark:text-white">Faka</span>
           </Link>
           <button className="lg:hidden text-slate-500" onClick={() => setOpen(false)}><X size={18} /></button>
         </div>
@@ -140,7 +140,7 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
           <div className="px-3 pt-3 relative">
             <button
               onClick={() => setTenantMenu(!tenantMenu)}
-              className="w-full flex items-center justify-between rounded-lg bg-white/70 dark:bg-white/5 border border-sage-200 dark:border-white/10 px-3 py-2 text-sm text-slate-700 dark:text-white/80 hover:bg-white"
+              className="w-full flex items-center justify-between rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-3 py-2 text-sm text-slate-700 dark:text-white/80 hover:bg-slate-100"
             >
               <span className="flex items-center gap-2 truncate">
                 <Building2 size={14} /> {activeTenant?.name ?? 'Tenant'}
@@ -148,12 +148,12 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
               <ChevronDown size={14} />
             </button>
             {tenantMenu && (
-              <div className="absolute left-3 right-3 mt-1 rounded-lg bg-white dark:bg-ink-700 border border-sage-200 dark:border-white/10 shadow-card z-10">
+              <div className="absolute left-3 right-3 mt-1 rounded-lg bg-white dark:bg-ink-700 border border-slate-200 dark:border-white/10 shadow-card z-10">
                 {memberships.map((m) => (
                   <button
                     key={m.tenant_id}
                     onClick={() => { setActiveTenantId(m.tenant_id); setTenantMenu(false); }}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-sage-50 dark:hover:bg-white/5 ${m.tenant_id === activeTenant?.id ? 'text-coral-600' : 'text-slate-700 dark:text-white/70'}`}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-white/5 ${m.tenant_id === activeTenant?.id ? 'text-coral-600' : 'text-slate-700 dark:text-white/70'}`}
                   >
                     {m.tenant?.name}
                   </button>
@@ -172,11 +172,11 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
               <div key={item.key}>
                 <button
                   onClick={() => handleNav(item.key)}
-                  className={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm transition ${
+                  className={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors duration-150 ${
                     isActive
-                      ? 'bg-coral-100 dark:bg-coral-500/15 text-coral-700 dark:text-coral-300 font-medium'
+                      ? 'bg-coral-50 dark:bg-coral-500/10 text-coral-700 dark:text-coral-300 font-medium'
                       : unlocked
-                      ? 'text-slate-700 hover:text-coral-600 hover:bg-white dark:text-white/80 dark:hover:bg-white/5'
+                      ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 dark:text-white/70 dark:hover:bg-white/5'
                       : 'text-slate-400 dark:text-white/35'
                   }`}
                 >
@@ -192,10 +192,10 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
                       <button
                         key={sub}
                         onClick={() => { navigate(`/dashboard/admin/${sub}`); setOpen(false); }}
-                        className={`w-full flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs transition ${
+                        className={`w-full flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs transition-colors duration-150 ${
                           currentModule === sub
                             ? 'text-coral-600 dark:text-coral-400 font-medium'
-                            : 'text-slate-600 dark:text-white/60 hover:text-coral-600 hover:bg-white dark:hover:bg-white/5'
+                            : 'text-slate-500 dark:text-white/50 hover:text-slate-800 hover:bg-slate-50 dark:hover:bg-white/5'
                         }`}
                       >
                         <Icon size={13} /> {label}
@@ -208,9 +208,9 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
           })}
         </nav>
 
-        <div className="border-t border-sage-200 dark:border-white/10 p-3">
-          <div className="rounded-lg bg-white/70 dark:bg-white/5 p-3 mb-2">
-            <div className="text-xs text-slate-500 dark:text-white/40">Plan</div>
+        <div className="border-t border-slate-100 dark:border-white/10 p-3">
+          <div className="rounded-lg bg-slate-50 dark:bg-white/5 p-3 mb-2">
+            <div className="text-xs text-slate-400 dark:text-white/40">Plan</div>
             <div className="flex items-center justify-between">
               <span className="text-slate-900 dark:text-white font-semibold text-sm">{plan.name}</span>
               <Badge color={activeTenant?.status === 'active' ? 'emerald' : activeTenant?.status === 'trial' ? 'amber' : 'rose'}>
@@ -218,7 +218,7 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
               </Badge>
             </div>
           </div>
-          <button onClick={handleSignOut} className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-600 dark:text-white/60 hover:text-coral-600 hover:bg-white dark:hover:bg-white/5">
+          <button onClick={handleSignOut} className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-500 dark:text-white/60 hover:text-slate-900 hover:bg-slate-50 dark:hover:bg-white/5">
             <LogOut size={16} /> {t('dash.logout')}
           </button>
         </div>
@@ -236,6 +236,14 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
             {role === 'super' ? 'LIYAH GROUP — Super Admin' : activeTenant?.name}
           </div>
           <div className="flex items-center gap-3">
+            {isSuperAdmin && role !== 'super' && (
+              <Link
+                to="/super-admin"
+                className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 dark:border-indigo-500/30 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 px-3 py-1.5 text-xs font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition"
+              >
+                <Shield size={14} /> Console Super Admin
+              </Link>
+            )}
             <NotificationBell />
             <button
               onClick={() => setDark(!dark)}
@@ -290,7 +298,7 @@ function TrialBlocked() {
         <div className="w-14 h-14 rounded-xl bg-amber-100 dark:bg-amber-500/15 border border-amber-200 dark:border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400 mx-auto mb-5">
           <AlertTriangle size={28} />
         </div>
-        <h2 className="font-display text-xl font-bold text-slate-900 dark:text-white mb-3">{t('sub.paynow.title')}</h2>
+        <h2 className="font-display text-xl font-semibold text-slate-900 dark:text-white mb-3">{t('sub.paynow.title')}</h2>
         <p className="text-slate-600 dark:text-white/60 text-sm mb-6">{t('sub.paynow.desc')}</p>
         <button onClick={() => navigate('/subscription')} className="btn-primary">
           {t('sub.paynow')} →

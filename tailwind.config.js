@@ -5,31 +5,34 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Light theme surfaces
+        // Neutral surfaces — clean, near-white/gray, minimal saturation
+        // (Factorial-style: whitespace-led, not color-led)
         sage: {
-          50: '#F2F7F3',
-          100: '#E8F1E9',
-          200: '#D6E6D8',
-          300: '#B8D6BC',
-          400: '#8FBF96',
-          500: '#6BA374',
-          600: '#4F8758',
-          700: '#3D6B45',
-          800: '#2D4D33',
-          900: '#1E3322',
-          950: '#0F1F12',
+          50: '#FAFAFB',
+          100: '#F4F4F6',
+          200: '#E7E7EC',
+          300: '#D3D3DA',
+          400: '#A3A3AF',
+          500: '#75757F',
+          600: '#54545F',
+          700: '#40404A',
+          800: '#2A2A33',
+          900: '#1C1C23',
+          950: '#121217',
         },
+        // Primary brand accent — refined indigo/violet, used sparingly
+        // against a mostly neutral canvas (Factorial-style restraint)
         coral: {
-          50: '#EAF3FF',
-          100: '#D2E7FF',
-          200: '#A6CEFF',
-          300: '#70AFFF',
-          400: '#3D8DFF',
-          500: '#0070E0',
-          600: '#0058B3',
-          700: '#004389',
-          800: '#003087',
-          900: '#00215E',
+          50: '#F2F0FE',
+          100: '#E5E1FC',
+          200: '#CBC1FA',
+          300: '#AC9AF5',
+          400: '#8D74EE',
+          500: '#6D4FE0',
+          600: '#5738C4',
+          700: '#432B9B',
+          800: '#332174',
+          900: '#241852',
         },
         // Ink (dark theme surfaces)
         ink: {
@@ -56,9 +59,9 @@ export default {
         display: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        glow: '0 0 40px -10px rgba(0,112,224,0.45)',
-        card: '0 1px 3px rgba(16,24,40,0.04), 0 8px 24px -12px rgba(16,24,40,0.10)',
-        'card-dark': '0 1px 3px rgba(0,0,0,0.3), 0 12px 32px -12px rgba(0,0,0,0.5)',
+        glow: '0 2px 8px -2px rgba(109,79,224,0.18)',
+        card: '0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.05)',
+        'card-dark': '0 1px 2px rgba(0,0,0,0.25), 0 4px 16px -8px rgba(0,0,0,0.4)',
       },
       keyframes: {
         'fade-in': { '0%': { opacity: '0', transform: 'translateY(8px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },

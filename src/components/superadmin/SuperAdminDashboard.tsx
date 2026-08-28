@@ -3,11 +3,11 @@ import { useI18n } from '../../lib/i18n';
 import { useAuth } from '../../lib/auth';
 import { supabase } from '../../lib/supabase';
 import { Badge, Spinner, Modal, EmptyState, StatCard } from '../ui';
-import { navigate } from '../../lib/router';
+import { Link, navigate } from '../../lib/router';
 import { PLANS, getPlan, type PlanId } from '../../lib/plans';
 import { COUNTRIES } from '../../lib/geo';
 import {
-  Building2, DollarSign, TrendingDown, Globe2, Ticket, LogOut,
+  Building2, DollarSign, TrendingDown, Globe2, Ticket, LogOut, Home,
   Crown, ShieldCheck, MapPin, Plus, Trash2, Mail, Trophy, Percent,
 } from 'lucide-react';
 import EmailCenter from './EmailCenter';
@@ -79,13 +79,14 @@ export default function SuperAdminDashboard() {
             <Crown size={18} className="text-white" />
           </div>
           <div>
-            <div className="font-display text-lg font-bold text-slate-900 dark:text-white">Faka Super Admin</div>
+            <div className="font-display text-lg font-semibold text-slate-900 dark:text-white">Faka Super Admin</div>
             <div className="text-xs text-slate-400 dark:text-white/40">LiAfrik — Console interne</div>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <Badge color="indigo"><ShieldCheck size={12} /> Super Admin</Badge>
-          <span className="text-sm text-slate-600 dark:text-white/60">{auth.user?.email}</span>
+          <span className="text-sm text-slate-600 dark:text-white/60 hidden sm:inline">{auth.user?.email}</span>
+          <Link to="/dashboard" className="btn-ghost text-sm"><Home size={16} /> Mon espace</Link>
           <button onClick={async () => { await auth.signOut(); navigate('/'); }} className="btn-ghost text-sm"><LogOut size={16} /> {t('dash.logout')}</button>
         </div>
       </header>
@@ -343,7 +344,7 @@ function SalesAgents({ tenants }: { tenants: TenantRow[] }) {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-coral-100 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 flex items-center justify-center text-coral-600 dark:text-coral-300"><Trophy size={20} /></div>
-          <h1 className="font-display text-xl font-bold text-slate-900 dark:text-white">Commerciaux & Leaderboard</h1>
+          <h1 className="font-display text-xl font-semibold text-slate-900 dark:text-white">Commerciaux & Leaderboard</h1>
         </div>
         <button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> Ajouter</button>
       </div>
@@ -442,7 +443,7 @@ function Invitations() {
     <div>
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-xl bg-coral-100 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 flex items-center justify-center text-coral-600 dark:text-coral-300"><Mail size={20} /></div>
-        <h1 className="font-display text-xl font-bold text-slate-900 dark:text-white">Historique des invitations</h1>
+        <h1 className="font-display text-xl font-semibold text-slate-900 dark:text-white">Historique des invitations</h1>
       </div>
       {loading ? <Spinner /> : items.length === 0 ? (
         <EmptyState icon={<Mail size={48} />} title="Aucune invitation envoyée" />
@@ -535,7 +536,7 @@ function PlanEditor() {
     <div>
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-xl bg-coral-100 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 flex items-center justify-center text-coral-600 dark:text-coral-300"><DollarSign size={20} /></div>
-        <h1 className="font-display text-xl font-bold text-slate-900 dark:text-white">Contrôle des plans</h1>
+        <h1 className="font-display text-xl font-semibold text-slate-900 dark:text-white">Contrôle des plans</h1>
       </div>
       {error && (
         <div className="card p-4 mb-6 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-sm text-rose-700 dark:text-rose-300 flex items-start justify-between gap-3">
@@ -548,7 +549,7 @@ function PlanEditor() {
           const ov = overrides.find((o) => o.plan_id === p.id);
           return (
             <div key={p.id} className="card p-5">
-              <h3 className="text-slate-900 dark:text-white font-display font-bold">{p.name}</h3>
+              <h3 className="text-slate-900 dark:text-white font-display font-semibold">{p.name}</h3>
               <div className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">${ov?.price_monthly ?? p.priceMonthly}<span className="text-sm text-slate-400">/mo</span></div>
               <div className="text-xs text-slate-500 dark:text-white/50 mt-1">{ov?.employee_limit ?? p.employeeLimit ?? '∞'} employés</div>
               <button onClick={() => startEdit(p.id)} className="btn-ghost text-xs mt-4 w-full">Modifier</button>
@@ -628,7 +629,7 @@ function Promotions() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-coral-100 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 flex items-center justify-center text-coral-600 dark:text-coral-300"><Percent size={20} /></div>
-          <h1 className="font-display text-xl font-bold text-slate-900 dark:text-white">Promotions & codes promo</h1>
+          <h1 className="font-display text-xl font-semibold text-slate-900 dark:text-white">Promotions & codes promo</h1>
         </div>
         <button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> Créer</button>
       </div>

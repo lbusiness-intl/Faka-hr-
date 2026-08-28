@@ -11,6 +11,7 @@ import SuperAdminDashboard from './components/superadmin/SuperAdminDashboard';
 import AcceptInvite from './components/AcceptInvite';
 import EmployeeActivation from './components/EmployeeActivation';
 import SimplePage from './components/SimplePage';
+import HelpCenter from './components/HelpCenter';
 import { Spinner } from './components/ui';
 import { AlertTriangle } from 'lucide-react';
 
@@ -55,6 +56,10 @@ function Router() {
   // Static footer pages
   if (path.startsWith('/page/')) {
     return <SimplePage />;
+  }
+
+  if (path === '/help') {
+    return <HelpCenter />;
   }
 
   // Super admin route — reserved for the platform's own super admins and

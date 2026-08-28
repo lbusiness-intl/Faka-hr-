@@ -56,7 +56,7 @@ export default function Subscription() {
       <div className="min-h-screen bg-white dark:bg-ink-900 flex items-center justify-center px-6">
         <div className="card p-10 max-w-md text-center">
           <Zap className="mx-auto text-blue-600" size={40} />
-          <h1 className="font-display text-xl font-bold text-slate-900 dark:text-white mt-4">{t('sub.team.access.title')}</h1>
+          <h1 className="font-display text-xl font-semibold text-slate-900 dark:text-white mt-4">{t('sub.team.access.title')}</h1>
           <p className="text-slate-600 dark:text-white/60 text-sm mt-2">
             En tant que membre de l'équipe interne, votre accès à Faka est gratuit et illimité — aucun abonnement requis.
           </p>
@@ -106,7 +106,7 @@ export default function Subscription() {
       <div className="section py-10 max-w-5xl">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="font-display text-2xl font-bold text-slate-900 dark:text-white">{t('dash.subscription')}</h1>
+            <h1 className="font-display text-2xl font-semibold text-slate-900 dark:text-white">{t('dash.subscription')}</h1>
             <p className="text-slate-500 dark:text-white/50 text-sm mt-1">{activeTenant.name}</p>
           </div>
           <Link to="/dashboard" className="btn-ghost text-sm">← {t('dash.dashboard')}</Link>
@@ -145,14 +145,14 @@ export default function Subscription() {
         </div>
 
         {/* Plan grid */}
-        <h2 className="font-display text-lg font-bold text-slate-900 dark:text-white mb-4">{t('sub.upgrade')}</h2>
+        <h2 className="font-display text-lg font-semibold text-slate-900 dark:text-white mb-4">{t('sub.upgrade')}</h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {PLANS.map((p) => {
             const current = p.id === activeTenant.plan;
             return (
               <div key={p.id} className={`card p-5 flex flex-col ${p.highlight ? 'border-coral-400 shadow-glow' : ''}`}>
                 <div className="flex items-center justify-between">
-                  <h3 className="text-slate-900 dark:text-white font-display font-bold">{p.name}</h3>
+                  <h3 className="text-slate-900 dark:text-white font-display font-semibold">{p.name}</h3>
                   {current && <Badge color="coral">Actuel</Badge>}
                 </div>
                 <div className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">${p.priceMonthly}<span className="text-sm text-slate-400 dark:text-white/40">/mo</span></div>

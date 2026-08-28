@@ -40,7 +40,7 @@ function PageHeader({ title, action, icon }: { title: string; action?: ReactNode
     <div className="flex items-center justify-between mb-6">
       <div className="flex items-center gap-3">
         {icon && <div className="w-10 h-10 rounded-xl bg-coral-100 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 flex items-center justify-center text-coral-600 dark:text-coral-300">{icon}</div>}
-        <h1 className="font-display text-xl font-bold text-slate-900 dark:text-white">{title}</h1>
+        <h1 className="font-display text-xl font-semibold text-slate-900 dark:text-white">{title}</h1>
       </div>
       {action}
     </div>
@@ -1186,7 +1186,7 @@ function Payroll() {
       </div>
 
       {/* Payroll history */}
-      <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white mb-4">Historique</h3>
+      <h3 className="font-display text-lg font-semibold text-slate-900 dark:text-white mb-4">Historique</h3>
       {loading ? <Spinner /> : runs.length === 0 ? (
         <EmptyState icon={<Wallet size={48} />} title="Aucune paie" hint="Lancez votre première paie mensuelle." />
       ) : (
@@ -1410,7 +1410,7 @@ function Recruitment() {
             {postings.length === 0 && <div className="text-slate-400 dark:text-white/40 text-sm">Aucune offre.</div>}
           </div>
 
-          <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white mb-4">Pipeline candidats</h3>
+          <h3 className="font-display text-lg font-semibold text-slate-900 dark:text-white mb-4">Pipeline candidats</h3>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {stages.map((stage) => (
               <div key={stage} className="card p-3 min-h-[200px]">
@@ -2205,7 +2205,7 @@ export default function AdminDashboard() {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-ink-900 flex items-center justify-center">
         <div className="card p-8 max-w-md text-center">
-          <h2 className="text-slate-900 dark:text-white font-display text-xl font-bold mb-2">Aucun espace configuré</h2>
+          <h2 className="text-slate-900 dark:text-white font-display text-xl font-semibold mb-2">Aucun espace configuré</h2>
           <p className="text-slate-600 dark:text-white/60 text-sm mb-5">Complétez l'onboarding pour créer votre espace Faka.</p>
           <button onClick={() => navigate('/onboarding')} className="btn-primary">Configurer mon espace</button>
         </div>
@@ -2234,7 +2234,7 @@ export default function AdminDashboard() {
             <div className="w-12 h-12 rounded-xl bg-coral-100 dark:bg-coral-500/10 text-coral-600 dark:text-coral-400 flex items-center justify-center mx-auto mb-4">
               <Lock size={22} />
             </div>
-            <h2 className="text-slate-900 dark:text-white font-display text-xl font-bold mb-2">Module non inclus dans votre plan</h2>
+            <h2 className="text-slate-900 dark:text-white font-display text-xl font-semibold mb-2">Module non inclus dans votre plan</h2>
             <p className="text-slate-600 dark:text-white/60 text-sm mb-5">Passez à un plan supérieur pour débloquer cette fonctionnalité.</p>
             <button onClick={() => navigate('/dashboard/admin/subscription')} className="btn-primary">Voir les plans</button>
           </div>

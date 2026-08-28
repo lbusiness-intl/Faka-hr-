@@ -29,7 +29,7 @@ function PageHeader({ title, icon }: { title: string; icon: ReactNode }) {
   return (
     <div className="flex items-center gap-3 mb-6">
       <div className="w-10 h-10 rounded-xl bg-coral-100 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 flex items-center justify-center text-coral-600 dark:text-coral-300">{icon}</div>
-      <h1 className="font-display text-xl font-bold text-slate-900 dark:text-white">{title}</h1>
+      <h1 className="font-display text-xl font-semibold text-slate-900 dark:text-white">{title}</h1>
     </div>
   );
 }
@@ -259,7 +259,7 @@ function Overview() {
                 {(me?.first_name ?? user?.email ?? 'U')[0].toUpperCase()}
               </div>
               <div className="flex-1">
-                <div className="text-slate-900 dark:text-white font-display text-xl font-bold">
+                <div className="text-slate-900 dark:text-white font-display text-xl font-semibold">
                   {me ? `${me.first_name} ${me.last_name}` : user?.email}
                 </div>
                 <div className="text-slate-500 dark:text-white/50 text-sm">{me?.position ?? '—'} · {me?.department ?? '—'}</div>

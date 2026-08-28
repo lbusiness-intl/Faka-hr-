@@ -58,7 +58,7 @@ function Logo() {
   return (
     <div className="flex items-center gap-2.5">
       <img src="/icon-192.png" alt="Faka" className="w-9 h-9 rounded-xl shadow-glow" />
-      <span className="font-display text-xl font-bold text-slate-900 dark:text-white tracking-tight">Faka</span>
+      <span className="font-display text-xl font-semibold text-slate-900 dark:text-white tracking-tight">Faka</span>
     </div>
   );
 }
@@ -229,7 +229,7 @@ function Hero() {
           <div className="inline-flex items-center gap-2 rounded-full bg-coral-50 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 px-3 py-1.5 text-xs text-coral-700 dark:text-coral-300 mb-6">
             <Sparkles size={14} /> {t('app.badge')}
           </div>
-          <h1 className="font-display text-4xl md:text-5xl lg:text-[3.5rem] font-extrabold text-slate-900 dark:text-white leading-[1.08] tracking-tight">
+          <h1 className="font-display text-4xl md:text-5xl lg:text-[3.5rem] font-semibold text-slate-900 dark:text-white leading-[1.08] tracking-tight">
             {t('hero.title')}
           </h1>
           <p className="mt-6 text-lg text-slate-600 dark:text-white/70 leading-relaxed max-w-xl">
@@ -291,7 +291,7 @@ function Features() {
         <div className="inline-flex items-center gap-2 rounded-full bg-coral-50 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 px-3 py-1.5 text-xs text-coral-700 dark:text-coral-300 mb-4">
           <Briefcase size={14} /> {t('features.badge')}
         </div>
-        <h2 className="font-display text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{t('features.title')}</h2>
+        <h2 className="font-display text-3xl md:text-4xl font-semibold text-slate-900 dark:text-white tracking-tight">{t('features.title')}</h2>
         <p className="mt-3 text-slate-600 dark:text-white/60 max-w-2xl mx-auto">{t('features.subtitle')}</p>
       </Reveal>
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -301,7 +301,7 @@ function Features() {
             <div className="w-11 h-11 rounded-xl bg-coral-100 text-coral-600 dark:bg-coral-500/10 dark:text-coral-400 flex items-center justify-center mb-4 group-hover:scale-110 transition">
               <f.icon size={22} />
             </div>
-            <h3 className="font-display text-slate-900 dark:text-white font-bold text-lg">{f.title}</h3>
+            <h3 className="font-display text-slate-900 dark:text-white font-semibold text-lg">{f.title}</h3>
             <p className="mt-2 text-slate-600 dark:text-white/60 text-sm leading-relaxed">{f.desc}</p>
           </div>
           </Reveal>
@@ -328,7 +328,7 @@ function GlobalPresence() {
         <div className="inline-flex items-center gap-2 rounded-full bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/30 px-3 py-1.5 text-xs text-teal-700 dark:text-teal-300 mb-4">
           <Globe2 size={14} /> {t('global.badge')}
         </div>
-        <h2 className="font-display text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{t('global.title')}</h2>
+        <h2 className="font-display text-3xl md:text-4xl font-semibold text-slate-900 dark:text-white tracking-tight">{t('global.title')}</h2>
         <p className="mt-3 text-slate-600 dark:text-white/60 max-w-2xl mx-auto">{t('global.subtitle')}</p>
       </Reveal>
 
@@ -376,7 +376,7 @@ function Security() {
         <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 px-3 py-1.5 text-xs text-indigo-700 dark:text-indigo-300 mb-4">
           <ShieldCheck size={14} /> {t('security.badge')}
         </div>
-        <h2 className="font-display text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{t('security.title')}</h2>
+        <h2 className="font-display text-3xl md:text-4xl font-semibold text-slate-900 dark:text-white tracking-tight">{t('security.title')}</h2>
         <p className="mt-3 text-slate-600 dark:text-white/60 max-w-2xl mx-auto">{t('security.subtitle')}</p>
       </Reveal>
       <div className="grid md:grid-cols-2 gap-5 max-w-4xl mx-auto">
@@ -387,7 +387,7 @@ function Security() {
                 <it.icon size={20} />
               </div>
               <div>
-                <h3 className="font-display text-slate-900 dark:text-white font-bold">{it.title}</h3>
+                <h3 className="font-display text-slate-900 dark:text-white font-semibold">{it.title}</h3>
                 <p className="mt-1.5 text-slate-600 dark:text-white/60 text-sm leading-relaxed">{it.desc}</p>
               </div>
             </div>
@@ -416,7 +416,7 @@ function Pricing() {
         <div className="inline-flex items-center gap-2 rounded-full bg-coral-50 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 px-3 py-1.5 text-xs text-coral-700 dark:text-coral-300 mb-4">
           <Wallet size={14} /> {t('pricing.badge')}
         </div>
-        <h2 className="font-display text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{t('pricing.title')}</h2>
+        <h2 className="font-display text-3xl md:text-4xl font-semibold text-slate-900 dark:text-white tracking-tight">{t('pricing.title')}</h2>
         <p className="mt-3 text-slate-600 dark:text-white/60">{t('pricing.subtitle')}</p>
       </Reveal>
 
@@ -447,7 +447,7 @@ function Pricing() {
           return (
             <div key={plan.id} className={`card p-6 relative flex flex-col transition ${plan.highlight ? 'border-coral-400 shadow-glow' : ''} ${isRec ? 'ring-2 ring-coral-300' : ''}`}>
               {plan.highlight && <div className="absolute -top-3 left-1/2 -translate-x-1/2 badge bg-coral-500 text-white font-bold">Popular</div>}
-              <h3 className="text-slate-900 dark:text-white font-display text-xl font-bold">{plan.name}</h3>
+              <h3 className="text-slate-900 dark:text-white font-display text-xl font-semibold">{plan.name}</h3>
               <div className="mt-3 flex items-baseline gap-1">
                 <span className="text-3xl font-bold text-slate-900 dark:text-white">${price}</span>
                 <span className="text-slate-400 text-sm">{yearly ? t('pricing.peryear') : t('pricing.permonth')}</span>
@@ -484,7 +484,7 @@ function Testimonials() {
         <div className="inline-flex items-center gap-2 rounded-full bg-coral-50 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 px-3 py-1.5 text-xs text-coral-700 dark:text-coral-300 mb-4">
           <Star size={14} /> {t('testimonials.badge')}
         </div>
-        <h2 className="font-display text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{t('testimonials.title')}</h2>
+        <h2 className="font-display text-3xl md:text-4xl font-semibold text-slate-900 dark:text-white tracking-tight">{t('testimonials.title')}</h2>
       </Reveal>
       <div className="grid md:grid-cols-3 gap-5">
         {items.map((it, i) => (
@@ -511,7 +511,7 @@ function CTASection() {
   return (
     <section className="section py-20 bg-sage-50/40 dark:bg-ink-900 border-t border-slate-200 dark:border-white/10">
       <div className="card p-10 text-center max-w-2xl mx-auto">
-        <h2 className="font-display text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">{t('hero.cta.start')}</h2>
+        <h2 className="font-display text-2xl md:text-3xl font-semibold text-slate-900 dark:text-white">{t('hero.cta.start')}</h2>
         <p className="mt-3 text-slate-600 dark:text-white/60 text-sm max-w-md mx-auto">{t('hero.subtitle')}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link to="/signup" className="btn-primary">{t('hero.cta.start')} <ArrowRight size={18} /></Link>
@@ -545,6 +545,7 @@ function Footer() {
           <div className="text-slate-900 dark:text-white/80 font-semibold text-sm mb-3">Company</div>
           <ul className="space-y-2 text-sm text-slate-500 dark:text-white/50">
             <li><Link to="/page/about" className="hover:text-coral-600 transition">{t('footer.about')}</Link></li>
+            <li><Link to="/help" className="hover:text-coral-600 transition">{t('footer.help')}</Link></li>
             <li><Link to="/page/contact" className="hover:text-coral-600 transition">{t('footer.contact')}</Link></li>
             <li><Link to="/page/privacy" className="hover:text-coral-600 transition">{t('footer.privacy')}</Link></li>
             <li><Link to="/page/terms" className="hover:text-coral-600 transition">{t('footer.terms')}</Link></li>

@@ -97,10 +97,10 @@ export function StatCard({ label, value, sub, icon, color = 'emerald' }: {
       <div className="flex items-start justify-between">
         <div>
           <div className="text-xs uppercase tracking-wide text-slate-400 dark:text-white/50 font-medium">{label}</div>
-          <div className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">{value}</div>
+          <div className="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">{value}</div>
           {sub && <div className="text-xs text-slate-400 dark:text-white/40 mt-1">{sub}</div>}
         </div>
-        <div className={`w-11 h-11 rounded-full flex items-center justify-center ${bg}`}>{icon}</div>
+        <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${bg}`}>{icon}</div>
       </div>
     </div>
   );
