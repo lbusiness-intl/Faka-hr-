@@ -21,23 +21,20 @@
 //                          (APPLICATION DETAIL tab)
 //   PAYUNIT_MODE           "live" or "test"
 //   APP_URL                e.g. https://app.faka-hr.com (for the return URL)
+//
+// CURRENCY: plans are priced in USD (src/lib/plans.ts). The amount charged
+// here is converted from that USD price to the tenant's currency using a
+// REAL, live exchange rate (see _shared/currency.ts) — never the raw USD
+// number sent as-is in a different currency, which was a real billing bug
+// found and fixed this session (a tenant would have been charged e.g.
+// "19 XAF" — a fraction of a cent — instead of the XAF equivalent of $19).
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
+import { convertFromUsd, CORS_HEADERS, PLAN_PRICES_USD } from "../_shared/currency.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
-};
+const corsHeaders = CORS_HEADERS;
 
 const PAYUNIT_BASE_URL = "https://gateway.payunit.net";
-
-const PLAN_PRICES: Record<string, { monthly: number; yearly: number }> = {
-  starter: { monthly: 19, yearly: 190 },
-  pro: { monthly: 39, yearly: 390 },
-  premium: { monthly: 69, yearly: 690 },
-  enterprise: { monthly: 299, yearly: 2990 },
-};
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -66,9 +63,9 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     const { tenantId, plan, interval } = body ?? {};
     if (!tenantId || !plan) return json({ ok: false, error: "MISSING_PARAMS" }, 400);
-    if (!PLAN_PRICES[plan]) return json({ ok: false, error: "INVALID_PLAN" }, 400);
+    if (!PLAN_PRICES_USD[plan]) return json({ ok: false, error: "INVALID_PLAN" }, 400);
     const billingInterval = interval === "yearly" ? "yearly" : "monthly";
-    const amount = PLAN_PRICES[plan][billingInterval as "monthly" | "yearly"];
+    const usdAmount = PLAN_PRICES_USD[plan][billingInterval as "monthly" | "yearly"];
 
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -108,6 +105,18 @@ Deno.serve(async (req: Request) => {
     const { data: tenant } = await adminClient.from("tenants").select("id, name, currency, country").eq("id", tenantId).maybeSingle();
     if (!tenant) return json({ ok: false, error: "TENANT_NOT_FOUND" }, 404);
 
+    const targetCurrency = tenant.currency || "XAF";
+    let localAmount: number;
+    try {
+      localAmount = await convertFromUsd(usdAmount, targetCurrency);
+    } catch (err) {
+      return json({
+        ok: false,
+        error: "CURRENCY_CONVERSION_FAILED",
+        detail: err instanceof Error ? err.message : String(err),
+      }, 502);
+    }
+
     // PayUnit's own uniqueness rule for transaction_id: "special characters
     // will cause an issue with orange money payments" — keep it alphanumeric.
     const transactionId = `FAKA${tenantId.replace(/-/g, "").slice(0, 12)}${Date.now()}`;
@@ -121,8 +130,8 @@ Deno.serve(async (req: Request) => {
         "mode": mode,
       },
       body: JSON.stringify({
-        total_amount: amount,
-        currency: tenant.currency || "XAF",
+        total_amount: localAmount,
+        currency: targetCurrency,
         transaction_id: transactionId,
         return_url: `${appUrl}/dashboard/subscription?checkout=return`,
         notify_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/payunit-webhook`,
@@ -144,13 +153,16 @@ Deno.serve(async (req: Request) => {
     // webhook (which cannot be trusted on its own — see payunit-webhook)
     // has a known-good record to confirm against server-to-server, keyed
     // by the SAME transaction_id we generated and sent to PayUnit above.
+    // Both the USD reference price and the actually-charged local amount
+    // are stored, so support/audits can see exactly what rate was applied.
     await adminClient.from("payunit_transactions").insert({
       tenant_id: tenantId,
       transaction_id: transactionId,
       plan,
       interval: billingInterval,
-      amount,
-      currency: tenant.currency || "XAF",
+      amount: localAmount,
+      amount_usd: usdAmount,
+      currency: targetCurrency,
       status: "pending",
       created_by: user.id,
     });

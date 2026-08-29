@@ -31,12 +31,9 @@
 // PAYUNIT_MODE (same as create-payunit-checkout).
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
+import { CORS_HEADERS } from "../_shared/currency.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-};
+const corsHeaders = CORS_HEADERS;
 
 const PAYUNIT_BASE_URL = "https://gateway.payunit.net";
 
@@ -131,6 +128,7 @@ Deno.serve(async (req: Request) => {
     await adminClient.from("invoices").insert({
       tenant_id: txn.tenant_id,
       amount: txn.amount,
+      amount_usd: txn.amount_usd,
       currency: txn.currency,
       plan: txn.plan,
       status: "paid",
