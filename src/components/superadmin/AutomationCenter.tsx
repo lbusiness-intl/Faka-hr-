@@ -271,7 +271,7 @@ export default function AutomationCenter() {
           </div>
 
           <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-white/60">
-            <input type="checkbox" checked={form.is_enabled} onChange={(e) => setForm({ ...form, is_enabled: e.target.checked })} className="rounded" />
+            <input type="checkbox" checked={form.is_enabled} onChange={(e) => setForm({ ...form, is_enabled: e.target.checked })} className="rounded accent-coral-500 w-4 h-4 cursor-pointer" />
             Workflow actif
           </label>
         </div>
