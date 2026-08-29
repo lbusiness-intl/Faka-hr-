@@ -9,7 +9,7 @@ import { getPlan, isModuleUnlocked, type PlanId } from '../../lib/plans';
 import {
   Users, Wallet, CalendarClock, BanknoteIcon, Receipt, Clock, UserPlus, GraduationCap,
   Target, Star, Package, ShieldCheck, CalendarDays, Settings as SettingsIcon,
-  Plus, Check, X, FileText, TrendingUp, Lock,
+  Plus, Check, X, FileText, TrendingUp, Lock, AlertTriangle,
   Send,
 } from 'lucide-react';
 import BranchManager from './BranchManager';
@@ -29,6 +29,8 @@ type Employee = {
   avatar_url: string | null; user_id: string | null;
   allowances: number; recurring_deductions: number;
 };
+
+type TeamMember = { id: string; first_name: string; last_name: string; avatar_url: string | null };
 
 type Invitation = {
   id: string; email: string; role: string; status: string; token: string;
@@ -61,16 +63,23 @@ function Overview() {
   const [stats, setStats] = useState({ employees: 0, leaves: 0, payroll: 0, advances: 0 });
   const [history, setHistory] = useState<{ label: string; value: number }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [missingClockIn, setMissingClockIn] = useState<TeamMember[]>([]);
+  const [onLeaveToday, setOnLeaveToday] = useState<(TeamMember & { end_date: string })[]>([]);
 
   useEffect(() => {
     if (!tenant) return;
     (async () => {
-      const [e, l, p, a, runs] = await Promise.all([
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
+      const [e, l, p, a, runs, activeEmployees, todayAttendance, leavesToday] = await Promise.all([
         supabase.from('employees').select('id, salary, currency').eq('tenant_id', tenant.id).eq('status', 'active'),
         supabase.from('leave_requests').select('id').eq('tenant_id', tenant.id).eq('status', 'pending'),
         supabase.from('payslips').select('net, currency').eq('tenant_id', tenant.id).eq('status', 'paid'),
         supabase.from('advances').select('amount').eq('tenant_id', tenant.id).eq('status', 'pending'),
         supabase.from('payroll_runs').select('period, total_net').eq('tenant_id', tenant.id).order('period', { ascending: true }),
+        supabase.from('employees').select('id, first_name, last_name, avatar_url').eq('tenant_id', tenant.id).eq('status', 'active'),
+        supabase.from('attendance').select('employee_id').eq('tenant_id', tenant.id).gte('created_at', dayStart.toISOString()).not('check_in', 'is', null),
+        supabase.from('leave_requests').select('employee_id, end_date, employees(id, first_name, last_name, avatar_url)').eq('tenant_id', tenant.id).eq('status', 'approved').lte('start_date', todayStr).gte('end_date', todayStr),
       ]);
       const totalPayroll = ((p.data ?? []) as { net: number }[]).reduce((s, x) => s + Number(x.net), 0);
       const totalAdvances = ((a.data ?? []) as { amount: number }[]).reduce((s, x) => s + Number(x.amount), 0);
@@ -80,6 +89,19 @@ function Overview() {
         payroll: totalPayroll,
         advances: totalAdvances,
       });
+
+      // Team status: active employees who haven't clocked in today yet
+      const clockedInIds = new Set(((todayAttendance.data ?? []) as { employee_id: string }[]).map((r) => r.employee_id));
+      const all = (activeEmployees.data ?? []) as TeamMember[];
+      setMissingClockIn(all.filter((emp) => !clockedInIds.has(emp.id)));
+
+      // Today's approved leaves
+      type LeaveWithEmployee = { employee_id: string; end_date: string; employees: TeamMember | TeamMember[] | null };
+      const leaves = ((leavesToday.data ?? []) as LeaveWithEmployee[]).map((r) => {
+        const emp = Array.isArray(r.employees) ? r.employees[0] : r.employees;
+        return emp ? { ...emp, end_date: r.end_date } : null;
+      }).filter((x): x is TeamMember & { end_date: string } => x !== null);
+      setOnLeaveToday(leaves);
 
       // Build the real last-6-months payroll cost history from actual
       // payroll_runs (previously this chart showed fixed, fake numbers).
@@ -103,6 +125,7 @@ function Overview() {
   if (!tenant) return null;
   const fmt = (n: number) => new Intl.NumberFormat(localeTag).format(Math.round(n));
   const maxHistory = Math.max(1, ...history.map((h) => h.value));
+  const initials = (m: TeamMember) => `${m.first_name?.[0] ?? ''}${m.last_name?.[0] ?? ''}`.toUpperCase();
 
   return (
     <div>
@@ -115,6 +138,66 @@ function Overview() {
             <StatCard label={t('dash.leaves')} value={String(stats.leaves)} sub="en attente" icon={<CalendarClock size={18} />} color="indigo" />
             <StatCard label={t('dash.advances')} value={`${fmt(stats.advances)} ${tenant.currency}`} sub="en attente" icon={<BanknoteIcon size={18} />} color="amber" />
           </div>
+
+          <div className="grid lg:grid-cols-2 gap-4 mb-6">
+            {/* Team status — real: active employees with no attendance record today */}
+            <div className="card p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-slate-900 dark:text-white font-semibold text-sm">Team status</h3>
+                <button onClick={() => navigate('/dashboard/admin/attendance')} className="text-xs text-coral-600 hover:text-coral-700 font-medium">Voir tout</button>
+              </div>
+              {missingClockIn.length === 0 ? (
+                <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
+                  <ShieldCheck size={16} /> Tout le monde a pointé aujourd'hui
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-rose-100 dark:bg-rose-500/15 text-rose-600 dark:text-rose-300 flex items-center justify-center shrink-0">
+                      <AlertTriangle size={16} />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-slate-900 dark:text-white">N'a pas encore pointé</div>
+                      <div className="text-xs text-slate-400 dark:text-white/40">{missingClockIn.length} personne{missingClockIn.length > 1 ? 's' : ''}</div>
+                    </div>
+                  </div>
+                  <div className="flex -space-x-2">
+                    {missingClockIn.slice(0, 5).map((m) => (
+                      m.avatar_url
+                        ? <img key={m.id} src={m.avatar_url} alt="" className="w-8 h-8 rounded-full border-2 border-white dark:border-ink-800 object-cover" />
+                        : <div key={m.id} className="w-8 h-8 rounded-full border-2 border-white dark:border-ink-800 bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-white/70 flex items-center justify-center text-[10px] font-semibold">{initials(m)}</div>
+                    ))}
+                    {missingClockIn.length > 5 && (
+                      <div className="w-8 h-8 rounded-full border-2 border-white dark:border-ink-800 bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-white/60 flex items-center justify-center text-[10px] font-semibold">+{missingClockIn.length - 5}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Today at [company] — real: approved leaves covering today */}
+            <div className="card p-5">
+              <h3 className="text-slate-900 dark:text-white font-semibold text-sm mb-4">Aujourd'hui chez {tenant.name}</h3>
+              {onLeaveToday.length === 0 ? (
+                <p className="text-sm text-slate-400 dark:text-white/40">Personne en congé aujourd'hui</p>
+              ) : (
+                <div className="space-y-3">
+                  {onLeaveToday.slice(0, 5).map((m) => (
+                    <div key={m.id} className="flex items-center gap-3">
+                      {m.avatar_url
+                        ? <img src={m.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                        : <div className="w-8 h-8 rounded-full bg-coral-100 dark:bg-coral-500/15 text-coral-600 dark:text-coral-300 flex items-center justify-center text-[10px] font-semibold shrink-0">{initials(m)}</div>}
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm text-slate-900 dark:text-white truncate">{m.first_name} {m.last_name}</div>
+                        <div className="text-xs text-slate-400 dark:text-white/40">En congé jusqu'au {new Date(m.end_date).toLocaleDateString(localeTag, { day: 'numeric', month: 'short' })}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="card p-6">
             <h3 className="text-slate-900 dark:text-white font-semibold mb-4">Coût de paie — 6 derniers mois</h3>
             {history.every((h) => h.value === 0) ? (

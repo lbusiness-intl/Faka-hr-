@@ -201,6 +201,10 @@ type LeaveRequestStat = { id: string; status: string; days?: number };
 type AmountStat = { amount: number; status: string };
 type GoalStat = { id: string; title: string; progress: number; status: string };
 type RecentLeave = { id: string; type: string; start_date: string; end_date: string; status: string; created_at: string };
+type InboxItem = { id: string; label: string; created_at: string; to: string };
+function fmtAmount(n: number, localeTag: string): string {
+  return new Intl.NumberFormat(localeTag).format(Math.round(n));
+}
 
 function Overview() {
   const { t, localeTag } = useI18n();
@@ -209,20 +213,27 @@ function Overview() {
   const { me, loading } = useMe(tenant?.id, user?.email);
   const [stats, setStats] = useState({ leaves: 0, leaveBalance: 18, advances: 0, claims: 0, goals: 0, pending: 0 });
   const [recent, setRecent] = useState<RecentLeave[]>([]);
+  const [inbox, setInbox] = useState<InboxItem[]>([]);
+  const [todayAtt, setTodayAtt] = useState<AttendanceLog | null>(null);
+  const [upcomingEvents, setUpcomingEvents] = useState<CompanyEventView[]>([]);
+  const nowClock = useNow();
 
   useEffect(() => {
     if (!tenant || !me) return;
     (async () => {
-      const [l, a, c, g, allL] = await Promise.all([
+      const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
+      const [l, a, c, g, allL, attRes, evRes] = await Promise.all([
         supabase.from('leave_requests').select('id, status, days').eq('tenant_id', tenant.id).eq('employee_id', me.id),
-        supabase.from('advances').select('amount, status').eq('tenant_id', tenant.id).eq('employee_id', me.id),
-        supabase.from('claims').select('amount, status').eq('tenant_id', tenant.id).eq('employee_id', me.id),
+        supabase.from('advances').select('id, amount, status, created_at').eq('tenant_id', tenant.id).eq('employee_id', me.id),
+        supabase.from('claims').select('id, amount, status, created_at').eq('tenant_id', tenant.id).eq('employee_id', me.id),
         supabase.from('goals').select('id, title, progress, status').eq('tenant_id', tenant.id).eq('employee_id', me.id),
         supabase.from('leave_requests').select('id, type, start_date, end_date, status, created_at').eq('tenant_id', tenant.id).eq('employee_id', me.id).order('created_at', { ascending: false }).limit(5),
+        supabase.from('attendance').select('*').eq('tenant_id', tenant.id).eq('employee_id', me.id).gte('created_at', dayStart.toISOString()).order('created_at', { ascending: false }).limit(1),
+        supabase.from('events').select('*').or(`tenant_id.eq.${tenant.id},scope.eq.panafrican`).order('event_date', { ascending: true }).limit(3),
       ]);
       const leaves = (l.data ?? []) as LeaveRequestStat[];
-      const advances = (a.data ?? []) as AmountStat[];
-      const claims = (c.data ?? []) as AmountStat[];
+      const advances = (a.data ?? []) as (AmountStat & { id: string; created_at: string })[];
+      const claims = (c.data ?? []) as (AmountStat & { id: string; created_at: string })[];
       const goals = (g.data ?? []) as GoalStat[];
       const pendingCount = [...leaves, ...advances, ...claims].filter((x) => x.status === 'pending').length;
       setStats({
@@ -234,8 +245,16 @@ function Overview() {
         pending: pendingCount,
       });
       setRecent((allL.data as RecentLeave[]) ?? []);
+      setTodayAtt((attRes.data?.[0] as AttendanceLog) ?? null);
+      setUpcomingEvents((evRes.data as CompanyEventView[]) ?? []);
+
+      const inboxItems: InboxItem[] = [
+        ...advances.filter((x) => x.status === 'pending').map((x) => ({ id: x.id, label: `${t('emp.advances')} — ${fmtAmount(x.amount, localeTag)} ${tenant.currency}`, created_at: x.created_at, to: 'advances' })),
+        ...claims.filter((x) => x.status === 'pending').map((x) => ({ id: x.id, label: `${t('emp.claims')} — ${fmtAmount(x.amount, localeTag)} ${tenant.currency}`, created_at: x.created_at, to: 'claims' })),
+      ].sort((x, y) => new Date(y.created_at).getTime() - new Date(x.created_at).getTime()).slice(0, 4);
+      setInbox(inboxItems);
     })();
-  }, [tenant, me]);
+  }, [tenant, me, t, localeTag]);
 
   if (!tenant) return null;
   const fmt = (n: number) => new Intl.NumberFormat(localeTag).format(Math.round(n));
@@ -252,6 +271,58 @@ function Overview() {
       <PageHeader title={t('emp.my_space')} icon={<TrendingUp size={20} />} />
       {loading ? <Spinner /> : (
         <>
+          {/* Top row: Clock in / Inbox / Events — real data, no fabricated widgets */}
+          <div className="grid lg:grid-cols-3 gap-4 mb-6">
+            <div className="card p-5 flex flex-col items-center text-center">
+              <div className="text-xs font-semibold text-slate-500 dark:text-white/50 self-start mb-2">{t('dash.attendance')}</div>
+              <div className="font-display text-3xl font-bold text-slate-900 dark:text-white tabular-nums">
+                {nowClock.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </div>
+              <div className="text-xs text-slate-400 mt-1">
+                {todayAtt?.check_in ? (todayAtt.check_out ? 'Journée terminée' : 'En poste') : 'Pas encore pointé'}
+              </div>
+              <button onClick={() => navigate('/dashboard/employee/attendance')} className="btn-primary text-sm mt-4 w-full justify-center">
+                <Play size={16} /> {t('emp.checkin')}
+              </button>
+            </div>
+
+            <div className="card p-5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-xs font-semibold text-slate-500 dark:text-white/50">Inbox</div>
+                <Badge color={stats.pending > 0 ? 'amber' : 'slate'}>{stats.pending}</Badge>
+              </div>
+              {inbox.length === 0 ? (
+                <p className="text-sm text-slate-400 dark:text-white/40 py-4 text-center">Rien en attente</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {inbox.map((it) => (
+                    <button key={it.id} onClick={() => navigate(`/dashboard/employee/${it.to}`)} className="w-full text-left text-sm text-slate-700 dark:text-white/70 hover:text-coral-600 transition truncate block">
+                      {it.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="card p-5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-xs font-semibold text-slate-500 dark:text-white/50">Events</div>
+              </div>
+              {upcomingEvents.length === 0 ? (
+                <p className="text-sm text-slate-400 dark:text-white/40 py-4 text-center">Aucun événement à venir</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {upcomingEvents.map((e) => (
+                    <button key={e.id} onClick={() => navigate('/dashboard/employee/events')} className="w-full text-left flex items-center justify-between gap-2 hover:text-coral-600 transition">
+                      <span className="text-sm text-slate-700 dark:text-white/70 truncate">{e.title}</span>
+                      <span className="text-xs text-slate-400 shrink-0">{e.event_date ? new Date(e.event_date).toLocaleDateString(localeTag, { day: 'numeric', month: 'short' }) : '—'}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Personal hero card */}
           <div className="card p-6 mb-6 bg-gradient-to-br from-coral-50 to-sage-50 dark:from-ink-800 dark:to-ink-700 border-coral-200 dark:border-white/10">
             <div className="flex items-center gap-4">
