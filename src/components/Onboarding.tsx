@@ -173,12 +173,12 @@ export default function Onboarding() {
       <header className="relative z-10 w-full max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
         <Logo />
         <div className="flex items-center gap-3">
-          <button onClick={toggleTheme} className="w-9 h-9 rounded-lg border border-slate-200 dark:border-white/15 flex items-center justify-center text-slate-600 dark:text-amber-300 hover:bg-white dark:hover:bg-white/5 transition">
+          <button onClick={toggleTheme} className="w-9 h-9 rounded-full border border-slate-200 dark:border-white/15 flex items-center justify-center text-slate-600 dark:text-amber-300 hover:bg-white dark:hover:bg-white/5 transition">
             {dark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
-          <div className="inline-flex rounded-lg border border-slate-200 dark:border-white/15 bg-white dark:bg-white/5 p-0.5 text-xs">
-            <button onClick={() => setLang('fr')} className={`px-2.5 py-1 rounded-md font-medium transition ${lang === 'fr' ? 'bg-coral-500 text-white' : 'text-slate-500 dark:text-white/70'}`}>FR</button>
-            <button onClick={() => setLang('en')} className={`px-2.5 py-1 rounded-md font-medium transition ${lang === 'en' ? 'bg-coral-500 text-white' : 'text-slate-500 dark:text-white/70'}`}>EN</button>
+          <div className="inline-flex rounded-full border border-slate-200 dark:border-white/15 bg-white dark:bg-white/5 p-0.5 text-xs">
+            <button onClick={() => setLang('fr')} className={`px-2.5 py-1 rounded-full font-medium transition ${lang === 'fr' ? 'bg-coral-500 text-white' : 'text-slate-500 dark:text-white/70'}`}>FR</button>
+            <button onClick={() => setLang('en')} className={`px-2.5 py-1 rounded-full font-medium transition ${lang === 'en' ? 'bg-coral-500 text-white' : 'text-slate-500 dark:text-white/70'}`}>EN</button>
           </div>
         </div>
       </header>

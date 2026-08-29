@@ -80,7 +80,7 @@ export function NotificationBell() {
     <div className="relative">
       <button
         onClick={() => { setOpen(!open); if (!open) load(); }}
-        className="relative w-9 h-9 rounded-lg border border-slate-200 dark:border-white/15 flex items-center justify-center text-slate-600 dark:text-white/70 hover:bg-slate-50 dark:hover:bg-white/5 transition"
+        className="relative w-9 h-9 rounded-full border border-slate-200 dark:border-white/15 flex items-center justify-center text-slate-600 dark:text-white/70 hover:bg-slate-50 dark:hover:bg-white/5 transition"
         title="Notifications"
       >
         <Bell size={16} />
@@ -108,7 +108,7 @@ export function NotificationBell() {
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition ${
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition ${
                     filter === f
                       ? 'bg-coral-100 text-coral-700 dark:bg-coral-500/15 dark:text-coral-300'
                       : 'text-slate-500 dark:text-white/50 hover:bg-slate-50 dark:hover:bg-white/5'
@@ -153,7 +153,7 @@ export function NotificationBell() {
                       </div>
                       <button
                         onClick={(e) => { e.stopPropagation(); archive(n.id); }}
-                        className="p-1 rounded text-slate-300 hover:text-slate-600 dark:hover:text-white/60 transition shrink-0"
+                        className="p-1.5 rounded-full text-slate-300 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-white/10 dark:hover:text-white/60 transition shrink-0"
                         title="Archiver"
                       >
                         <Archive size={13} />
