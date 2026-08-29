@@ -1,10 +1,10 @@
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import {
   LayoutDashboard, Users, Wallet, CalendarClock, Banknote, Receipt, Clock,
   UserPlus, GraduationCap, Target, Star, Package, ShieldCheck,
   MessageSquare, CalendarDays, CreditCard, Settings as SettingsIcon, LogOut, Lock, Menu, X,
   Building2, ChevronDown, Moon, Sun, FileText, Home, AlertTriangle,
-  GitBranch, Layers, Shield,
+  GitBranch, Layers, Shield, Search,
 } from 'lucide-react';
 import { useI18n } from '../lib/i18n';
 import { useAuth } from '../lib/auth';
@@ -35,6 +35,23 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
   const [open, setOpen] = useState(false);
   const [lockedModule, setLockedModule] = useState<ModuleKey | null>(null);
   const [tenantMenu, setTenantMenu] = useState(false);
+  const [navQuery, setNavQuery] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+      if (e.key === 'Escape' && document.activeElement === searchRef.current) {
+        searchRef.current?.blur();
+        setNavQuery('');
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   const planId = (activeTenant?.plan ?? 'starter') as PlanId;
 
@@ -92,6 +109,9 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
   ];
 
   const nav = role === 'employee' ? employeeNav : adminNav;
+  const filteredNav = navQuery.trim()
+    ? nav.filter((item) => item.label.toLowerCase().includes(navQuery.trim().toLowerCase()))
+    : nav;
   const plan = getPlan(planId);
   const currentRoute = useRoute();
   const currentModule = currentRoute.split(role === 'employee' ? '/dashboard/employee/' : '/dashboard/admin/')[1]?.split('?')[0] ?? '';
@@ -163,8 +183,26 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
           </div>
         )}
 
+        <div className="px-3 pt-3">
+          <div className="relative">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-white/30 pointer-events-none" />
+            <input
+              ref={searchRef}
+              type="text"
+              value={navQuery}
+              onChange={(e) => setNavQuery(e.target.value)}
+              placeholder={t('nav.search')}
+              className="w-full rounded-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 pl-9 pr-12 py-2 text-sm text-slate-700 dark:text-white/80 placeholder:text-slate-400 dark:placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-coral-500/20 focus:border-coral-400"
+            />
+            <kbd className="hidden sm:flex items-center absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-medium text-slate-400 dark:text-white/30 border border-slate-200 dark:border-white/15 rounded px-1.5 py-0.5">⌘K</kbd>
+          </div>
+        </div>
+
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-          {nav.map((item) => {
+          {filteredNav.length === 0 && (
+            <p className="px-3 py-6 text-center text-sm text-slate-400 dark:text-white/30">Aucun résultat</p>
+          )}
+          {filteredNav.map((item) => {
             const unlocked = role === 'employee' || isSuperAdmin || isModuleUnlocked(planId, item.key);
             const isSettingsItem = item.key === 'settings' && role !== 'employee';
             const isActive = currentModule === item.key || (isSettingsItem && currentModule.startsWith('settings'));
