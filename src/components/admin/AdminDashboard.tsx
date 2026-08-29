@@ -351,7 +351,7 @@ function Employees() {
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-slate-500 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+            <thead className="text-slate-400 dark:text-white/40 text-[11px] font-semibold uppercase tracking-wide border-b border-slate-100 dark:border-white/10">
               <tr>
                 <th className="text-left p-4 font-medium">Employé</th>
                 <th className="text-left p-4 font-medium">Poste</th>
@@ -366,7 +366,7 @@ function Employees() {
               {items.map((e) => {
                 const inv = inviteStatusForEmail(e.email);
                 return (
-                  <tr key={e.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5">
+                  <tr key={e.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50/80 dark:hover:bg-white/5 transition-colors">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-coral-100 dark:bg-coral-500/15 flex items-center justify-center text-coral-600 dark:text-coral-400 font-bold text-sm shrink-0">
@@ -794,7 +794,7 @@ function RequestList({ table, title, icon, amountKey }: {
           </div>
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-slate-500 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+            <thead className="text-slate-400 dark:text-white/40 text-[11px] font-semibold uppercase tracking-wide border-b border-slate-100 dark:border-white/10">
               <tr>
                 <th className="text-left p-4 font-medium">Employé</th>
                 {table === 'leave_requests' && <>
@@ -810,7 +810,7 @@ function RequestList({ table, title, icon, amountKey }: {
             </thead>
             <tbody>
               {items.filter((it) => statusFilter === 'all' || it.status === statusFilter).map((it) => (
-                <tr key={it.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5">
+                <tr key={it.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50/80 dark:hover:bg-white/5 transition-colors">
                   <td className="p-4 text-slate-900 dark:text-white">{empName(it.employee_id)}</td>
                   {table === 'leave_requests' && <>
                     <td className="p-4 text-slate-700 dark:text-white/70 capitalize">{it.type}</td>
@@ -1174,7 +1174,7 @@ function Payroll() {
           </div>
         </div>
         <table className="w-full text-sm">
-          <thead className="text-slate-500 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+          <thead className="text-slate-400 dark:text-white/40 text-[11px] font-semibold uppercase tracking-wide border-b border-slate-100 dark:border-white/10">
             <tr>
               <th className="text-left p-3 w-10"></th>
               <th className="text-left p-3 font-medium">Employé</th>
@@ -1334,7 +1334,7 @@ function Attendance() {
           ) : (
             <div className="card overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="text-slate-500 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+                <thead className="text-slate-400 dark:text-white/40 text-[11px] font-semibold uppercase tracking-wide border-b border-slate-100 dark:border-white/10">
                   <tr><th className="text-left p-4">Employé</th><th className="text-left p-4">Entrée</th><th className="text-left p-4">Sortie</th><th className="text-left p-4">Statut</th></tr>
                 </thead>
                 <tbody>
@@ -1530,7 +1530,7 @@ function Recruitment() {
                         <select
                           value={c.stage}
                           onChange={(e) => moveCandidate(c.id, e.target.value)}
-                          className="mt-2 w-full text-xs bg-white dark:bg-ink-700 border border-slate-200 dark:border-white/10 rounded px-1.5 py-1 text-slate-700 dark:text-white/70"
+                          className="mt-2 w-full text-xs bg-white dark:bg-ink-700 border border-slate-200 dark:border-white/10 rounded-lg px-2 py-1 text-slate-700 dark:text-white/70 focus:outline-none focus:ring-2 focus:ring-coral-500/20 focus:border-coral-400"
                         >
                           {stages.map((s) => <option key={s} value={s} className="bg-white dark:bg-ink-700">{STAGE_META[s]?.label ?? s}</option>)}
                         </select>
@@ -2122,7 +2122,7 @@ function Documents() {
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-slate-400 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+            <thead className="text-slate-400 dark:text-white/40 text-[11px] font-semibold uppercase tracking-wide border-b border-slate-100 dark:border-white/10">
               <tr>
                 <th className="text-left p-4">Nom</th>
                 <th className="text-left p-4">Employé</th>
@@ -2273,7 +2273,7 @@ function Overtime() {
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-slate-400 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+            <thead className="text-slate-400 dark:text-white/40 text-[11px] font-semibold uppercase tracking-wide border-b border-slate-100 dark:border-white/10">
               <tr>
                 <th className="text-left p-4">Employé</th>
                 <th className="text-left p-4">Date</th>
