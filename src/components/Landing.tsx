@@ -460,7 +460,7 @@ function Pricing() {
                   </li>
                 ))}
               </ul>
-              <button onClick={() => startCheckout(plan.id)} className={`mt-6 w-full rounded-xl px-4 py-2.5 font-semibold text-sm transition ${plan.highlight ? 'btn-primary' : 'btn-ghost'}`}>
+              <button onClick={() => startCheckout(plan.id)} className={`mt-6 w-full px-4 py-2.5 font-semibold text-sm transition ${plan.highlight ? 'btn-primary' : 'btn-ghost'}`}>
                 {t('pricing.cta')}
               </button>
             </div>
