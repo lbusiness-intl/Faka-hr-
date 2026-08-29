@@ -343,7 +343,7 @@ function SalesAgents({ tenants }: { tenants: TenantRow[] }) {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-coral-100 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 flex items-center justify-center text-coral-600 dark:text-coral-300"><Trophy size={20} /></div>
+          <div className="w-11 h-11 rounded-2xl bg-coral-50 dark:bg-coral-500/10 border border-coral-100 dark:border-coral-500/30 flex items-center justify-center text-coral-600 dark:text-coral-300"><Trophy size={20} /></div>
           <h1 className="font-display text-xl font-semibold text-slate-900 dark:text-white">Commerciaux & Leaderboard</h1>
         </div>
         <button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> Ajouter</button>
@@ -442,7 +442,7 @@ function Invitations() {
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-xl bg-coral-100 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 flex items-center justify-center text-coral-600 dark:text-coral-300"><Mail size={20} /></div>
+        <div className="w-11 h-11 rounded-2xl bg-coral-50 dark:bg-coral-500/10 border border-coral-100 dark:border-coral-500/30 flex items-center justify-center text-coral-600 dark:text-coral-300"><Mail size={20} /></div>
         <h1 className="font-display text-xl font-semibold text-slate-900 dark:text-white">Historique des invitations</h1>
       </div>
       {loading ? <Spinner /> : items.length === 0 ? (
@@ -535,7 +535,7 @@ function PlanEditor() {
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-xl bg-coral-100 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 flex items-center justify-center text-coral-600 dark:text-coral-300"><DollarSign size={20} /></div>
+        <div className="w-11 h-11 rounded-2xl bg-coral-50 dark:bg-coral-500/10 border border-coral-100 dark:border-coral-500/30 flex items-center justify-center text-coral-600 dark:text-coral-300"><DollarSign size={20} /></div>
         <h1 className="font-display text-xl font-semibold text-slate-900 dark:text-white">Contrôle des plans</h1>
       </div>
       {error && (
@@ -628,7 +628,7 @@ function Promotions() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-coral-100 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 flex items-center justify-center text-coral-600 dark:text-coral-300"><Percent size={20} /></div>
+          <div className="w-11 h-11 rounded-2xl bg-coral-50 dark:bg-coral-500/10 border border-coral-100 dark:border-coral-500/30 flex items-center justify-center text-coral-600 dark:text-coral-300"><Percent size={20} /></div>
           <h1 className="font-display text-xl font-semibold text-slate-900 dark:text-white">Promotions & codes promo</h1>
         </div>
         <button onClick={() => setModal(true)} className="btn-primary text-sm"><Plus size={16} /> Créer</button>
