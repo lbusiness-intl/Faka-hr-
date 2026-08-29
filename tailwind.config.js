@@ -20,19 +20,19 @@ export default {
           900: '#1C1C23',
           950: '#121217',
         },
-        // Primary brand accent — refined indigo/violet, used sparingly
+        // Primary brand accent — warm coral-red, used sparingly
         // against a mostly neutral canvas (Factorial-style restraint)
         coral: {
-          50: '#F2F0FE',
-          100: '#E5E1FC',
-          200: '#CBC1FA',
-          300: '#AC9AF5',
-          400: '#8D74EE',
-          500: '#6D4FE0',
-          600: '#5738C4',
-          700: '#432B9B',
-          800: '#332174',
-          900: '#241852',
+          50: '#FDF1F1',
+          100: '#FBE1E2',
+          200: '#F7C4C8',
+          300: '#F19AA1',
+          400: '#EA6874',
+          500: '#E23A50', // primary CTA red
+          600: '#C82644',
+          700: '#A61C3B',
+          800: '#821736',
+          900: '#5E1230',
         },
         // Ink (dark theme surfaces)
         ink: {
