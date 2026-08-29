@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import {
   Users, Wallet, BarChart3, MessageSquare, ShieldCheck, Globe2,
   Check, Star, Menu, X, ArrowRight, Sparkles, Moon, Sun,
@@ -219,6 +219,11 @@ function DashboardMockup() {
 
 function Hero() {
   const { t } = useI18n();
+  const [heroEmail, setHeroEmail] = useState('');
+  function startFromHero(e: FormEvent) {
+    e.preventDefault();
+    navigate(`/signup${heroEmail ? `?email=${encodeURIComponent(heroEmail)}` : ''}`);
+  }
   return (
     <section className="relative overflow-hidden bg-sage-50 dark:bg-ink-900">
       <div className="absolute inset-0 opacity-60 dark:opacity-30" style={{
@@ -235,12 +240,21 @@ function Hero() {
           <p className="mt-6 text-lg text-slate-600 dark:text-white/70 leading-relaxed max-w-xl">
             {t('hero.subtitle')}
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link to="/signup" className="btn-primary">
+          <form onSubmit={startFromHero} className="mt-8 flex flex-col sm:flex-row gap-2.5 max-w-md">
+            <input
+              type="email"
+              value={heroEmail}
+              onChange={(e) => setHeroEmail(e.target.value)}
+              placeholder={t('auth.email')}
+              className="input flex-1"
+            />
+            <button type="submit" className="btn-primary whitespace-nowrap">
               {t('hero.cta.start')} <ArrowRight size={18} />
-            </Link>
-            <Link to="/signin" className="btn-ghost">
-              {t('hero.cta.demo')}
+            </button>
+          </form>
+          <div className="mt-3">
+            <Link to="/signin" className="text-sm text-slate-500 hover:text-coral-600 dark:text-white/50 dark:hover:text-coral-300 transition">
+              {t('hero.cta.demo')} →
             </Link>
           </div>
           <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-500 dark:text-white/50">

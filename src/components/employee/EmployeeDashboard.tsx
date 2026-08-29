@@ -449,28 +449,22 @@ function Attendance() {
             }
 
             return (
-              <div className="card p-6 mb-6">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`w-2 h-2 rounded-full ${statusMeta.dot}`} />
-                      <span className={`text-sm font-semibold ${statusMeta.color}`}>{statusMeta.label}</span>
-                    </div>
-                    <div className="font-display text-4xl font-bold text-slate-900 dark:text-white tabular-nums">
-                      {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                    </div>
-                    <div className="text-sm text-slate-500 dark:text-white/50 mt-1">
-                      {now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
-                    </div>
-                  </div>
-                  <div className="sm:text-right">
-                    <div className="text-xs uppercase tracking-wide text-slate-400 dark:text-white/40">Temps travaillé aujourd'hui</div>
-                    <div className="font-display text-3xl font-bold text-coral-600 dark:text-coral-400 tabular-nums">{formatDuration(workedMs)}</div>
-                  </div>
+              <div className="card p-8 mb-6 flex flex-col items-center text-center">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className={`w-2 h-2 rounded-full ${statusMeta.dot}`} />
+                  <span className={`text-sm font-semibold ${statusMeta.color}`}>{statusMeta.label}</span>
                 </div>
+                <div className="font-display text-5xl font-bold text-slate-900 dark:text-white tabular-nums">
+                  {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+                <div className="text-sm text-slate-500 dark:text-white/50 mt-1.5">
+                  {now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
+                </div>
+                <div className="mt-4 text-xs uppercase tracking-wide text-slate-400 dark:text-white/40">Temps travaillé aujourd'hui</div>
+                <div className="font-display text-2xl font-bold text-coral-600 dark:text-coral-400 tabular-nums">{formatDuration(workedMs)}</div>
 
-                <div className="flex flex-wrap gap-3 mt-6">
-                  <button onClick={() => action('in')} disabled={!!today?.check_in} className="btn-primary text-sm disabled:opacity-40"><Play size={16} /> {t('emp.checkin')}</button>
+                <div className="mt-6 flex flex-wrap justify-center gap-3">
+                  <button onClick={() => action('in')} disabled={!!today?.check_in} className="btn-primary disabled:opacity-40"><Play size={16} /> {t('emp.checkin')}</button>
                   <button onClick={() => action('break')} disabled={!today?.check_in || !!today?.break_start} className="btn-ghost text-sm disabled:opacity-40"><Pause size={16} /> {t('emp.break')}</button>
                   <button onClick={() => action('resume')} disabled={!today?.break_start || !!today?.break_end} className="btn-ghost text-sm disabled:opacity-40"><Play size={16} /> Reprendre</button>
                   <button onClick={() => action('out')} disabled={!today?.check_in || !!today?.check_out} className="btn-ghost text-sm disabled:opacity-40"><Square size={16} /> {t('emp.checkout')}</button>

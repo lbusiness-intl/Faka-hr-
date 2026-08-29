@@ -31,10 +31,11 @@ export function AuthScreen() {
   const isSignup = route.startsWith('/signup');
   const query = parseQuery(route);
   const prefilledPlan = query.plan;
+  const prefilledEmail = query.email ?? '';
 
   const { t } = useI18n();
   const { signIn, signUp } = useAuth();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(prefilledEmail);
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [error, setError] = useState<string | null>(null);
