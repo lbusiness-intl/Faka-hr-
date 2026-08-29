@@ -140,7 +140,7 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
           <div className="px-3 pt-3 relative">
             <button
               onClick={() => setTenantMenu(!tenantMenu)}
-              className="w-full flex items-center justify-between rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-3 py-2 text-sm text-slate-700 dark:text-white/80 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+              className="w-full flex items-center justify-between rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-3 py-2.5 text-sm text-slate-700 dark:text-white/80 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
             >
               <span className="flex items-center gap-2 truncate">
                 <Building2 size={14} /> {activeTenant?.name ?? 'Tenant'}
@@ -148,7 +148,7 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
               <ChevronDown size={14} />
             </button>
             {tenantMenu && (
-              <div className="absolute left-3 right-3 mt-1 rounded-lg bg-white dark:bg-ink-700 border border-slate-200 dark:border-white/10 shadow-popover z-10 py-1">
+              <div className="absolute left-3 right-3 mt-1 rounded-xl bg-white dark:bg-ink-700 border border-slate-200 dark:border-white/10 shadow-popover z-10 py-1">
                 {memberships.map((m) => (
                   <button
                     key={m.tenant_id}
@@ -172,7 +172,7 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
               <div key={item.key}>
                 <button
                   onClick={() => handleNav(item.key)}
-                  className={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors duration-150 ${
+                  className={`w-full flex items-center justify-between rounded-xl px-3 py-2.5 text-sm transition-colors duration-150 ${
                     isActive
                       ? 'bg-coral-50 dark:bg-coral-500/10 text-coral-600 dark:text-coral-300 font-medium'
                       : unlocked
@@ -209,7 +209,7 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
         </nav>
 
         <div className="border-t border-slate-100 dark:border-white/10 p-3">
-          <div className="rounded-lg bg-slate-50 dark:bg-white/5 p-3 mb-2">
+          <div className="rounded-xl bg-slate-50 dark:bg-white/5 p-3 mb-2">
             <div className="text-xs text-slate-400 dark:text-white/40">Plan</div>
             <div className="flex items-center justify-between mt-0.5">
               <span className="text-slate-900 dark:text-white font-semibold text-sm">{plan.name}</span>
@@ -218,7 +218,7 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
               </Badge>
             </div>
           </div>
-          <button onClick={handleSignOut} className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-500 dark:text-white/50 hover:text-slate-900 hover:bg-slate-50 dark:hover:bg-white/5 dark:hover:text-white transition-colors duration-150">
+          <button onClick={handleSignOut} className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-500 dark:text-white/50 hover:text-slate-900 hover:bg-slate-50 dark:hover:bg-white/5 dark:hover:text-white transition-colors duration-150">
             <LogOut size={16} /> {t('dash.logout')}
           </button>
         </div>
@@ -239,7 +239,7 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
             {isSuperAdmin && role !== 'super' && (
               <Link
                 to="/super-admin"
-                className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 dark:border-indigo-500/30 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 px-3 py-1.5 text-xs font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors"
+                className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-indigo-200 dark:border-indigo-500/30 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 px-3 py-1.5 text-xs font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors"
               >
                 <Shield size={14} /> Console Super Admin
               </Link>
@@ -247,14 +247,14 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
             <NotificationBell />
             <button
               onClick={() => setDark(!dark)}
-              className="w-9 h-9 rounded-lg border border-slate-200 dark:border-white/15 flex items-center justify-center text-slate-500 dark:text-amber-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+              className="w-9 h-9 rounded-full border border-slate-200 dark:border-white/15 flex items-center justify-center text-slate-500 dark:text-amber-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
               title={dark ? 'Mode clair' : 'Mode sombre'}
             >
               {dark ? <Sun size={16} /> : <Moon size={16} />}
             </button>
-            <div className="inline-flex rounded-lg border border-slate-200 dark:border-white/15 bg-white dark:bg-white/5 p-0.5 text-xs">
-              <button onClick={() => setLang('fr')} className={`px-2 py-1 rounded-md transition-colors ${lang === 'fr' ? 'bg-coral-500 text-white' : 'text-slate-500 dark:text-white/60'}`}>FR</button>
-              <button onClick={() => setLang('en')} className={`px-2 py-1 rounded-md transition-colors ${lang === 'en' ? 'bg-coral-500 text-white' : 'text-slate-500 dark:text-white/60'}`}>EN</button>
+            <div className="inline-flex rounded-full border border-slate-200 dark:border-white/15 bg-white dark:bg-white/5 p-0.5 text-xs">
+              <button onClick={() => setLang('fr')} className={`px-2.5 py-1 rounded-full transition-colors ${lang === 'fr' ? 'bg-coral-500 text-white' : 'text-slate-500 dark:text-white/60'}`}>FR</button>
+              <button onClick={() => setLang('en')} className={`px-2.5 py-1 rounded-full transition-colors ${lang === 'en' ? 'bg-coral-500 text-white' : 'text-slate-500 dark:text-white/60'}`}>EN</button>
             </div>
             <div className="text-sm text-slate-600 dark:text-white/70 hidden sm:block">{user?.email}</div>
             <div className="w-8 h-8 rounded-full bg-coral-500 flex items-center justify-center text-white font-semibold text-sm">
