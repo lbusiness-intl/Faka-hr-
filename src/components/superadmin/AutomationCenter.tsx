@@ -192,7 +192,7 @@ export default function AutomationCenter() {
             ) : (
               <div className="card overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="text-slate-400 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+                  <thead className="text-slate-400 dark:text-white/40 text-[11px] font-semibold uppercase tracking-wide border-b border-slate-100 dark:border-white/10">
                     <tr>
                       <th className="text-left p-4">Workflow</th>
                       <th className="text-left p-4">Déclencheur</th>

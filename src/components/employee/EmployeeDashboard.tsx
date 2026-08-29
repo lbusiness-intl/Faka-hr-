@@ -507,7 +507,7 @@ function Attendance() {
               <EmptyState icon={<Clock size={40} />} title="Aucun pointage" />
             ) : (
               <table className="w-full text-sm mt-3">
-                <thead className="text-slate-400 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+                <thead className="text-slate-400 dark:text-white/40 text-[11px] font-semibold uppercase tracking-wide border-b border-slate-100 dark:border-white/10">
                   <tr>
                     <th className="text-left p-4">Date</th>
                     <th className="text-left p-4">Entrée</th>
@@ -676,7 +676,7 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-slate-400 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+            <thead className="text-slate-400 dark:text-white/40 text-[11px] font-semibold uppercase tracking-wide border-b border-slate-100 dark:border-white/10">
               <tr>
                 {table === 'leave_requests' && <><th className="text-left p-4">Type</th><th className="text-left p-4">Période</th><th className="text-left p-4">Jours</th></>}
                 {amountKey && <><th className="text-left p-4">Catégorie</th><th className="text-left p-4">Montant</th></>}
@@ -1117,7 +1117,7 @@ function MyOvertime() {
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-slate-400 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+            <thead className="text-slate-400 dark:text-white/40 text-[11px] font-semibold uppercase tracking-wide border-b border-slate-100 dark:border-white/10">
               <tr><th className="text-left p-4">Date</th><th className="text-left p-4">Heures</th><th className="text-left p-4">Montant</th><th className="text-left p-4">Statut</th></tr>
             </thead>
             <tbody>

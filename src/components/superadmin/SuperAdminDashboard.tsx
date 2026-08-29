@@ -158,7 +158,7 @@ export default function SuperAdminDashboard() {
               <div className="card overflow-x-auto">
                 {tenants.length === 0 ? <EmptyState icon={<Building2 size={48} />} title="Aucun tenant" /> : (
                   <table className="w-full text-sm">
-                    <thead className="text-slate-400 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+                    <thead className="text-slate-400 dark:text-white/40 text-[11px] font-semibold uppercase tracking-wide border-b border-slate-100 dark:border-white/10">
                       <tr>
                         <th className="text-left p-4">Entreprise</th>
                         <th className="text-left p-4">Pays</th>
@@ -171,7 +171,7 @@ export default function SuperAdminDashboard() {
                     </thead>
                     <tbody>
                       {tenants.map((x) => (
-                        <tr key={x.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5">
+                        <tr key={x.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50/80 dark:hover:bg-white/5 transition-colors">
                           <td className="p-4 text-slate-900 dark:text-white font-medium">{x.name}</td>
                           <td className="p-4 text-slate-700 dark:text-white/70">{x.country} · {x.currency}</td>
                           <td className="p-4"><span className="capitalize text-slate-700 dark:text-white/70">{x.plan}</span></td>
@@ -193,7 +193,7 @@ export default function SuperAdminDashboard() {
               <div className="card overflow-x-auto">
                 {salesRows.length === 0 ? <EmptyState icon={<Ticket size={48} />} title="Aucun code" /> : (
                   <table className="w-full text-sm">
-                    <thead className="text-slate-400 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+                    <thead className="text-slate-400 dark:text-white/40 text-[11px] font-semibold uppercase tracking-wide border-b border-slate-100 dark:border-white/10">
                       <tr><th className="text-left p-4">Code</th><th className="text-left p-4">Conversions</th></tr>
                     </thead>
                     <tbody>
@@ -363,7 +363,7 @@ function SalesAgents({ tenants }: { tenants: TenantRow[] }) {
           {/* Leaderboard */}
           <div className="card overflow-x-auto mb-6">
             <table className="w-full text-sm">
-              <thead className="text-slate-400 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+              <thead className="text-slate-400 dark:text-white/40 text-[11px] font-semibold uppercase tracking-wide border-b border-slate-100 dark:border-white/10">
                 <tr>
                   <th className="text-left p-4">#</th>
                   <th className="text-left p-4">Commercial</th>
@@ -450,7 +450,7 @@ function Invitations() {
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-slate-400 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+            <thead className="text-slate-400 dark:text-white/40 text-[11px] font-semibold uppercase tracking-wide border-b border-slate-100 dark:border-white/10">
               <tr>
                 <th className="text-left p-4">Email</th>
                 <th className="text-left p-4">Rôle</th>
@@ -644,7 +644,7 @@ function Promotions() {
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-slate-400 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+            <thead className="text-slate-400 dark:text-white/40 text-[11px] font-semibold uppercase tracking-wide border-b border-slate-100 dark:border-white/10">
               <tr>
                 <th className="text-left p-4">Code</th>
                 <th className="text-left p-4">Description</th>

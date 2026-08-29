@@ -417,7 +417,7 @@ export default function RoleManager() {
         {/* Members table */}
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-slate-500 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+            <thead className="text-slate-400 dark:text-white/40 text-[11px] font-semibold uppercase tracking-wide border-b border-slate-100 dark:border-white/10">
               <tr>
                 <th className="text-left p-4 font-medium">Employé</th>
                 <th className="text-left p-4 font-medium">Email</th>
@@ -434,7 +434,7 @@ export default function RoleManager() {
               ) : filteredMembers.length === 0 ? (
                 <tr><td colSpan={6} className="p-8 text-center text-slate-400">Aucun membre trouvé</td></tr>
               ) : filteredMembers.map((m) => (
-                <tr key={m.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5">
+                <tr key={m.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50/80 dark:hover:bg-white/5 transition-colors">
                   <td className="p-4 text-slate-900 dark:text-white font-medium">
                     {m.employee?.first_name ?? m.email} {m.employee?.last_name ?? ''}
                   </td>

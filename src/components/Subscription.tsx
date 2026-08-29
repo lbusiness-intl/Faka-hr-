@@ -202,7 +202,7 @@ export default function Subscription() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="text-slate-400 dark:text-white/50 text-xs uppercase">
+                <thead className="text-slate-400 dark:text-white/40 text-[11px] font-semibold uppercase tracking-wide">
                   <tr>
                     <th className="text-left py-2 font-medium">Date</th>
                     <th className="text-left py-2 font-medium">Plan</th>

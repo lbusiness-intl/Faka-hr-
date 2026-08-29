@@ -127,7 +127,7 @@ export default function LeaveBalanceManager() {
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-slate-400 dark:text-white/50 text-xs uppercase border-b border-slate-200 dark:border-white/10">
+            <thead className="text-slate-400 dark:text-white/40 text-[11px] font-semibold uppercase tracking-wide border-b border-slate-100 dark:border-white/10">
               <tr>
                 <th className="text-left p-4">Employé</th>
                 <th className="text-left p-4">Année</th>
@@ -144,7 +144,7 @@ export default function LeaveBalanceManager() {
                 const total = Number(item.entitled) + Number(item.carried_over);
                 const remaining = total - Number(item.used);
                 return (
-                  <tr key={item.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5">
+                  <tr key={item.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50/80 dark:hover:bg-white/5 transition-colors">
                     <td className="p-4 text-slate-900 dark:text-white font-medium">{getEmpName(item.employee_id)}</td>
                     <td className="p-4 text-slate-700 dark:text-white/70">{item.year}</td>
                     <td className="p-4 text-slate-700 dark:text-white/70 capitalize">{item.type}</td>
