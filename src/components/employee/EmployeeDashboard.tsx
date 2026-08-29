@@ -244,11 +244,13 @@ function Overview() {
         goals: goals.length,
         pending: pendingCount,
       });
-      setRecent((allL.data as RecentLeave[]) ?? []);
+      const recentLeaves = (allL.data as RecentLeave[]) ?? [];
+      setRecent(recentLeaves);
       setTodayAtt((attRes.data?.[0] as AttendanceLog) ?? null);
       setUpcomingEvents((evRes.data as CompanyEventView[]) ?? []);
 
       const inboxItems: InboxItem[] = [
+        ...recentLeaves.filter((x) => x.status === 'pending').map((x) => ({ id: x.id, label: `${t('emp.leaves')} — ${x.start_date} → ${x.end_date}`, created_at: x.created_at, to: 'leaves' })),
         ...advances.filter((x) => x.status === 'pending').map((x) => ({ id: x.id, label: `${t('emp.advances')} — ${fmtAmount(x.amount, localeTag)} ${tenant.currency}`, created_at: x.created_at, to: 'advances' })),
         ...claims.filter((x) => x.status === 'pending').map((x) => ({ id: x.id, label: `${t('emp.claims')} — ${fmtAmount(x.amount, localeTag)} ${tenant.currency}`, created_at: x.created_at, to: 'claims' })),
       ].sort((x, y) => new Date(y.created_at).getTime() - new Date(x.created_at).getTime()).slice(0, 4);
