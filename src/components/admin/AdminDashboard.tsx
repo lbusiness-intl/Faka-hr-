@@ -39,7 +39,7 @@ function PageHeader({ title, action, icon }: { title: string; action?: ReactNode
   return (
     <div className="flex items-center justify-between mb-6">
       <div className="flex items-center gap-3">
-        {icon && <div className="w-10 h-10 rounded-xl bg-coral-100 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 flex items-center justify-center text-coral-600 dark:text-coral-300">{icon}</div>}
+        {icon && <div className="w-11 h-11 rounded-2xl bg-coral-50 dark:bg-coral-500/10 border border-coral-100 dark:border-coral-500/30 flex items-center justify-center text-coral-600 dark:text-coral-300">{icon}</div>}
         <h1 className="font-display text-xl font-semibold text-slate-900 dark:text-white">{title}</h1>
       </div>
       {action}
@@ -123,7 +123,7 @@ function Overview() {
               <div className="flex items-end gap-3 h-48">
                 {history.map((h, i) => (
                   <div key={i} className="flex-1 flex flex-col items-center gap-2" title={`${fmt(h.value)} ${tenant.currency}`}>
-                    <div className="w-full rounded-t bg-gradient-to-t from-coral-500 to-coral-400" style={{ height: `${Math.max(2, (h.value / maxHistory) * 100)}%` }} />
+                    <div className="w-full rounded-t-lg bg-gradient-to-t from-coral-500 to-coral-400" style={{ height: `${Math.max(2, (h.value / maxHistory) * 100)}%` }} />
                     <div className="text-xs text-slate-400 dark:text-white/40 capitalize">{h.label}</div>
                   </div>
                 ))}

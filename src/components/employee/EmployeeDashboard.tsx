@@ -28,7 +28,7 @@ function useTenant() {
 function PageHeader({ title, icon }: { title: string; icon: ReactNode }) {
   return (
     <div className="flex items-center gap-3 mb-6">
-      <div className="w-10 h-10 rounded-xl bg-coral-100 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 flex items-center justify-center text-coral-600 dark:text-coral-300">{icon}</div>
+      <div className="w-11 h-11 rounded-2xl bg-coral-50 dark:bg-coral-500/10 border border-coral-100 dark:border-coral-500/30 flex items-center justify-center text-coral-600 dark:text-coral-300">{icon}</div>
       <h1 className="font-display text-xl font-semibold text-slate-900 dark:text-white">{title}</h1>
     </div>
   );
