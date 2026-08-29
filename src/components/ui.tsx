@@ -22,7 +22,7 @@ export function Modal({ open, onClose, title, children, maxWidth = 'max-w-lg' }:
       <div className={`relative card w-full ${maxWidth} p-6 animate-scale-in max-h-[90vh] flex flex-col shadow-popover`}>
         <div className="flex items-center justify-between mb-5 shrink-0">
           <h3 className="text-base font-semibold text-slate-900 dark:text-white">{title}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 dark:text-white/50 dark:hover:text-white transition-colors rounded-md p-1 hover:bg-slate-100 dark:hover:bg-white/10">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 dark:text-white/50 dark:hover:text-white transition-colors rounded-full p-1.5 hover:bg-slate-100 dark:hover:bg-white/10">
             <X size={18} />
           </button>
         </div>
@@ -75,7 +75,7 @@ export function Toast({ message, type = 'success', onClose }: { message: string;
     : 'border-rose-200 bg-rose-50 text-rose-800 dark:bg-rose-500/15 dark:border-rose-500/30 dark:text-rose-200';
   return (
     <div className="fixed bottom-6 right-6 z-50 animate-fade-in">
-      <div className={`rounded-xl border px-4 py-3 backdrop-blur-md shadow-lg ${color}`}>{message}</div>
+      <div className={`rounded-2xl border px-4 py-3.5 backdrop-blur-md shadow-lg ${color}`}>{message}</div>
     </div>
   );
 }
@@ -100,7 +100,7 @@ export function StatCard({ label, value, sub, icon, color = 'emerald' }: {
           <div className="mt-1.5 text-2xl font-semibold text-slate-900 dark:text-white tracking-tight">{value}</div>
           {sub && <div className="text-xs text-slate-400 dark:text-white/40 mt-1">{sub}</div>}
         </div>
-        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${bg}`}>{icon}</div>
+        <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${bg}`}>{icon}</div>
       </div>
     </div>
   );
