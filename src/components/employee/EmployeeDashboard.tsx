@@ -1069,7 +1069,7 @@ function MyDocuments() {
           {docs.map((d) => (
             <div key={d.id} className="card p-5">
               <div className="flex items-start justify-between">
-                <div className="w-10 h-10 rounded-lg bg-coral-100 dark:bg-coral-500/10 text-coral-600 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-coral-50 dark:bg-coral-500/10 text-coral-600 flex items-center justify-center">
                   <FileText size={18} />
                 </div>
                 {d.signed && <Badge color="emerald">Signé</Badge>}
