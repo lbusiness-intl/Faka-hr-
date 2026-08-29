@@ -242,7 +242,7 @@ export default function EmailCenter() {
                 {templates.map((tpl) => (
                   <div key={tpl.id} className="card p-4">
                     <div className="flex items-start justify-between">
-                      <div className="w-9 h-9 rounded-lg bg-coral-100 dark:bg-coral-500/10 text-coral-600 flex items-center justify-center">
+                      <div className="w-9 h-9 rounded-xl bg-coral-50 dark:bg-coral-500/10 text-coral-600 flex items-center justify-center">
                         <FileText size={16} />
                       </div>
                       {tpl.is_system ? <Badge color="indigo">Système</Badge> : <Badge color="emerald">Personnalisé</Badge>}
