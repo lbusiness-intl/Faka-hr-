@@ -277,10 +277,29 @@ function Overview() {
           <div className="grid lg:grid-cols-3 gap-4 mb-6">
             <div className="card p-5 flex flex-col items-center text-center">
               <div className="text-xs font-semibold text-slate-500 dark:text-white/50 self-start mb-2">{t('dash.attendance')}</div>
-              <div className="font-display text-3xl font-bold text-slate-900 dark:text-white tabular-nums">
-                {nowClock.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </div>
-              <div className="text-xs text-slate-400 mt-1">
+              {(() => {
+                let workedMs = 0;
+                if (todayAtt?.check_in) {
+                  const inT = new Date(todayAtt.check_in).getTime();
+                  const outT = todayAtt.check_out ? new Date(todayAtt.check_out).getTime() : nowClock.getTime();
+                  workedMs = outT - inT;
+                  if (todayAtt.break_start) {
+                    const bStart = new Date(todayAtt.break_start).getTime();
+                    const bEnd = todayAtt.break_end ? new Date(todayAtt.break_end).getTime() : (todayAtt.break_start && !todayAtt.break_end ? nowClock.getTime() : bStart);
+                    workedMs -= Math.max(0, bEnd - bStart);
+                  }
+                }
+                const targetMs = 8 * 3600 * 1000;
+                const progressPct = todayAtt?.check_in ? (workedMs / targetMs) * 100 : 0;
+                return (
+                  <ClockRing progress={progressPct} size={112} strokeWidth={7}>
+                    <div className="font-display text-lg font-bold text-slate-900 dark:text-white tabular-nums">
+                      {formatDuration(workedMs)}
+                    </div>
+                  </ClockRing>
+                );
+              })()}
+              <div className="text-xs text-slate-400 mt-3">
                 {todayAtt?.check_in ? (todayAtt.check_out ? 'Journée terminée' : 'En poste') : 'Pas encore pointé'}
               </div>
               <button onClick={() => navigate('/dashboard/employee/attendance')} className="btn-primary text-sm mt-4 w-full justify-center">
@@ -427,6 +446,26 @@ function formatDuration(ms: number): string {
   return `${h}h ${String(m).padStart(2, '0')}min`;
 }
 
+function ClockRing({ progress, size = 176, strokeWidth = 10, children }: { progress: number; size?: number; strokeWidth?: number; children: ReactNode }) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const clamped = Math.min(100, Math.max(0, progress));
+  const offset = circumference - (clamped / 100) * circumference;
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={strokeWidth} className="stroke-slate-100 dark:stroke-white/10" />
+        <circle
+          cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={strokeWidth} strokeLinecap="round"
+          strokeDasharray={circumference} strokeDashoffset={offset}
+          className="stroke-coral-500 transition-[stroke-dashoffset] duration-700 ease-out"
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">{children}</div>
+    </div>
+  );
+}
+
 function Attendance() {
   const { t } = useI18n();
   const tenant = useTenant();
@@ -521,20 +560,33 @@ function Attendance() {
               }
             }
 
+            const targetMs = 8 * 3600 * 1000; // standard 8h workday
+            const remainingMs = Math.max(0, targetMs - workedMs);
+            const progressPct = today?.check_in ? (workedMs / targetMs) * 100 : 0;
+
             return (
               <div className="card p-8 mb-6 flex flex-col items-center text-center">
-                <div className="flex items-center gap-2 mb-3">
+                <ClockRing progress={progressPct}>
+                  <div className="font-display text-3xl font-bold text-slate-900 dark:text-white tabular-nums">
+                    {formatDuration(workedMs)}
+                  </div>
+                  <div className="text-[11px] text-slate-400 dark:text-white/40 mt-1">
+                    {today?.check_in ? new Date(today.check_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                    {' → '}
+                    {today?.check_out ? new Date(today.check_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                  </div>
+                </ClockRing>
+
+                <div className="flex items-center gap-2 mt-5">
                   <span className={`w-2 h-2 rounded-full ${statusMeta.dot}`} />
-                  <span className={`text-sm font-semibold ${statusMeta.color}`}>{statusMeta.label}</span>
+                  <span className={`text-base font-semibold ${statusMeta.color}`}>{statusMeta.label}</span>
                 </div>
-                <div className="font-display text-5xl font-bold text-slate-900 dark:text-white tabular-nums">
-                  {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                <div className="text-sm text-slate-500 dark:text-white/50 mt-1">
+                  Temps restant : {formatDuration(remainingMs)}
                 </div>
-                <div className="text-sm text-slate-500 dark:text-white/50 mt-1.5">
+                <div className="text-xs text-slate-400 dark:text-white/40 mt-0.5">
                   {now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
                 </div>
-                <div className="mt-4 text-xs uppercase tracking-wide text-slate-400 dark:text-white/40">Temps travaillé aujourd'hui</div>
-                <div className="font-display text-2xl font-bold text-coral-600 dark:text-coral-400 tabular-nums">{formatDuration(workedMs)}</div>
 
                 <div className="mt-6 flex flex-wrap justify-center gap-3">
                   <button onClick={() => action('in')} disabled={!!today?.check_in} className="btn-primary disabled:opacity-40"><Play size={16} /> {t('emp.checkin')}</button>
