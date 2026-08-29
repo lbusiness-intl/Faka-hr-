@@ -1250,7 +1250,7 @@ function Payroll() {
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-white/10">
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-white/70 cursor-pointer">
-              <input type="checkbox" checked={selected.size === employees.length && employees.length > 0} onChange={() => selected.size === employees.length ? selectNone() : selectAll()} className="rounded border-slate-300" />
+              <input type="checkbox" checked={selected.size === employees.length && employees.length > 0} onChange={() => selected.size === employees.length ? selectNone() : selectAll()} className="rounded accent-coral-500 w-4 h-4 cursor-pointer" />
               Tout sélectionner
             </label>
             <span className="text-xs text-slate-400">{selected.size}/{employees.length} sélectionnés</span>
@@ -1273,7 +1273,7 @@ function Payroll() {
           <tbody>
             {employees.map((e) => (
               <tr key={e.id} className={`border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 ${selected.has(e.id) ? 'bg-coral-50/40 dark:bg-coral-500/5' : ''}`}>
-                <td className="p-3"><input type="checkbox" checked={selected.has(e.id)} onChange={() => toggleSelect(e.id)} className="rounded border-slate-300" /></td>
+                <td className="p-3"><input type="checkbox" checked={selected.has(e.id)} onChange={() => toggleSelect(e.id)} className="rounded accent-coral-500 w-4 h-4 cursor-pointer" /></td>
                 <td className="p-3">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-coral-100 dark:bg-coral-500/15 flex items-center justify-center text-coral-600 dark:text-coral-400 font-bold text-xs shrink-0">

@@ -226,7 +226,7 @@ export default function EmailCenter() {
               </div>
               <div><label className="label">Reply-To</label><input type="email" className="input" value={config.reply_to ?? ''} onChange={(e) => setConfig({ ...config, reply_to: e.target.value })} /></div>
               <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-white/60">
-                <input type="checkbox" checked={config.is_active} onChange={(e) => setConfig({ ...config, is_active: e.target.checked })} className="rounded" />
+                <input type="checkbox" checked={config.is_active} onChange={(e) => setConfig({ ...config, is_active: e.target.checked })} className="rounded accent-coral-500 w-4 h-4 cursor-pointer" />
                 Configuration active
               </label>
               <button onClick={saveConfig} disabled={saving} className="btn-primary text-sm">
