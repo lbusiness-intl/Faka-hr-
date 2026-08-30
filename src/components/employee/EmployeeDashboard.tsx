@@ -202,6 +202,7 @@ type AmountStat = { amount: number; status: string };
 type GoalStat = { id: string; title: string; progress: number; status: string };
 type RecentLeave = { id: string; type: string; start_date: string; end_date: string; status: string; created_at: string };
 type InboxItem = { id: string; label: string; created_at: string; to: string };
+type TeamMemberLite = { id: string; first_name: string; last_name: string; avatar_url: string | null };
 function fmtAmount(n: number, localeTag: string): string {
   return new Intl.NumberFormat(localeTag).format(Math.round(n));
 }
@@ -216,13 +217,15 @@ function Overview() {
   const [inbox, setInbox] = useState<InboxItem[]>([]);
   const [todayAtt, setTodayAtt] = useState<AttendanceLog | null>(null);
   const [upcomingEvents, setUpcomingEvents] = useState<CompanyEventView[]>([]);
+  const [onLeaveToday, setOnLeaveToday] = useState<(TeamMemberLite & { end_date: string })[]>([]);
   const nowClock = useNow();
 
   useEffect(() => {
     if (!tenant || !me) return;
     (async () => {
       const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
-      const [l, a, c, g, allL, attRes, evRes] = await Promise.all([
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const [l, a, c, g, allL, attRes, evRes, leavesTodayRes] = await Promise.all([
         supabase.from('leave_requests').select('id, status, days').eq('tenant_id', tenant.id).eq('employee_id', me.id),
         supabase.from('advances').select('id, amount, status, created_at').eq('tenant_id', tenant.id).eq('employee_id', me.id),
         supabase.from('claims').select('id, amount, status, created_at').eq('tenant_id', tenant.id).eq('employee_id', me.id),
@@ -230,6 +233,7 @@ function Overview() {
         supabase.from('leave_requests').select('id, type, start_date, end_date, status, created_at').eq('tenant_id', tenant.id).eq('employee_id', me.id).order('created_at', { ascending: false }).limit(5),
         supabase.from('attendance').select('*').eq('tenant_id', tenant.id).eq('employee_id', me.id).gte('created_at', dayStart.toISOString()).order('created_at', { ascending: false }).limit(1),
         supabase.from('events').select('*').or(`tenant_id.eq.${tenant.id},scope.eq.panafrican`).order('event_date', { ascending: true }).limit(3),
+        supabase.from('leave_requests').select('employee_id, end_date, employees(id, first_name, last_name, avatar_url)').eq('tenant_id', tenant.id).eq('status', 'approved').lte('start_date', todayStr).gte('end_date', todayStr),
       ]);
       const leaves = (l.data ?? []) as LeaveRequestStat[];
       const advances = (a.data ?? []) as (AmountStat & { id: string; created_at: string })[];
@@ -248,6 +252,13 @@ function Overview() {
       setRecent(recentLeaves);
       setTodayAtt((attRes.data?.[0] as AttendanceLog) ?? null);
       setUpcomingEvents((evRes.data as CompanyEventView[]) ?? []);
+
+      type LeaveWithEmployee = { employee_id: string; end_date: string; employees: TeamMemberLite | TeamMemberLite[] | null };
+      const leavesToday = ((leavesTodayRes.data ?? []) as LeaveWithEmployee[]).map((r) => {
+        const emp = Array.isArray(r.employees) ? r.employees[0] : r.employees;
+        return emp ? { ...emp, end_date: r.end_date } : null;
+      }).filter((x): x is TeamMemberLite & { end_date: string } => x !== null);
+      setOnLeaveToday(leavesToday);
 
       const inboxItems: InboxItem[] = [
         ...recentLeaves.filter((x) => x.status === 'pending').map((x) => ({ id: x.id, label: `${t('emp.leaves')} — ${x.start_date} → ${x.end_date}`, created_at: x.created_at, to: 'leaves' })),
@@ -342,6 +353,33 @@ function Overview() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Today at [company] — real: approved leaves covering today.
+              Deliberately NOT showing company-wide attendance gaps here
+              (that stays admin/manager-only, see AdminDashboard Overview);
+              who's on leave today is ordinary team-visibility info. */}
+          <div className="card p-5 mb-6">
+            <h3 className="text-slate-900 dark:text-white font-semibold text-sm mb-4">Aujourd'hui chez {tenant.name}</h3>
+            {onLeaveToday.length === 0 ? (
+              <p className="text-sm text-slate-400 dark:text-white/40">Personne en congé aujourd'hui</p>
+            ) : (
+              <div className="flex flex-wrap gap-4">
+                {onLeaveToday.slice(0, 8).map((m) => (
+                  <div key={m.id} className="flex items-center gap-2.5">
+                    {m.avatar_url
+                      ? <img src={m.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                      : <div className="w-8 h-8 rounded-full bg-coral-100 dark:bg-coral-500/15 text-coral-600 dark:text-coral-300 flex items-center justify-center text-[10px] font-semibold shrink-0">
+                          {`${m.first_name?.[0] ?? ''}${m.last_name?.[0] ?? ''}`.toUpperCase()}
+                        </div>}
+                    <div className="min-w-0">
+                      <div className="text-sm text-slate-900 dark:text-white truncate">{m.first_name} {m.last_name}</div>
+                      <div className="text-xs text-slate-400 dark:text-white/40">Jusqu'au {new Date(m.end_date).toLocaleDateString(localeTag, { day: 'numeric', month: 'short' })}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Personal hero card */}
