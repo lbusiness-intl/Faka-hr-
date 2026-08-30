@@ -125,7 +125,7 @@ export default function AutomationCenter() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400">
+          <div className="w-11 h-11 rounded-2xl bg-coral-50 dark:bg-coral-500/10 border border-coral-100 dark:border-coral-500/30 flex items-center justify-center text-coral-600 dark:text-coral-300">
             <Zap size={20} />
           </div>
           <div>
@@ -156,7 +156,7 @@ export default function AutomationCenter() {
                 {workflows.map((wf) => (
                   <div key={wf.id} className="card p-5">
                     <div className="flex items-start justify-between">
-                      <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                      <div className="w-9 h-9 rounded-xl bg-coral-50 dark:bg-coral-500/10 text-coral-600 flex items-center justify-center">
                         <Zap size={18} />
                       </div>
                       <Badge color={wf.is_enabled ? 'emerald' : 'slate'}>{wf.is_enabled ? 'Actif' : 'Inactif'}</Badge>

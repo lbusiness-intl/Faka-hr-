@@ -103,7 +103,7 @@ export default function BranchManager() {
           {branches.map((b) => (
             <div key={b.id} className="card p-5 hover:shadow-md transition group">
               <div className="flex items-start justify-between mb-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                <div className="w-9 h-9 rounded-xl bg-coral-50 dark:bg-coral-500/10 flex items-center justify-center text-coral-600 dark:text-coral-300">
                   <GitBranch size={18} />
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
