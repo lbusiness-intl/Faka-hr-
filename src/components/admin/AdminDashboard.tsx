@@ -144,7 +144,7 @@ function Overview() {
             <div className="card p-5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-slate-900 dark:text-white font-semibold text-sm">Team status</h3>
-                <button onClick={() => navigate('/dashboard/admin/attendance')} className="text-xs text-coral-600 hover:text-coral-700 font-medium">Voir tout</button>
+                <button onClick={() => navigate('/dashboard/admin/attendance')} className="text-xs text-coral-600 dark:text-coral-300 hover:text-coral-700 dark:hover:text-coral-200 font-medium">Voir tout</button>
               </div>
               {missingClockIn.length === 0 ? (
                 <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
