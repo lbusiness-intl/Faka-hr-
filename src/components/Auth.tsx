@@ -69,7 +69,7 @@ export function AuthScreen() {
     return (
       <div className="min-h-screen bg-sage-50 dark:bg-ink-900 relative overflow-hidden">
         <div className="absolute inset-0 opacity-70 dark:opacity-40" style={{
-          backgroundImage: 'radial-gradient(ellipse at 20% 0%, rgba(0,112,224,0.18), transparent 50%), radial-gradient(ellipse at 80% 100%, rgba(45,212,191,0.15), transparent 50%)',
+          backgroundImage: 'radial-gradient(ellipse at 20% 0%, rgba(226,58,80,0.18), transparent 50%), radial-gradient(ellipse at 80% 100%, rgba(45,212,191,0.15), transparent 50%)',
         }} />
         <div className="relative section py-8"><Logo /></div>
         <div className="relative section flex items-center justify-center py-12">
@@ -114,7 +114,7 @@ export function AuthScreen() {
   return (
     <div className="min-h-screen bg-sage-50 dark:bg-ink-900 relative overflow-hidden">
       <div className="absolute inset-0 opacity-70 dark:opacity-40" style={{
-        backgroundImage: 'radial-gradient(ellipse at 20% 0%, rgba(0,112,224,0.18), transparent 50%), radial-gradient(ellipse at 80% 100%, rgba(45,212,191,0.15), transparent 50%)',
+        backgroundImage: 'radial-gradient(ellipse at 20% 0%, rgba(226,58,80,0.18), transparent 50%), radial-gradient(ellipse at 80% 100%, rgba(45,212,191,0.15), transparent 50%)',
       }} />
       <div className="relative section py-8">
         <Logo />

@@ -67,7 +67,7 @@ export default function AcceptInvite() {
   return (
     <div className="min-h-screen bg-sage-50 dark:bg-ink-900 relative overflow-hidden flex items-center justify-center px-6 py-12">
       <div className="absolute inset-0 opacity-60 dark:opacity-30" style={{
-        backgroundImage: 'radial-gradient(ellipse at 50% 0%, rgba(0,112,224,0.18), transparent 50%)',
+        backgroundImage: 'radial-gradient(ellipse at 50% 0%, rgba(226,58,80,0.18), transparent 50%)',
       }} />
       <div className="relative card w-full max-w-md p-8 animate-scale-in">
         <Link to="/" className="flex items-center gap-2.5 mb-6">
