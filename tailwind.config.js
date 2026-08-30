@@ -59,7 +59,7 @@ export default {
         display: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        glow: '0 2px 8px -2px rgba(109,79,224,0.18)',
+        glow: '0 2px 8px -2px rgba(226,58,80,0.18)',
         card: '0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.05)',
         'card-dark': '0 1px 2px rgba(0,0,0,0.25), 0 4px 16px -8px rgba(0,0,0,0.4)',
         popover: '0 4px 6px -2px rgba(16,24,40,0.05), 0 12px 16px -4px rgba(16,24,40,0.08)',
@@ -72,7 +72,7 @@ export default {
         'slide-up': { '0%': { opacity: '0', transform: 'translateY(40px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
         'slide-left': { '0%': { opacity: '0', transform: 'translateX(40px)' }, '100%': { opacity: '1', transform: 'translateX(0)' } },
         'slide-right': { '0%': { opacity: '0', transform: 'translateX(-40px)' }, '100%': { opacity: '1', transform: 'translateX(0)' } },
-        'pulse-glow': { '0%,100%': { boxShadow: '0 0 20px rgba(0,112,224,0.2)' }, '50%': { boxShadow: '0 0 40px rgba(0,112,224,0.4)' } },
+        'pulse-glow': { '0%,100%': { boxShadow: '0 0 20px rgba(226,58,80,0.2)' }, '50%': { boxShadow: '0 0 40px rgba(226,58,80,0.4)' } },
         'bar-grow': { '0%': { transform: 'scaleY(0)' }, '100%': { transform: 'scaleY(1)' } },
         'count-up': { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
       },
