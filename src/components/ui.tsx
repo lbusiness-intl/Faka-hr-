@@ -22,7 +22,7 @@ export function Modal({ open, onClose, title, children, maxWidth = 'max-w-lg' }:
       <div className={`relative card w-full ${maxWidth} p-6 animate-scale-in max-h-[90vh] flex flex-col shadow-popover`}>
         <div className="flex items-center justify-between mb-5 shrink-0">
           <h3 className="text-base font-semibold text-slate-900 dark:text-white">{title}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 dark:text-white/50 dark:hover:text-white transition-colors rounded-full p-1.5 hover:bg-slate-100 dark:hover:bg-white/10">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 dark:text-white/50 dark:hover:text-white transition-colors rounded-full p-1.5 hover:bg-slate-100 dark:hover:bg-white/10" aria-label="Fermer">
             <X size={18} />
           </button>
         </div>

@@ -153,7 +153,7 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
             <img src="/icon-192.png" alt="Faka" className="w-7 h-7 rounded-lg" />
             <span className="font-display text-[15px] font-semibold text-slate-900 dark:text-white tracking-tight">Faka</span>
           </Link>
-          <button className="lg:hidden text-slate-500" onClick={() => setOpen(false)}><X size={18} /></button>
+          <button className="lg:hidden text-slate-500" onClick={() => setOpen(false)} aria-label="Fermer le menu"><X size={18} /></button>
         </div>
 
         {role !== 'super' && memberships.length > 1 && (
@@ -276,7 +276,7 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
 
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-16 border-b border-slate-200 dark:border-white/10 bg-white/80 dark:bg-ink-800/60 backdrop-blur-xl flex items-center justify-between px-5">
-          <button className="lg:hidden text-slate-600 dark:text-slate-300" onClick={() => setOpen(true)}><Menu size={20} /></button>
+          <button className="lg:hidden text-slate-600 dark:text-slate-300" onClick={() => setOpen(true)} aria-label="Ouvrir le menu"><Menu size={20} /></button>
           <Link to="/" className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-white/50 hover:text-coral-600 dark:hover:text-coral-300 transition-colors">
             <Home size={15} /> <span className="hidden sm:inline">{t('nav.home')}</span>
           </Link>

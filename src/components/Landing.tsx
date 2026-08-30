@@ -94,7 +94,7 @@ function Header() {
           <Link to="/signin" className="btn-ghost text-sm">{t('nav.login')}</Link>
           <Link to="/signup" className="btn-primary text-sm">{t('nav.cta')}</Link>
         </div>
-        <button className="md:hidden text-slate-600" onClick={() => setOpen(!open)}>
+        <button className="md:hidden text-slate-600" onClick={() => setOpen(!open)} aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'}>
           {open ? <X size={22} /> : <Menu size={22} />}
         </button>
       </div>
