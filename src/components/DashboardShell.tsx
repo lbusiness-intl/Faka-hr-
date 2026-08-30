@@ -13,7 +13,7 @@ import { ALL_MODULES, getPlan, isModuleUnlocked, type ModuleKey, type PlanId } f
 import { Modal, Badge } from './ui';
 import { NotificationBell } from './NotificationBell';
 
-type NavItem = { key: ModuleKey; icon: typeof LayoutDashboard; label: string };
+type NavItem = { key: ModuleKey; icon: typeof LayoutDashboard; label: string; section?: string };
 
 function useTheme() {
   const [dark, setDark] = useState(() => {
@@ -71,41 +71,41 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
 
   const adminNav: NavItem[] = [
     { key: 'dashboard', icon: LayoutDashboard, label: t('dash.dashboard') },
-    { key: 'employees', icon: Users, label: t('dash.employees') },
-    { key: 'payroll', icon: Wallet, label: t('dash.payroll') },
-    { key: 'leaves', icon: CalendarClock, label: t('dash.leaves') },
-    { key: 'advances', icon: Banknote, label: t('dash.advances') },
-    { key: 'claims', icon: Receipt, label: t('dash.claims') },
-    { key: 'attendance', icon: Clock, label: t('dash.attendance') },
-    { key: 'overtime', icon: Clock, label: t('dash.overtime') },
-    { key: 'documents', icon: FileText, label: t('dash.documents') },
-    { key: 'recruitment', icon: UserPlus, label: t('dash.recruitment') },
-    { key: 'training', icon: GraduationCap, label: t('dash.training') },
-    { key: 'performance', icon: Target, label: t('dash.performance') },
-    { key: 'goals', icon: Target, label: t('dash.goals') },
-    { key: 'reviews', icon: Star, label: t('dash.reviews') },
-    { key: 'assets', icon: Package, label: t('dash.assets') },
-    { key: 'compliance', icon: ShieldCheck, label: t('dash.compliance') },
-    { key: 'communication', icon: MessageSquare, label: t('dash.communication') },
-    { key: 'events', icon: CalendarDays, label: t('dash.events') },
-    { key: 'subscription', icon: CreditCard, label: t('dash.subscription') },
-    { key: 'settings', icon: SettingsIcon, label: t('dash.settings') },
+    { key: 'employees', icon: Users, label: t('dash.employees'), section: 'RH & Paie' },
+    { key: 'payroll', icon: Wallet, label: t('dash.payroll'), section: 'RH & Paie' },
+    { key: 'leaves', icon: CalendarClock, label: t('dash.leaves'), section: 'RH & Paie' },
+    { key: 'advances', icon: Banknote, label: t('dash.advances'), section: 'RH & Paie' },
+    { key: 'claims', icon: Receipt, label: t('dash.claims'), section: 'RH & Paie' },
+    { key: 'attendance', icon: Clock, label: t('dash.attendance'), section: 'Temps' },
+    { key: 'overtime', icon: Clock, label: t('dash.overtime'), section: 'Temps' },
+    { key: 'recruitment', icon: UserPlus, label: t('dash.recruitment'), section: 'Talent' },
+    { key: 'training', icon: GraduationCap, label: t('dash.training'), section: 'Talent' },
+    { key: 'performance', icon: Target, label: t('dash.performance'), section: 'Talent' },
+    { key: 'goals', icon: Target, label: t('dash.goals'), section: 'Talent' },
+    { key: 'reviews', icon: Star, label: t('dash.reviews'), section: 'Talent' },
+    { key: 'documents', icon: FileText, label: t('dash.documents'), section: 'Ressources' },
+    { key: 'assets', icon: Package, label: t('dash.assets'), section: 'Ressources' },
+    { key: 'compliance', icon: ShieldCheck, label: t('dash.compliance'), section: 'Ressources' },
+    { key: 'communication', icon: MessageSquare, label: t('dash.communication'), section: 'Ressources' },
+    { key: 'events', icon: CalendarDays, label: t('dash.events'), section: 'Ressources' },
+    { key: 'subscription', icon: CreditCard, label: t('dash.subscription'), section: 'Compte' },
+    { key: 'settings', icon: SettingsIcon, label: t('dash.settings'), section: 'Compte' },
   ];
 
   const employeeNav: NavItem[] = [
     { key: 'dashboard', icon: LayoutDashboard, label: t('emp.my_space') },
-    { key: 'attendance', icon: Clock, label: t('dash.attendance') },
-    { key: 'overtime', icon: Clock, label: t('dash.overtime') },
-    { key: 'leaves', icon: CalendarClock, label: t('emp.leaves') },
-    { key: 'advances', icon: Banknote, label: t('emp.advances') },
-    { key: 'claims', icon: Receipt, label: t('emp.claims') },
-    { key: 'documents', icon: FileText, label: t('dash.documents') },
-    { key: 'payslips', icon: Wallet, label: t('dash.payroll') },
-    { key: 'assets', icon: Package, label: t('dash.assets') },
+    { key: 'attendance', icon: Clock, label: t('dash.attendance'), section: 'Personal' },
+    { key: 'overtime', icon: Clock, label: t('dash.overtime'), section: 'Personal' },
+    { key: 'leaves', icon: CalendarClock, label: t('emp.leaves'), section: 'Personal' },
+    { key: 'advances', icon: Banknote, label: t('emp.advances'), section: 'Personal' },
+    { key: 'claims', icon: Receipt, label: t('emp.claims'), section: 'Personal' },
+    { key: 'documents', icon: FileText, label: t('dash.documents'), section: 'Personal' },
+    { key: 'payslips', icon: Wallet, label: t('dash.payroll'), section: 'Personal' },
+    { key: 'assets', icon: Package, label: t('dash.assets'), section: 'Personal' },
+    { key: 'profile', icon: Users, label: 'Mon Profil', section: 'Personal' },
     { key: 'events', icon: CalendarDays, label: t('dash.events') },
     { key: 'communication', icon: MessageSquare, label: t('dash.communication') },
     { key: 'subscription', icon: CreditCard, label: t('dash.subscription') },
-    { key: 'profile', icon: Users, label: 'Mon Profil' },
   ];
 
   const nav = role === 'employee' ? employeeNav : adminNav;
@@ -202,12 +202,19 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
           {filteredNav.length === 0 && (
             <p className="px-3 py-6 text-center text-sm text-slate-400 dark:text-white/30">Aucun résultat</p>
           )}
-          {filteredNav.map((item) => {
+          {filteredNav.map((item, idx) => {
+            const prevSection = idx > 0 ? filteredNav[idx - 1].section : undefined;
+            const showSectionHeader = item.section && item.section !== prevSection;
             const unlocked = role === 'employee' || isSuperAdmin || isModuleUnlocked(planId, item.key);
             const isSettingsItem = item.key === 'settings' && role !== 'employee';
             const isActive = currentModule === item.key || (isSettingsItem && currentModule.startsWith('settings'));
             return (
               <div key={item.key}>
+                {showSectionHeader && (
+                  <div className="px-3 pt-4 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:text-white/30">
+                    {item.section}
+                  </div>
+                )}
                 <button
                   onClick={() => handleNav(item.key)}
                   className={`w-full flex items-center justify-between rounded-xl px-3 py-2.5 text-sm transition-colors duration-150 ${
