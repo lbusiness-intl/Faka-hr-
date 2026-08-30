@@ -551,6 +551,7 @@ function Footer() {
           <ul className="space-y-2 text-sm text-slate-500 dark:text-white/50">
             <li><a href="#features" className="hover:text-coral-600 transition">{t('nav.features')}</a></li>
             <li><a href="#pricing" className="hover:text-coral-600 transition">{t('nav.pricing')}</a></li>
+            <li><Link to="/help" className="hover:text-coral-600 transition">{t('footer.manual')}</Link></li>
             <li><Link to="/signin" className="hover:text-coral-600 transition">{t('nav.login')}</Link></li>
             <li><Link to="/signup" className="hover:text-coral-600 transition">{t('nav.cta')}</Link></li>
           </ul>
