@@ -35,6 +35,93 @@ Deno.serve(async (req: Request) => {
       { auth: { persistSession: false } },
     );
 
+    // Verifies the caller's JWT (via the anon-key client, so it is bound to
+    // their real session) and confirms app_metadata.role === 'super_admin'.
+    // Used to gate every platform-staff-management action below — nobody
+    // can list or revoke staff, or read anything here, without already
+    // being a verified super admin.
+    async function requireSuperAdmin(): Promise<{ id: string; email?: string } | null> {
+      const userClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } },
+      );
+      const { data: { user }, error } = await userClient.auth.getUser();
+      if (error || !user || user.app_metadata?.role !== "super_admin") return null;
+      return { id: user.id, email: user.email };
+    }
+
+    // ── list_staff (platform staff with the super_admin role) ────────────────
+    if (action === "list_staff") {
+      const caller = await requireSuperAdmin();
+      if (!caller) return json({ ok: false, error: "FORBIDDEN" }, 403);
+
+      const { data, error } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+      if (error) return json({ ok: false, error: "LIST_FAILED", detail: error.message }, 500);
+      const staff = data.users
+        .filter((u) => u.app_metadata?.role === "super_admin")
+        .map((u) => ({
+          id: u.id,
+          email: u.email,
+          full_name: u.user_metadata?.full_name ?? null,
+          created_at: u.created_at,
+          last_sign_in_at: u.last_sign_in_at ?? null,
+        }));
+      return json({ ok: true, staff });
+    }
+
+    // ── revoke_staff (remove the super_admin role from a platform user) ──────
+    if (action === "revoke_staff") {
+      const caller = await requireSuperAdmin();
+      if (!caller) return json({ ok: false, error: "FORBIDDEN" }, 403);
+      const { userId } = body ?? {};
+      if (!userId) return json({ ok: false, error: "MISSING_FIELDS" }, 400);
+      if (userId === caller.id) return json({ ok: false, error: "CANNOT_REVOKE_SELF" }, 400);
+
+      const { error } = await adminClient.auth.admin.updateUserById(userId, {
+        app_metadata: { role: null },
+      });
+      if (error) return json({ ok: false, error: "REVOKE_FAILED", detail: error.message }, 500);
+      await adminClient.from("audit_logs").insert({
+        actor: caller.id,
+        action: "staff.super_admin_revoked",
+        details: { target_user_id: userId },
+      });
+      return json({ ok: true });
+    }
+
+    // ── invite_staff (invite a new platform staff member as super_admin) ─────
+    if (action === "invite_staff") {
+      const caller = await requireSuperAdmin();
+      if (!caller) return json({ ok: false, error: "FORBIDDEN" }, 403);
+      const { email } = body ?? {};
+      if (!email || typeof email !== "string") return json({ ok: false, error: "MISSING_FIELDS" }, 400);
+
+      const invToken = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 72);
+
+      const { error: invErr } = await adminClient.from("invitations").insert({
+        tenant_id: null,
+        email: email.toLowerCase(),
+        role: "super_admin",
+        token: invToken,
+        expires_at: expiresAt.toISOString(),
+        created_by: caller.id,
+        status: "pending",
+      });
+      if (invErr) return json({ ok: false, error: "INVITATION_FAILED", detail: invErr.message }, 500);
+
+      await adminClient.from("audit_logs").insert({
+        actor: caller.id,
+        action: "staff.super_admin_invited",
+        details: { email },
+      });
+
+      const inviteUrl = `${Deno.env.get("SITE_URL") ?? "https://faka.app"}/#/accept-invite?token=${invToken}`;
+      return json({ ok: true, token: invToken, invite_url: inviteUrl });
+    }
+
     // ── verify ──────────────────────────────────────────────────────────────
     if (action === "verify") {
       if (!token) return json({ ok: false, error: "MISSING_TOKEN" }, 400);
@@ -233,31 +320,50 @@ Deno.serve(async (req: Request) => {
         authUserId = newUser.user.id;
       }
 
-      // Create membership
-      const { error: memErr } = await adminClient.from("tenant_memberships").upsert({
-        tenant_id: inv.tenant_id,
-        user_id: authUserId,
-        role: inv.role ?? "employee",
-        status: "active",
-      }, { onConflict: "tenant_id,user_id" });
-
-      if (memErr) return json({ ok: false, error: "MEMBERSHIP_FAILED", detail: memErr.message }, 500);
-
-      // Link employee record
-      const meta = inv.custom_role ?? {};
-      if (meta?.employee_id) {
-        await adminClient.from("employees").update({
+      // Platform-wide roles (super_admin, commercial) have no tenant to
+      // attach — tenant_memberships.tenant_id is NOT NULL, so there is no
+      // membership row to create for them, only for a real tenant invite.
+      if (inv.tenant_id) {
+        const { error: memErr } = await adminClient.from("tenant_memberships").upsert({
+          tenant_id: inv.tenant_id,
           user_id: authUserId,
-          first_name: firstName || undefined,
-          last_name: lastName || undefined,
+          role: inv.role ?? "employee",
           status: "active",
-        }).eq("id", meta.employee_id);
-      } else {
-        // Find by email
-        await adminClient.from("employees").update({
-          user_id: authUserId,
-          status: "active",
-        }).eq("tenant_id", inv.tenant_id).eq("email", inv.email);
+        }, { onConflict: "tenant_id,user_id" });
+
+        if (memErr) return json({ ok: false, error: "MEMBERSHIP_FAILED", detail: memErr.message }, 500);
+
+        // Link employee record
+        const meta = inv.custom_role ?? {};
+        if (meta?.employee_id) {
+          await adminClient.from("employees").update({
+            user_id: authUserId,
+            first_name: firstName || undefined,
+            last_name: lastName || undefined,
+            status: "active",
+          }).eq("id", meta.employee_id);
+        } else {
+          // Find by email
+          await adminClient.from("employees").update({
+            user_id: authUserId,
+            status: "active",
+          }).eq("tenant_id", inv.tenant_id).eq("email", inv.email);
+        }
+      }
+
+      // SECURITY: the platform-wide super_admin flag lives ONLY in the
+      // auth user's app_metadata (that is what every RLS policy's
+      // is_super_admin() and the client's isSuperAdmin check both read —
+      // see migration 0011). It is never derived from tenant_memberships.
+      // This code path is only reachable for an invitation row that
+      // already carries role = 'super_admin', and RLS on `invitations`
+      // (migration 0011) only allows THAT row to be created by a caller
+      // who was already a verified super admin — so granting it here,
+      // for the invited user, does not create a new escalation path.
+      if (inv.role === "super_admin") {
+        await adminClient.auth.admin.updateUserById(authUserId, {
+          app_metadata: { role: "super_admin" },
+        });
       }
 
       // Mark invitation used
@@ -336,28 +442,38 @@ Deno.serve(async (req: Request) => {
         authUserId = newUser.user.id;
       }
 
-      // Create membership
-      const { error: memErr } = await adminClient.from("tenant_memberships").upsert({
-        tenant_id: inv.tenant_id,
-        user_id: authUserId,
-        role: inv.role ?? "employee",
-        status: "active",
-      }, { onConflict: "tenant_id,user_id" });
-
-      if (memErr) return json({ ok: false, error: "MEMBERSHIP_FAILED", detail: memErr.message }, 500);
-
-      // Link employee record
-      const meta = inv.custom_role ?? {};
-      if (meta?.employee_id) {
-        await adminClient.from("employees").update({
+      // Same rule as the accept action above: only create a membership /
+      // link an employee record when this invitation is actually tied to
+      // a tenant. A tenant-less (platform staff / super_admin) invitation
+      // has neither.
+      if (inv.tenant_id) {
+        const { error: memErr } = await adminClient.from("tenant_memberships").upsert({
+          tenant_id: inv.tenant_id,
           user_id: authUserId,
+          role: inv.role ?? "employee",
           status: "active",
-        }).eq("id", meta.employee_id);
-      } else {
-        await adminClient.from("employees").update({
-          user_id: authUserId,
-          status: "active",
-        }).eq("tenant_id", inv.tenant_id).eq("email", inv.email);
+        }, { onConflict: "tenant_id,user_id" });
+
+        if (memErr) return json({ ok: false, error: "MEMBERSHIP_FAILED", detail: memErr.message }, 500);
+
+        const meta = inv.custom_role ?? {};
+        if (meta?.employee_id) {
+          await adminClient.from("employees").update({
+            user_id: authUserId,
+            status: "active",
+          }).eq("id", meta.employee_id);
+        } else {
+          await adminClient.from("employees").update({
+            user_id: authUserId,
+            status: "active",
+          }).eq("tenant_id", inv.tenant_id).eq("email", inv.email);
+        }
+      }
+
+      if (inv.role === "super_admin") {
+        await adminClient.auth.admin.updateUserById(authUserId, {
+          app_metadata: { role: "super_admin" },
+        });
       }
 
       // Get company name for the response
