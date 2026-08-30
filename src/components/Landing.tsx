@@ -227,7 +227,7 @@ function Hero() {
   return (
     <section className="relative overflow-hidden bg-sage-50 dark:bg-ink-900">
       <div className="absolute inset-0 opacity-60 dark:opacity-30" style={{
-        backgroundImage: 'radial-gradient(ellipse at 50% -10%, rgba(0,112,224,0.14), transparent 55%)',
+        backgroundImage: 'radial-gradient(ellipse at 50% -10%, rgba(226,58,80,0.14), transparent 55%)',
       }} />
       <div className="relative section pt-24 pb-24 grid lg:grid-cols-2 gap-14 items-center">
         <div className="animate-fade-in">

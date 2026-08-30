@@ -166,7 +166,7 @@ export default function Onboarding() {
     <div className="min-h-screen bg-sage-50 dark:bg-ink-900 flex flex-col relative overflow-hidden transition-colors duration-200">
       {/* Background radial glow */}
       <div className="absolute inset-0 opacity-60 dark:opacity-30 pointer-events-none" style={{
-        backgroundImage: 'radial-gradient(ellipse at 10% 0%, rgba(0,112,224,0.12), transparent 50%), radial-gradient(ellipse at 90% 100%, rgba(45,212,191,0.1), transparent 50%)',
+        backgroundImage: 'radial-gradient(ellipse at 10% 0%, rgba(226,58,80,0.12), transparent 50%), radial-gradient(ellipse at 90% 100%, rgba(45,212,191,0.1), transparent 50%)',
       }} />
 
       {/* Header with theme / lang */}
