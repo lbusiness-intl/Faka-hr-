@@ -567,7 +567,7 @@ function Attendance() {
       {attError && (
         <div className="card p-4 mb-6 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-sm text-rose-700 dark:text-rose-300 flex items-start justify-between gap-3">
           <span>{attError}</span>
-          <button onClick={() => setAttError(null)} className="text-rose-400 hover:text-rose-600 shrink-0"><X size={16} /></button>
+          <button onClick={() => setAttError(null)} className="text-rose-400 hover:text-rose-600 shrink-0" aria-label="Fermer"><X size={16} /></button>
         </div>
       )}
       {loading ? <Spinner /> : (
@@ -809,7 +809,7 @@ function StaffRequests({ table, title, icon, amountKey, categories }: {
       {reqError && (
         <div className="card p-4 mb-4 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-sm text-rose-700 dark:text-rose-300 flex items-start justify-between gap-3">
           <span>{reqError}</span>
-          <button onClick={() => setReqError(null)} className="text-rose-400 hover:text-rose-600 shrink-0"><X size={16} /></button>
+          <button onClick={() => setReqError(null)} className="text-rose-400 hover:text-rose-600 shrink-0" aria-label="Fermer"><X size={16} /></button>
         </div>
       )}
       {isLeave && balance && (
@@ -1266,7 +1266,7 @@ function MyOvertime() {
       {otError && (
         <div className="card p-4 mb-6 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-sm text-rose-700 dark:text-rose-300 flex items-start justify-between gap-3">
           <span>{otError}</span>
-          <button onClick={() => setOtError(null)} className="text-rose-400 hover:text-rose-600 shrink-0"><X size={16} /></button>
+          <button onClick={() => setOtError(null)} className="text-rose-400 hover:text-rose-600 shrink-0" aria-label="Fermer"><X size={16} /></button>
         </div>
       )}
       {loading ? <Spinner /> : items.length === 0 ? (

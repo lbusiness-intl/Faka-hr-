@@ -98,7 +98,7 @@ export function NotificationBell() {
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-white/10">
               <h3 className="font-semibold text-slate-900 dark:text-white text-sm">Notifications</h3>
-              <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white"><X size={16} /></button>
+              <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white" aria-label="Fermer"><X size={16} /></button>
             </div>
 
             {/* Filter bar */}
