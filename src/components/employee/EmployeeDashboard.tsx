@@ -317,7 +317,7 @@ function Overview() {
               ) : (
                 <div className="space-y-2.5">
                   {inbox.map((it) => (
-                    <button key={it.id} onClick={() => navigate(`/dashboard/employee/${it.to}`)} className="w-full text-left text-sm text-slate-700 dark:text-white/70 hover:text-coral-600 transition truncate block">
+                    <button key={it.id} onClick={() => navigate(`/dashboard/employee/${it.to}`)} className="w-full text-left text-sm text-slate-700 dark:text-white/70 hover:text-coral-600 dark:hover:text-coral-300 transition truncate block">
                       {it.label}
                     </button>
                   ))}
@@ -334,7 +334,7 @@ function Overview() {
               ) : (
                 <div className="space-y-2.5">
                   {upcomingEvents.map((e) => (
-                    <button key={e.id} onClick={() => navigate('/dashboard/employee/events')} className="w-full text-left flex items-center justify-between gap-2 hover:text-coral-600 transition">
+                    <button key={e.id} onClick={() => navigate('/dashboard/employee/events')} className="w-full text-left flex items-center justify-between gap-2 hover:text-coral-600 dark:hover:text-coral-300 transition">
                       <span className="text-sm text-slate-700 dark:text-white/70 truncate">{e.title}</span>
                       <span className="text-xs text-slate-400 shrink-0">{e.event_date ? new Date(e.event_date).toLocaleDateString(localeTag, { day: 'numeric', month: 'short' }) : '—'}</span>
                     </button>
