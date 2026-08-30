@@ -4,7 +4,7 @@ import {
   UserPlus, GraduationCap, Target, Star, Package, ShieldCheck,
   MessageSquare, CalendarDays, CreditCard, Settings as SettingsIcon, LogOut, Lock, Menu, X,
   Building2, ChevronDown, Moon, Sun, FileText, Home, AlertTriangle,
-  GitBranch, Layers, Shield, Search,
+  GitBranch, Layers, Shield, Search, HelpCircle,
 } from 'lucide-react';
 import { useI18n } from '../lib/i18n';
 import { useAuth } from '../lib/auth';
@@ -263,6 +263,9 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
               </Badge>
             </div>
           </div>
+          <Link to="/help" className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-500 dark:text-white/50 hover:text-slate-900 hover:bg-slate-50 dark:hover:bg-white/5 dark:hover:text-white transition-colors duration-150">
+            <HelpCircle size={16} /> {t('footer.manual')}
+          </Link>
           <button onClick={handleSignOut} className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-500 dark:text-white/50 hover:text-slate-900 hover:bg-slate-50 dark:hover:bg-white/5 dark:hover:text-white transition-colors duration-150">
             <LogOut size={16} /> {t('dash.logout')}
           </button>
