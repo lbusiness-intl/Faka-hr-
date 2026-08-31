@@ -203,6 +203,7 @@ type GoalStat = { id: string; title: string; progress: number; status: string };
 type RecentLeave = { id: string; type: string; start_date: string; end_date: string; status: string; created_at: string };
 type InboxItem = { id: string; label: string; created_at: string; to: string };
 type TeamMemberLite = { id: string; first_name: string; last_name: string; avatar_url: string | null };
+type AnnouncementLite = { id: string; type: string; subject: string; sent_at: string };
 function fmtAmount(n: number, localeTag: string): string {
   return new Intl.NumberFormat(localeTag).format(Math.round(n));
 }
@@ -218,6 +219,7 @@ function Overview() {
   const [todayAtt, setTodayAtt] = useState<AttendanceLog | null>(null);
   const [upcomingEvents, setUpcomingEvents] = useState<CompanyEventView[]>([]);
   const [onLeaveToday, setOnLeaveToday] = useState<(TeamMemberLite & { end_date: string })[]>([]);
+  const [announcements, setAnnouncements] = useState<AnnouncementLite[]>([]);
   const nowClock = useNow();
 
   useEffect(() => {
@@ -225,7 +227,7 @@ function Overview() {
     (async () => {
       const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
       const todayStr = new Date().toISOString().slice(0, 10);
-      const [l, a, c, g, allL, attRes, evRes, leavesTodayRes] = await Promise.all([
+      const [l, a, c, g, allL, attRes, evRes, leavesTodayRes, announcementsRes] = await Promise.all([
         supabase.from('leave_requests').select('id, status, days').eq('tenant_id', tenant.id).eq('employee_id', me.id),
         supabase.from('advances').select('id, amount, status, created_at').eq('tenant_id', tenant.id).eq('employee_id', me.id),
         supabase.from('claims').select('id, amount, status, created_at').eq('tenant_id', tenant.id).eq('employee_id', me.id),
@@ -234,6 +236,7 @@ function Overview() {
         supabase.from('attendance').select('*').eq('tenant_id', tenant.id).eq('employee_id', me.id).gte('created_at', dayStart.toISOString()).order('created_at', { ascending: false }).limit(1),
         supabase.from('events').select('*').or(`tenant_id.eq.${tenant.id},scope.eq.panafrican`).order('event_date', { ascending: true }).limit(3),
         supabase.from('leave_requests').select('employee_id, end_date, employees(id, first_name, last_name, avatar_url)').eq('tenant_id', tenant.id).eq('status', 'approved').lte('start_date', todayStr).gte('end_date', todayStr),
+        supabase.from('communications').select('id, type, subject, sent_at').eq('tenant_id', tenant.id).eq('recipient_scope', 'all').eq('is_draft', false).not('sent_at', 'is', null).order('sent_at', { ascending: false }).limit(2),
       ]);
       const leaves = (l.data ?? []) as LeaveRequestStat[];
       const advances = (a.data ?? []) as (AmountStat & { id: string; created_at: string })[];
@@ -259,6 +262,7 @@ function Overview() {
         return emp ? { ...emp, end_date: r.end_date } : null;
       }).filter((x): x is TeamMemberLite & { end_date: string } => x !== null);
       setOnLeaveToday(leavesToday);
+      setAnnouncements((announcementsRes.data as AnnouncementLite[]) ?? []);
 
       const inboxItems: InboxItem[] = [
         ...recentLeaves.filter((x) => x.status === 'pending').map((x) => ({ id: x.id, label: `${t('emp.leaves')} — ${x.start_date} → ${x.end_date}`, created_at: x.created_at, to: 'leaves' })),
@@ -355,31 +359,62 @@ function Overview() {
             </div>
           </div>
 
-          {/* Today at [company] — real: approved leaves covering today.
-              Deliberately NOT showing company-wide attendance gaps here
-              (that stays admin/manager-only, see AdminDashboard Overview);
-              who's on leave today is ordinary team-visibility info. */}
-          <div className="card p-5 mb-6">
-            <h3 className="text-slate-900 dark:text-white font-semibold text-sm mb-4">Aujourd'hui chez {tenant.name}</h3>
-            {onLeaveToday.length === 0 ? (
-              <p className="text-sm text-slate-400 dark:text-white/40">Personne en congé aujourd'hui</p>
-            ) : (
-              <div className="flex flex-wrap gap-4">
-                {onLeaveToday.slice(0, 8).map((m) => (
-                  <div key={m.id} className="flex items-center gap-2.5">
-                    {m.avatar_url
-                      ? <img src={m.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
-                      : <div className="w-8 h-8 rounded-full bg-coral-100 dark:bg-coral-500/15 text-coral-600 dark:text-coral-300 flex items-center justify-center text-[10px] font-semibold shrink-0">
-                          {`${m.first_name?.[0] ?? ''}${m.last_name?.[0] ?? ''}`.toUpperCase()}
-                        </div>}
-                    <div className="min-w-0">
-                      <div className="text-sm text-slate-900 dark:text-white truncate">{m.first_name} {m.last_name}</div>
-                      <div className="text-xs text-slate-400 dark:text-white/40">Jusqu'au {new Date(m.end_date).toLocaleDateString(localeTag, { day: 'numeric', month: 'short' })}</div>
+          {/* Today at [company]:
+              - Left: approved leaves covering today (real, ordinary team-
+                visibility info; company-wide attendance gaps stay
+                admin/manager-only, see AdminDashboard Overview).
+              - Right: the most recent company-wide announcements actually
+                sent via Communications — real posts, not decorative
+                placeholder images. */}
+          <div className="grid sm:grid-cols-2 gap-4 mb-6">
+            <div className="card p-5">
+              <h3 className="text-slate-900 dark:text-white font-semibold text-sm mb-4">Aujourd'hui chez {tenant.name}</h3>
+              {onLeaveToday.length === 0 ? (
+                <p className="text-sm text-slate-400 dark:text-white/40">Personne en congé aujourd'hui</p>
+              ) : (
+                <div className="flex flex-wrap gap-4">
+                  {onLeaveToday.slice(0, 8).map((m) => (
+                    <div key={m.id} className="flex items-center gap-2.5">
+                      {m.avatar_url
+                        ? <img src={m.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                        : <div className="w-8 h-8 rounded-full bg-coral-100 dark:bg-coral-500/15 text-coral-600 dark:text-coral-300 flex items-center justify-center text-[10px] font-semibold shrink-0">
+                            {`${m.first_name?.[0] ?? ''}${m.last_name?.[0] ?? ''}`.toUpperCase()}
+                          </div>}
+                      <div className="min-w-0">
+                        <div className="text-sm text-slate-900 dark:text-white truncate">{m.first_name} {m.last_name}</div>
+                        <div className="text-xs text-slate-400 dark:text-white/40">Jusqu'au {new Date(m.end_date).toLocaleDateString(localeTag, { day: 'numeric', month: 'short' })}</div>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {announcements.length === 0 ? (
+                <div className="card p-5 col-span-2 flex items-center justify-center">
+                  <p className="text-sm text-slate-400 dark:text-white/40">Aucune annonce récente</p>
+                </div>
+              ) : announcements.slice(0, 2).map((a) => {
+                const palette: Record<string, string> = {
+                  announcement: 'from-coral-500/15 to-coral-500/5 border-coral-200 dark:border-coral-500/20 text-coral-700 dark:text-coral-300',
+                  alert: 'from-amber-500/15 to-amber-500/5 border-amber-200 dark:border-amber-500/20 text-amber-700 dark:text-amber-300',
+                  policy: 'from-indigo-500/15 to-indigo-500/5 border-indigo-200 dark:border-indigo-500/20 text-indigo-700 dark:text-indigo-300',
+                  event_invite: 'from-teal-500/15 to-teal-500/5 border-teal-200 dark:border-teal-500/20 text-teal-700 dark:text-teal-300',
+                  message: 'from-slate-500/10 to-slate-500/5 border-slate-200 dark:border-white/10 text-slate-700 dark:text-white/70',
+                };
+                return (
+                  <button
+                    key={a.id}
+                    onClick={() => navigate('/dashboard/employee/communication')}
+                    className={`card p-4 text-left bg-gradient-to-br ${palette[a.type] ?? palette.announcement} hover:brightness-95 dark:hover:brightness-110 transition`}
+                  >
+                    <div className="text-xs font-semibold uppercase tracking-wide opacity-70 mb-1.5">{a.type.replace('_', ' ')}</div>
+                    <div className="text-sm font-semibold text-slate-900 dark:text-white line-clamp-2">{a.subject}</div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Personal hero card */}
