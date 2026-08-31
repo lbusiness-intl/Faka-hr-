@@ -4,7 +4,7 @@ import {
   Check, Star, Menu, X, ArrowRight, Sparkles, Moon, Sun,
   Briefcase, UserCog,
   TrendingUp, Clock, Download,
-  Lock, KeyRound, History, FileLock2, MapPin, Play,
+  Lock, KeyRound, History, FileLock2, MapPin, Play, Plus,
 } from 'lucide-react';
 import { useI18n } from '../lib/i18n';
 import { Link, navigate } from '../lib/router';
@@ -85,6 +85,7 @@ function Header() {
           <a href="#features" className="hover:text-coral-600 transition">{t('nav.features')}</a>
           <a href="#pricing" className="hover:text-coral-600 transition">{t('nav.pricing')}</a>
           <a href="#testimonials" className="hover:text-coral-600 transition">{t('nav.testimonials')}</a>
+          <a href="#faq" className="hover:text-coral-600 transition">{t('nav.faq')}</a>
         </nav>
         <div className="hidden md:flex items-center gap-3">
           <button onClick={toggle} className="w-9 h-9 rounded-full border border-slate-200 dark:border-white/15 flex items-center justify-center text-slate-600 dark:text-amber-300">
@@ -103,6 +104,7 @@ function Header() {
           <a href="#features" onClick={() => setOpen(false)} className="block text-slate-700 dark:text-white/80">{t('nav.features')}</a>
           <a href="#pricing" onClick={() => setOpen(false)} className="block text-slate-700 dark:text-white/80">{t('nav.pricing')}</a>
           <a href="#testimonials" onClick={() => setOpen(false)} className="block text-slate-700 dark:text-white/80">{t('nav.testimonials')}</a>
+          <a href="#faq" onClick={() => setOpen(false)} className="block text-slate-700 dark:text-white/80">{t('nav.faq')}</a>
           <div className="flex gap-3 pt-2">
             <Link to="/signin" className="btn-ghost flex-1 text-sm">{t('nav.login')}</Link>
             <Link to="/signup" className="btn-primary flex-1 text-sm">{t('nav.cta')}</Link>
@@ -617,6 +619,55 @@ function VideoTestimonials() {
   );
 }
 
+function FaqItem({ q, a, defaultOpen = false }: { q: string; a: string; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="card overflow-hidden">
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between gap-4 p-5 text-left">
+        <span className="font-medium text-slate-900 dark:text-white">{q}</span>
+        <span className={`shrink-0 w-7 h-7 rounded-full border border-slate-200 dark:border-white/15 flex items-center justify-center text-slate-500 dark:text-white/60 transition-transform ${open ? 'rotate-45' : ''}`}>
+          <Plus size={14} />
+        </span>
+      </button>
+      {open && <p className="px-5 pb-5 -mt-1 text-sm text-slate-600 dark:text-white/60 leading-relaxed">{a}</p>}
+    </div>
+  );
+}
+
+function Faq() {
+  const { t, lang } = useI18n();
+  // Same facts already documented in the in-app Help Center — reworded for
+  // a landing page, not new claims.
+  const items = [
+    { qFr: 'Faut-il une carte bancaire pour l\'essai gratuit ?', aFr: 'Non. L\'essai gratuit dure 7 jours, sans carte bancaire requise. Vous choisissez un plan seulement si vous décidez de continuer.', qEn: 'Do I need a card for the free trial?', aEn: 'No. The free trial lasts 7 days, no card required. You only pick a plan if you decide to continue.' },
+    { qFr: 'Quels moyens de paiement sont acceptés ?', aFr: 'Mobile Money / Orange Money via PayUnit, ainsi que les cartes bancaires internationales via Stripe.', qEn: 'What payment methods are accepted?', aEn: 'Mobile Money / Orange Money via PayUnit, as well as international bank cards via Stripe.' },
+    { qFr: 'Mes données sont-elles isolées de celles des autres entreprises ?', aFr: 'Oui, strictement, au niveau de la base de données (Row Level Security PostgreSQL) — aucune entreprise ne peut jamais accéder aux données d\'une autre.', qEn: 'Is my data isolated from other companies?', aEn: 'Yes, strictly, at the database level (PostgreSQL Row Level Security) — no company can ever access another company\'s data.' },
+    { qFr: 'Qui peut voir le bulletin de paie d\'un employé ?', aFr: 'Uniquement l\'employé concerné et les rôles RH/paie de son entreprise. Aucun collègue ne peut voir le bulletin d\'un autre.', qEn: 'Who can see an employee\'s payslip?', aEn: 'Only that employee and their company\'s HR/payroll roles. No coworker can see anyone else\'s payslip.' },
+    { qFr: 'Puis-je changer de plan à tout moment ?', aFr: 'Oui, depuis Abonnement, à tout moment. Les modules et la limite d\'employés s\'ajustent immédiatement après le paiement.', qEn: 'Can I change plans at any time?', aEn: 'Yes, from Subscription, at any time. Modules and the employee limit update immediately after payment.' },
+    { qFr: 'La plateforme est-elle disponible en anglais ?', aFr: 'Oui, toute la plateforme — landing, tableau de bord, emails — est bilingue FR/EN, avec un bouton pour basculer à tout moment.', qEn: 'Is the platform available in English?', aEn: 'Yes, the entire platform — landing page, dashboard, emails — is bilingual FR/EN, with a toggle to switch at any time.' },
+  ];
+  return (
+    <section id="faq" className="section py-24 border-t border-slate-200 dark:border-white/10 bg-white dark:bg-ink-900">
+      <Reveal className="text-center mb-12">
+        <h2 className="font-display text-3xl md:text-4xl font-semibold text-slate-900 dark:text-white tracking-tight">{t('faq.title')}</h2>
+        <p className="mt-3 text-slate-500 dark:text-white/50">{t('faq.subtitle')}</p>
+      </Reveal>
+      <div className="max-w-2xl mx-auto space-y-3">
+        {items.map((it, i) => (
+          <Reveal key={i} delay={i * 60}>
+            <FaqItem q={lang === 'fr' ? it.qFr : it.qEn} a={lang === 'fr' ? it.aFr : it.aEn} defaultOpen={i === 0} />
+          </Reveal>
+        ))}
+      </div>
+      <Reveal className="text-center mt-10">
+        <p className="text-sm text-slate-500 dark:text-white/50">
+          {t('faq.more')} <Link to="/help" className="text-coral-600 dark:text-coral-300 font-medium hover:underline">{t('footer.manual')}</Link>
+        </p>
+      </Reveal>
+    </section>
+  );
+}
+
 function CTASection() {
   const { t } = useI18n();
   return (
@@ -707,6 +758,7 @@ export default function Landing() {
       <Pricing />
       <Testimonials />
       <VideoTestimonials />
+      <Faq />
       <CTASection />
       <Footer />
       <CookieBanner />
