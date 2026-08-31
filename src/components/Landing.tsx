@@ -4,7 +4,7 @@ import {
   Check, Star, Menu, X, ArrowRight, Sparkles, Moon, Sun,
   Briefcase, UserCog,
   TrendingUp, Clock, Download,
-  Lock, KeyRound, History, FileLock2, MapPin,
+  Lock, KeyRound, History, FileLock2, MapPin, Play,
 } from 'lucide-react';
 import { useI18n } from '../lib/i18n';
 import { Link, navigate } from '../lib/router';
@@ -217,6 +217,34 @@ function DashboardMockup() {
   );
 }
 
+// A video slot that is honest about its state: pass a real `src` once you
+// have one and it plays normally. Until then it shows a clearly-labeled
+// "coming soon" placeholder instead of a fake thumbnail or a dead button —
+// nothing here pretends a video exists when it doesn't.
+function VideoSlot({ src, title, aspect = 'aspect-video' }: { src?: string; title: string; aspect?: string }) {
+  const [notice, setNotice] = useState(false);
+  if (src) {
+    return (
+      <div className={`relative ${aspect} rounded-2xl overflow-hidden bg-ink-900 shadow-popover`}>
+        <video src={src} controls playsInline className="w-full h-full object-cover" />
+      </div>
+    );
+  }
+  return (
+    <div className={`relative ${aspect} rounded-2xl overflow-hidden shadow-popover bg-gradient-to-br from-slate-900 via-ink-800 to-coral-900/40 flex flex-col items-center justify-center text-center p-6`}>
+      <button
+        onClick={() => setNotice(true)}
+        className="w-16 h-16 rounded-full bg-white/95 hover:bg-white flex items-center justify-center shadow-lg transition-transform hover:scale-105"
+        aria-label={`Lire : ${title}`}
+      >
+        <Play size={24} className="text-coral-600 ml-1" fill="currentColor" />
+      </button>
+      <p className="mt-4 text-sm font-medium text-white/90">{title}</p>
+      {notice && <p className="mt-2 text-xs text-white/50">Vidéo bientôt disponible</p>}
+    </div>
+  );
+}
+
 function Hero() {
   const { t } = useI18n();
   const [heroEmail, setHeroEmail] = useState('');
@@ -263,8 +291,11 @@ function Hero() {
             <div className="flex items-center gap-2"><Globe2 size={16} className="text-emerald-500" /> FR / EN</div>
           </div>
         </div>
-        <div className="relative animate-scale-in">
+        <div className="relative animate-scale-in space-y-4">
           <DashboardMockup />
+          {/* Video slot: swap in a real recruiting/demo video src whenever
+              you have one — see VideoSlot above. */}
+          <VideoSlot title="Faka en 90 secondes" aspect="aspect-[16/7]" />
         </div>
       </div>
     </section>
@@ -312,12 +343,50 @@ function Features() {
         {items.map((f, i) => (
           <Reveal key={f.title} delay={i * 80}>
           <div className="card p-6 hover:border-coral-300 hover:shadow-lg transition group h-full">
-            <div className="w-10 h-10 rounded-lg bg-coral-50 text-coral-600 dark:bg-coral-500/10 dark:text-coral-400 flex items-center justify-center mb-4 group-hover:bg-coral-100 dark:group-hover:bg-coral-500/20 transition-colors">
+            <div className="w-10 h-10 rounded-xl bg-coral-50 text-coral-600 dark:bg-coral-500/10 dark:text-coral-400 flex items-center justify-center mb-4 group-hover:bg-coral-100 dark:group-hover:bg-coral-500/20 transition-colors">
               <f.icon size={22} />
             </div>
             <h3 className="font-display text-slate-900 dark:text-white font-semibold text-lg">{f.title}</h3>
             <p className="mt-2 text-slate-600 dark:text-white/60 text-sm leading-relaxed">{f.desc}</p>
           </div>
+          </Reveal>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function HowItWorks() {
+  const { t } = useI18n();
+  const steps = [
+    { n: '1', icon: UserCog, title: t('how.step1.title'), desc: t('how.step1.desc') },
+    { n: '2', icon: Users, title: t('how.step2.title'), desc: t('how.step2.desc') },
+    { n: '3', icon: Wallet, title: t('how.step3.title'), desc: t('how.step3.desc') },
+    { n: '4', icon: BarChart3, title: t('how.step4.title'), desc: t('how.step4.desc') },
+  ];
+  return (
+    <section className="section py-24 border-t border-slate-200 dark:border-white/10 bg-sage-50 dark:bg-ink-900">
+      <Reveal className="text-center mb-14">
+        <div className="inline-flex items-center gap-2 rounded-full bg-coral-50 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 px-3 py-1.5 text-xs text-coral-700 dark:text-coral-300 mb-4">
+          <Sparkles size={14} /> {t('how.badge')}
+        </div>
+        <h2 className="font-display text-3xl md:text-4xl font-semibold text-slate-900 dark:text-white tracking-tight">{t('how.title')}</h2>
+        <p className="mt-3 text-slate-600 dark:text-white/60 max-w-2xl mx-auto">{t('how.subtitle')}</p>
+      </Reveal>
+      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {steps.map((s, i) => (
+          <Reveal key={s.n} delay={i * 90}>
+            <div className="relative">
+              <div className="w-14 h-14 rounded-2xl bg-white dark:bg-ink-800 border border-slate-200 dark:border-white/10 shadow-card flex items-center justify-center text-coral-600 dark:text-coral-300 mb-5">
+                <s.icon size={24} />
+              </div>
+              <div className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-coral-500 text-white text-xs font-bold flex items-center justify-center">{s.n}</div>
+              <h3 className="font-display text-slate-900 dark:text-white font-semibold text-base">{s.title}</h3>
+              <p className="mt-1.5 text-slate-500 dark:text-white/50 text-sm leading-relaxed">{s.desc}</p>
+              {i < steps.length - 1 && (
+                <div className="hidden lg:block absolute top-7 left-[calc(100%+0.75rem)] w-6 border-t-2 border-dashed border-slate-300 dark:border-white/15" />
+              )}
+            </div>
           </Reveal>
         ))}
       </div>
@@ -520,6 +589,34 @@ function Testimonials() {
   );
 }
 
+function VideoTestimonials() {
+  const { t } = useI18n();
+  // Three ready-to-fill video slots. Add a real `src` to each entry the
+  // day you have actual employee/customer videos — until then they show
+  // an honest "coming soon" state, never a fabricated clip or a fake
+  // named employee.
+  const slots = [
+    { title: 'Vie chez Faka' },
+    { title: 'Nos clients en parlent' },
+    { title: 'Dans les coulisses de LiAfrik' },
+  ];
+  return (
+    <section className="section py-24 border-t border-slate-200 dark:border-white/10 bg-sage-50 dark:bg-ink-900">
+      <Reveal className="text-center mb-12">
+        <h2 className="font-display text-3xl md:text-4xl font-semibold text-slate-900 dark:text-white tracking-tight">{t('video.title')}</h2>
+        <p className="mt-3 text-slate-500 dark:text-white/50 max-w-xl mx-auto">{t('video.subtitle')}</p>
+      </Reveal>
+      <div className="grid md:grid-cols-3 gap-5">
+        {slots.map((s, i) => (
+          <Reveal key={s.title} delay={i * 100}>
+            <VideoSlot title={s.title} />
+          </Reveal>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function CTASection() {
   const { t } = useI18n();
   return (
@@ -604,10 +701,12 @@ export default function Landing() {
       <Hero />
       <LogoCloud />
       <Features />
+      <HowItWorks />
       <GlobalPresence />
       <Security />
       <Pricing />
       <Testimonials />
+      <VideoTestimonials />
       <CTASection />
       <Footer />
       <CookieBanner />
