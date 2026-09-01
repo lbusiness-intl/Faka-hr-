@@ -4,7 +4,7 @@ import {
   Check, Star, Menu, X, ArrowRight, Sparkles, Moon, Sun,
   Briefcase, UserCog,
   TrendingUp, Clock, Download,
-  Lock, KeyRound, History, FileLock2, MapPin, Play, Plus,
+  Lock, KeyRound, History, FileLock2, MapPin, Play, Plus, Mail,
 } from 'lucide-react';
 import { useI18n } from '../lib/i18n';
 import { Link, navigate } from '../lib/router';
@@ -87,13 +87,15 @@ function Header() {
           <a href="#testimonials" className="hover:text-coral-600 transition">{t('nav.testimonials')}</a>
           <a href="#faq" className="hover:text-coral-600 transition">{t('nav.faq')}</a>
         </nav>
-        <div className="hidden md:flex items-center gap-3">
+        <div className="hidden md:flex items-center gap-5">
           <button onClick={toggle} className="w-9 h-9 rounded-full border border-slate-200 dark:border-white/15 flex items-center justify-center text-slate-600 dark:text-amber-300">
             {dark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
           <LangSwitch />
-          <Link to="/signin" className="btn-ghost text-sm">{t('nav.login')}</Link>
-          <Link to="/signup" className="btn-primary text-sm">{t('nav.cta')}</Link>
+          <Link to="/help" className="text-sm text-slate-500 hover:text-coral-600 dark:text-white/60 dark:hover:text-coral-300 transition">{t('footer.help')}</Link>
+          <Link to="/signin" className="text-sm text-slate-500 hover:text-coral-600 dark:text-white/60 dark:hover:text-coral-300 transition">{t('nav.login')}</Link>
+          <Link to="/signin" className="btn-ghost text-sm">{t('hero.cta.demo')}</Link>
+          <Link to="/signup" className="btn-primary text-sm">{t('hero.cta.start')}</Link>
         </div>
         <button className="md:hidden text-slate-600" onClick={() => setOpen(!open)} aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'}>
           {open ? <X size={22} /> : <Menu size={22} />}
@@ -105,9 +107,10 @@ function Header() {
           <a href="#pricing" onClick={() => setOpen(false)} className="block text-slate-700 dark:text-white/80">{t('nav.pricing')}</a>
           <a href="#testimonials" onClick={() => setOpen(false)} className="block text-slate-700 dark:text-white/80">{t('nav.testimonials')}</a>
           <a href="#faq" onClick={() => setOpen(false)} className="block text-slate-700 dark:text-white/80">{t('nav.faq')}</a>
+          <Link to="/help" onClick={() => setOpen(false)} className="block text-slate-700 dark:text-white/80">{t('footer.help')}</Link>
           <div className="flex gap-3 pt-2">
             <Link to="/signin" className="btn-ghost flex-1 text-sm">{t('nav.login')}</Link>
-            <Link to="/signup" className="btn-primary flex-1 text-sm">{t('nav.cta')}</Link>
+            <Link to="/signup" className="btn-primary flex-1 text-sm">{t('hero.cta.start')}</Link>
           </div>
         </div>
       )}
@@ -256,49 +259,52 @@ function Hero() {
   }
   return (
     <section className="relative overflow-hidden bg-sage-50 dark:bg-ink-900">
-      <div className="absolute inset-0 opacity-60 dark:opacity-30" style={{
-        backgroundImage: 'radial-gradient(ellipse at 50% -10%, rgba(226,58,80,0.14), transparent 55%)',
+      <div className="absolute inset-0 opacity-70 dark:opacity-30" style={{
+        backgroundImage: 'radial-gradient(ellipse at 50% -10%, rgba(226,58,80,0.16), transparent 55%)',
       }} />
-      <div className="relative section pt-24 pb-24 grid lg:grid-cols-2 gap-14 items-center">
-        <div className="animate-fade-in">
-          <div className="inline-flex items-center gap-2 rounded-full bg-coral-50 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 px-3 py-1.5 text-xs text-coral-700 dark:text-coral-300 mb-6">
-            <Sparkles size={14} /> {t('app.badge')}
+      <div className="relative section pt-20 pb-16 text-center">
+        <Reveal className="flex justify-center">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/15 shadow-sm px-4 py-2 text-xs font-medium text-slate-600 dark:text-white/70">
+            <Sparkles size={14} className="text-coral-500" /> {t('app.badge')}
           </div>
-          <h1 className="font-display text-4xl md:text-5xl lg:text-[3.5rem] font-semibold text-slate-900 dark:text-white leading-[1.08] tracking-tight">
-            {t('hero.title')}
-          </h1>
-          <p className="mt-6 text-lg text-slate-600 dark:text-white/70 leading-relaxed max-w-xl">
-            {t('hero.subtitle')}
-          </p>
-          <form onSubmit={startFromHero} className="mt-8 flex flex-col sm:flex-row gap-2.5 max-w-md">
+        </Reveal>
+        <h1 className="font-display mt-8 text-4xl md:text-5xl lg:text-[3.75rem] font-bold text-slate-900 dark:text-white leading-[1.08] tracking-tight max-w-4xl mx-auto">
+          {t('hero.title')}
+        </h1>
+        <p className="mt-6 text-lg text-slate-600 dark:text-white/70 leading-relaxed max-w-2xl mx-auto">
+          {t('hero.subtitle')}
+        </p>
+
+        <form onSubmit={startFromHero} className="mt-9 max-w-xl mx-auto">
+          <div className="flex items-center gap-1.5 rounded-full bg-white dark:bg-ink-800 border border-slate-200 dark:border-white/10 shadow-popover p-1.5 pl-5">
+            <Mail size={18} className="text-slate-400 shrink-0" />
             <input
               type="email"
               value={heroEmail}
               onChange={(e) => setHeroEmail(e.target.value)}
               placeholder={t('auth.email')}
-              className="input flex-1"
+              className="flex-1 min-w-0 bg-transparent border-0 px-3 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
             />
-            <button type="submit" className="btn-primary whitespace-nowrap">
-              {t('hero.cta.start')} <ArrowRight size={18} />
+            <button type="submit" className="btn-primary text-sm whitespace-nowrap shrink-0">
+              {t('hero.cta.start')}
             </button>
-          </form>
-          <div className="mt-3">
-            <Link to="/signin" className="text-sm text-slate-500 hover:text-coral-600 dark:text-white/50 dark:hover:text-coral-300 transition">
-              {t('hero.cta.demo')} →
-            </Link>
           </div>
-          <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-500 dark:text-white/50">
-            <div className="flex items-center gap-2"><Check size={16} className="text-emerald-500" /> {t('pricing.trial')}</div>
-            <div className="flex items-center gap-2"><ShieldCheck size={16} className="text-emerald-500" /> GDPR / ISO 27001 ready</div>
-            <div className="flex items-center gap-2"><Globe2 size={16} className="text-emerald-500" /> FR / EN</div>
-          </div>
+        </form>
+        <div className="mt-4">
+          <Link to="/signin" className="inline-flex items-center gap-1.5 text-sm font-medium text-teal-600 hover:text-teal-700 dark:text-teal-400 transition">
+            {t('hero.cta.demo')} <ArrowRight size={15} />
+          </Link>
         </div>
-        <div className="relative animate-scale-in space-y-4">
+
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-slate-500 dark:text-white/50">
+          <div className="flex items-center gap-2"><Check size={16} className="text-emerald-500" /> {t('pricing.trial')}</div>
+          <div className="flex items-center gap-2"><ShieldCheck size={16} className="text-emerald-500" /> GDPR / ISO 27001 ready</div>
+          <div className="flex items-center gap-2"><Globe2 size={16} className="text-emerald-500" /> FR / EN</div>
+        </div>
+
+        <Reveal className="relative mt-14 max-w-4xl mx-auto animate-scale-in" delay={100}>
           <DashboardMockup />
-          {/* Video slot: swap in a real recruiting/demo video src whenever
-              you have one — see VideoSlot above. */}
-          <VideoSlot title="Faka en 90 secondes" aspect="aspect-[16/7]" />
-        </div>
+        </Reveal>
       </div>
     </section>
   );
@@ -544,36 +550,35 @@ function FeatureShowcase() {
   const Active = tabs[active];
   return (
     <section className="section py-24 bg-white dark:bg-ink-900">
-      <Reveal className="text-center mb-14">
-        <h2 className="font-display text-3xl md:text-4xl font-semibold text-slate-900 dark:text-white tracking-tight">{t('showcase.title')}</h2>
-        <p className="mt-3 text-slate-600 dark:text-white/60 max-w-2xl mx-auto">{t('showcase.subtitle')}</p>
-      </Reveal>
-      <div className="grid lg:grid-cols-[minmax(0,320px)_1fr] gap-8 items-start">
-        <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0">
+      <Reveal className="flex justify-center mb-14">
+        <div className="inline-flex flex-wrap justify-center gap-1 rounded-full bg-slate-100 dark:bg-white/5 p-1.5">
           {tabs.map((tab, i) => (
             <button
               key={tab.key}
               onClick={() => setActive(i)}
-              className={`text-left shrink-0 lg:shrink w-64 lg:w-full rounded-2xl border p-4 transition-colors ${
+              className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-colors ${
                 active === i
-                  ? 'bg-coral-50 dark:bg-coral-500/10 border-coral-200 dark:border-coral-500/30'
-                  : 'bg-white dark:bg-transparent border-slate-200 dark:border-white/10 hover:border-coral-200 dark:hover:border-coral-500/20'
+                  ? 'bg-white dark:bg-ink-800 text-slate-900 dark:text-white shadow-sm'
+                  : 'text-slate-500 dark:text-white/50 hover:text-slate-800 dark:hover:text-white/80'
               }`}
             >
-              <div className="flex items-center gap-3 mb-1.5">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${active === i ? 'bg-coral-500 text-white' : 'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-white/60'}`}>
-                  <tab.icon size={18} />
-                </div>
-                <div className="font-display font-semibold text-slate-900 dark:text-white text-sm">{tab.label}</div>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-white/50 leading-relaxed">{tab.desc}</p>
+              <tab.icon size={15} /> {tab.label}
             </button>
           ))}
         </div>
-        <Reveal key={active} className="lg:sticky lg:top-24">
+      </Reveal>
+      <Reveal key={active} className="grid lg:grid-cols-2 gap-12 items-center">
+        <div>
+          <h3 className="font-display text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{tabs[active].label}</h3>
+          <p className="mt-4 text-lg text-slate-600 dark:text-white/60 leading-relaxed">{tabs[active].desc}</p>
+          <a href="#pricing" className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-teal-600 hover:text-teal-700 dark:text-teal-400 transition">
+            {t('showcase.learnmore')} <ArrowRight size={15} />
+          </a>
+        </div>
+        <div>
           <Active.Mockup />
-        </Reveal>
-      </div>
+        </div>
+      </Reveal>
     </section>
   );
 }
