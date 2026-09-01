@@ -876,15 +876,29 @@ function Faq() {
 function CTASection() {
   const { t } = useI18n();
   return (
-    <section className="section py-20 bg-sage-50/40 dark:bg-ink-900 border-t border-slate-200 dark:border-white/10">
-      <div className="card p-10 text-center max-w-2xl mx-auto">
-        <h2 className="font-display text-2xl md:text-3xl font-semibold text-slate-900 dark:text-white">{t('hero.cta.start')}</h2>
-        <p className="mt-3 text-slate-600 dark:text-white/60 text-sm max-w-md mx-auto">{t('hero.subtitle')}</p>
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <Link to="/signup" className="btn-primary">{t('hero.cta.start')} <ArrowRight size={18} /></Link>
-          <Link to="/signin" className="btn-ghost">{t('hero.cta.demo')}</Link>
+    <section className="section py-20 bg-white dark:bg-ink-900">
+      <Reveal className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-coral-600 via-coral-500 to-coral-700 p-12 md:p-16 text-center max-w-4xl mx-auto shadow-2xl">
+        <div className="absolute inset-0 opacity-40" style={{
+          backgroundImage: 'radial-gradient(circle at 20% 20%, rgba(255,255,255,0.25), transparent 40%), radial-gradient(circle at 80% 80%, rgba(255,255,255,0.15), transparent 45%)',
+        }} />
+        <div className="relative">
+          <h2 className="font-display text-3xl md:text-4xl font-bold text-white tracking-tight">{t('hero.cta.start')}</h2>
+          <p className="mt-4 text-white/85 text-lg max-w-xl mx-auto">{t('hero.subtitle')}</p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link to="/signup" className="inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold bg-white text-coral-600 hover:bg-white/90 transition-colors shadow-lg">
+              {t('hero.cta.start')} <ArrowRight size={18} />
+            </Link>
+            <Link to="/signin" className="inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white border border-white/40 hover:bg-white/10 transition-colors">
+              {t('hero.cta.demo')}
+            </Link>
+          </div>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-white/70">
+            <div className="flex items-center gap-1.5"><Check size={14} /> {t('pricing.trial')}</div>
+            <div className="flex items-center gap-1.5"><ShieldCheck size={14} /> GDPR / ISO 27001</div>
+            <div className="flex items-center gap-1.5"><Globe2 size={14} /> FR / EN</div>
+          </div>
         </div>
-      </div>
+      </Reveal>
     </section>
   );
 }
