@@ -4,7 +4,7 @@ import {
   Check, Star, Menu, X, ArrowRight, Sparkles, Moon, Sun,
   Briefcase, UserCog,
   TrendingUp, Clock, Download,
-  Lock, KeyRound, History, FileLock2, MapPin,
+  Lock, KeyRound, History, FileLock2, MapPin, Play, Plus,
 } from 'lucide-react';
 import { useI18n } from '../lib/i18n';
 import { Link, navigate } from '../lib/router';
@@ -85,6 +85,7 @@ function Header() {
           <a href="#features" className="hover:text-coral-600 transition">{t('nav.features')}</a>
           <a href="#pricing" className="hover:text-coral-600 transition">{t('nav.pricing')}</a>
           <a href="#testimonials" className="hover:text-coral-600 transition">{t('nav.testimonials')}</a>
+          <a href="#faq" className="hover:text-coral-600 transition">{t('nav.faq')}</a>
         </nav>
         <div className="hidden md:flex items-center gap-3">
           <button onClick={toggle} className="w-9 h-9 rounded-full border border-slate-200 dark:border-white/15 flex items-center justify-center text-slate-600 dark:text-amber-300">
@@ -94,7 +95,7 @@ function Header() {
           <Link to="/signin" className="btn-ghost text-sm">{t('nav.login')}</Link>
           <Link to="/signup" className="btn-primary text-sm">{t('nav.cta')}</Link>
         </div>
-        <button className="md:hidden text-slate-600" onClick={() => setOpen(!open)}>
+        <button className="md:hidden text-slate-600" onClick={() => setOpen(!open)} aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'}>
           {open ? <X size={22} /> : <Menu size={22} />}
         </button>
       </div>
@@ -103,6 +104,7 @@ function Header() {
           <a href="#features" onClick={() => setOpen(false)} className="block text-slate-700 dark:text-white/80">{t('nav.features')}</a>
           <a href="#pricing" onClick={() => setOpen(false)} className="block text-slate-700 dark:text-white/80">{t('nav.pricing')}</a>
           <a href="#testimonials" onClick={() => setOpen(false)} className="block text-slate-700 dark:text-white/80">{t('nav.testimonials')}</a>
+          <a href="#faq" onClick={() => setOpen(false)} className="block text-slate-700 dark:text-white/80">{t('nav.faq')}</a>
           <div className="flex gap-3 pt-2">
             <Link to="/signin" className="btn-ghost flex-1 text-sm">{t('nav.login')}</Link>
             <Link to="/signup" className="btn-primary flex-1 text-sm">{t('nav.cta')}</Link>
@@ -217,6 +219,34 @@ function DashboardMockup() {
   );
 }
 
+// A video slot that is honest about its state: pass a real `src` once you
+// have one and it plays normally. Until then it shows a clearly-labeled
+// "coming soon" placeholder instead of a fake thumbnail or a dead button —
+// nothing here pretends a video exists when it doesn't.
+function VideoSlot({ src, title, aspect = 'aspect-video' }: { src?: string; title: string; aspect?: string }) {
+  const [notice, setNotice] = useState(false);
+  if (src) {
+    return (
+      <div className={`relative ${aspect} rounded-2xl overflow-hidden bg-ink-900 shadow-popover`}>
+        <video src={src} controls playsInline className="w-full h-full object-cover" />
+      </div>
+    );
+  }
+  return (
+    <div className={`relative ${aspect} rounded-2xl overflow-hidden shadow-popover bg-gradient-to-br from-slate-900 via-ink-800 to-coral-900/40 flex flex-col items-center justify-center text-center p-6`}>
+      <button
+        onClick={() => setNotice(true)}
+        className="w-16 h-16 rounded-full bg-white/95 hover:bg-white flex items-center justify-center shadow-lg transition-transform hover:scale-105"
+        aria-label={`Lire : ${title}`}
+      >
+        <Play size={24} className="text-coral-600 ml-1" fill="currentColor" />
+      </button>
+      <p className="mt-4 text-sm font-medium text-white/90">{title}</p>
+      {notice && <p className="mt-2 text-xs text-white/50">Vidéo bientôt disponible</p>}
+    </div>
+  );
+}
+
 function Hero() {
   const { t } = useI18n();
   const [heroEmail, setHeroEmail] = useState('');
@@ -263,8 +293,11 @@ function Hero() {
             <div className="flex items-center gap-2"><Globe2 size={16} className="text-emerald-500" /> FR / EN</div>
           </div>
         </div>
-        <div className="relative animate-scale-in">
+        <div className="relative animate-scale-in space-y-4">
           <DashboardMockup />
+          {/* Video slot: swap in a real recruiting/demo video src whenever
+              you have one — see VideoSlot above. */}
+          <VideoSlot title="Faka en 90 secondes" aspect="aspect-[16/7]" />
         </div>
       </div>
     </section>
@@ -312,7 +345,7 @@ function Features() {
         {items.map((f, i) => (
           <Reveal key={f.title} delay={i * 80}>
           <div className="card p-6 hover:border-coral-300 hover:shadow-lg transition group h-full">
-            <div className="w-10 h-10 rounded-lg bg-coral-50 text-coral-600 dark:bg-coral-500/10 dark:text-coral-400 flex items-center justify-center mb-4 group-hover:bg-coral-100 dark:group-hover:bg-coral-500/20 transition-colors">
+            <div className="w-10 h-10 rounded-xl bg-coral-50 text-coral-600 dark:bg-coral-500/10 dark:text-coral-400 flex items-center justify-center mb-4 group-hover:bg-coral-100 dark:group-hover:bg-coral-500/20 transition-colors">
               <f.icon size={22} />
             </div>
             <h3 className="font-display text-slate-900 dark:text-white font-semibold text-lg">{f.title}</h3>
@@ -320,6 +353,226 @@ function Features() {
           </div>
           </Reveal>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function HowItWorks() {
+  const { t } = useI18n();
+  const steps = [
+    { n: '1', icon: UserCog, title: t('how.step1.title'), desc: t('how.step1.desc') },
+    { n: '2', icon: Users, title: t('how.step2.title'), desc: t('how.step2.desc') },
+    { n: '3', icon: Wallet, title: t('how.step3.title'), desc: t('how.step3.desc') },
+    { n: '4', icon: BarChart3, title: t('how.step4.title'), desc: t('how.step4.desc') },
+  ];
+  return (
+    <section className="section py-24 border-t border-slate-200 dark:border-white/10 bg-sage-50 dark:bg-ink-900">
+      <Reveal className="text-center mb-14">
+        <div className="inline-flex items-center gap-2 rounded-full bg-coral-50 dark:bg-coral-500/10 border border-coral-200 dark:border-coral-500/30 px-3 py-1.5 text-xs text-coral-700 dark:text-coral-300 mb-4">
+          <Sparkles size={14} /> {t('how.badge')}
+        </div>
+        <h2 className="font-display text-3xl md:text-4xl font-semibold text-slate-900 dark:text-white tracking-tight">{t('how.title')}</h2>
+        <p className="mt-3 text-slate-600 dark:text-white/60 max-w-2xl mx-auto">{t('how.subtitle')}</p>
+      </Reveal>
+      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {steps.map((s, i) => (
+          <Reveal key={s.n} delay={i * 90}>
+            <div className="relative">
+              <div className="w-14 h-14 rounded-2xl bg-white dark:bg-ink-800 border border-slate-200 dark:border-white/10 shadow-card flex items-center justify-center text-coral-600 dark:text-coral-300 mb-5">
+                <s.icon size={24} />
+              </div>
+              <div className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-coral-500 text-white text-xs font-bold flex items-center justify-center">{s.n}</div>
+              <h3 className="font-display text-slate-900 dark:text-white font-semibold text-base">{s.title}</h3>
+              <p className="mt-1.5 text-slate-500 dark:text-white/50 text-sm leading-relaxed">{s.desc}</p>
+              {i < steps.length - 1 && (
+                <div className="hidden lg:block absolute top-7 left-[calc(100%+0.75rem)] w-6 border-t-2 border-dashed border-slate-300 dark:border-white/15" />
+              )}
+            </div>
+          </Reveal>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// Compact browser-chrome wrapper shared by every mockup panel below, so
+// they all read as the same product.
+function MockupFrame({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="card p-0 overflow-hidden shadow-2xl border border-slate-200/60 dark:border-white/10">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-ink-800/60">
+        <div className="flex gap-1.5">
+          <div className="w-3 h-3 rounded-full bg-rose-400/70" />
+          <div className="w-3 h-3 rounded-full bg-amber-400/70" />
+          <div className="w-3 h-3 rounded-full bg-emerald-400/70" />
+        </div>
+        <div className="ml-3 flex-1 rounded-md bg-white dark:bg-ink-700/50 border border-slate-200 dark:border-white/10 px-3 py-1 text-[10px] text-slate-400">
+          faka.app/dashboard
+        </div>
+      </div>
+      <div className="p-5 bg-white dark:bg-ink-900 min-h-[320px]">{children}</div>
+    </div>
+  );
+}
+
+function EmployeesMockup() {
+  const rows = [
+    { name: 'Aïcha Diallo', role: 'Head of Sales', status: 'Active' },
+    { name: 'Marc Foka', role: 'Payroll Manager', status: 'Active' },
+    { name: 'Lea Ntamack', role: 'Recruiter', status: 'On leave' },
+    { name: 'Samir Toure', role: 'Support Lead', status: 'Active' },
+  ];
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div className="text-sm font-semibold text-slate-900 dark:text-white">Employees · 248</div>
+        <div className="btn-primary text-[10px] px-2.5 py-1.5">+ Invite</div>
+      </div>
+      <div className="space-y-2">
+        {rows.map((r) => (
+          <div key={r.name} className="flex items-center gap-3 rounded-xl bg-slate-50 dark:bg-ink-800/50 border border-slate-200 dark:border-white/10 p-2.5">
+            <div className="w-8 h-8 rounded-full bg-coral-100 dark:bg-coral-500/15 flex items-center justify-center text-coral-600 dark:text-coral-400 font-bold text-[10px] shrink-0">
+              {r.name.split(' ').map((n) => n[0]).join('')}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-medium text-slate-800 dark:text-white/80 truncate">{r.name}</div>
+              <div className="text-[10px] text-slate-400 truncate">{r.role}</div>
+            </div>
+            <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full ${r.status === 'Active' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'}`}>{r.status}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PayrollMockup() {
+  return (
+    <div>
+      <div className="text-sm font-semibold text-slate-900 dark:text-white mb-4">Run payroll · August 2026</div>
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="rounded-xl bg-slate-50 dark:bg-ink-800/50 border border-slate-200 dark:border-white/10 p-3">
+          <div className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">Net total</div>
+          <div className="text-lg font-bold text-slate-900 dark:text-white">182 400 000 XAF</div>
+        </div>
+        <div className="rounded-xl bg-slate-50 dark:bg-ink-800/50 border border-slate-200 dark:border-white/10 p-3">
+          <div className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">Employees</div>
+          <div className="text-lg font-bold text-slate-900 dark:text-white">248</div>
+        </div>
+      </div>
+      <div className="rounded-xl bg-slate-50 dark:bg-ink-800/50 border border-slate-200 dark:border-white/10 p-3 space-y-2.5">
+        {[
+          { label: 'Bank transfer', pct: 62 },
+          { label: 'Mobile Money', pct: 31 },
+          { label: 'Cash', pct: 7 },
+        ].map((m) => (
+          <div key={m.label}>
+            <div className="flex justify-between text-[10px] text-slate-500 mb-1"><span>{m.label}</span><span>{m.pct}%</span></div>
+            <div className="h-1.5 rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden"><div className="h-full bg-teal-500" style={{ width: `${m.pct}%` }} /></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LeaveMockup() {
+  const days = Array.from({ length: 28 }, (_, i) => i + 1);
+  const leaveDays = new Set([12, 13, 14, 22]);
+  return (
+    <div>
+      <div className="text-sm font-semibold text-slate-900 dark:text-white mb-4">Time off · August</div>
+      <div className="grid grid-cols-7 gap-1.5 mb-4">
+        {days.map((d) => (
+          <div key={d} className={`aspect-square rounded-lg flex items-center justify-center text-[10px] font-medium ${leaveDays.has(d) ? 'bg-coral-500 text-white' : 'bg-slate-50 dark:bg-ink-800/50 text-slate-500 dark:text-white/50 border border-slate-200 dark:border-white/10'}`}>
+            {d}
+          </div>
+        ))}
+      </div>
+      <div className="rounded-xl bg-slate-50 dark:bg-ink-800/50 border border-slate-200 dark:border-white/10 p-3 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-full bg-coral-100 dark:bg-coral-500/15 flex items-center justify-center text-coral-600 dark:text-coral-400 font-bold text-[10px] shrink-0">LN</div>
+        <div className="flex-1 min-w-0">
+          <div className="text-xs font-medium text-slate-800 dark:text-white/80">Lea Ntamack</div>
+          <div className="text-[10px] text-slate-400">Annual leave · Aug 12–14</div>
+        </div>
+        <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">Approved</span>
+      </div>
+    </div>
+  );
+}
+
+function AnalyticsMockup() {
+  return (
+    <div>
+      <div className="text-sm font-semibold text-slate-900 dark:text-white mb-4">Workforce analytics</div>
+      <div className="rounded-xl bg-slate-50 dark:bg-ink-800/50 border border-slate-200 dark:border-white/10 p-4 mb-3">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-xs font-semibold text-slate-700 dark:text-white/70">Payroll cost — 6 months</div>
+          <div className="flex items-center gap-1 text-[10px] text-emerald-500 font-medium"><TrendingUp size={11} /> +8.4%</div>
+        </div>
+        <div className="flex items-end gap-2 h-20">
+          {[45, 58, 50, 72, 65, 88].map((h, i) => (
+            <div key={i} className="flex-1 flex flex-col items-center gap-1">
+              <div className="w-full rounded-t-md bg-gradient-to-t from-coral-500/80 to-coral-400" style={{ height: `${h}%` }} />
+              <span className="text-[8px] text-slate-400">{['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'][i]}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        {[{ l: 'Headcount', v: '248' }, { l: 'Turnover', v: '3.1%' }, { l: 'Absenteeism', v: '1.8%' }].map((s) => (
+          <div key={s.l} className="rounded-xl bg-slate-50 dark:bg-ink-800/50 border border-slate-200 dark:border-white/10 p-3 text-center">
+            <div className="text-base font-bold text-slate-900 dark:text-white">{s.v}</div>
+            <div className="text-[9px] uppercase tracking-wide text-slate-400">{s.l}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FeatureShowcase() {
+  const { t } = useI18n();
+  const tabs = [
+    { key: 'people', icon: Users, label: t('showcase.people'), desc: t('showcase.people.desc'), Mockup: EmployeesMockup },
+    { key: 'payroll', icon: Wallet, label: t('showcase.payroll'), desc: t('showcase.payroll.desc'), Mockup: PayrollMockup },
+    { key: 'time', icon: Clock, label: t('showcase.time'), desc: t('showcase.time.desc'), Mockup: LeaveMockup },
+    { key: 'analytics', icon: BarChart3, label: t('showcase.analytics'), desc: t('showcase.analytics.desc'), Mockup: AnalyticsMockup },
+  ];
+  const [active, setActive] = useState(0);
+  const Active = tabs[active];
+  return (
+    <section className="section py-24 bg-white dark:bg-ink-900">
+      <Reveal className="text-center mb-14">
+        <h2 className="font-display text-3xl md:text-4xl font-semibold text-slate-900 dark:text-white tracking-tight">{t('showcase.title')}</h2>
+        <p className="mt-3 text-slate-600 dark:text-white/60 max-w-2xl mx-auto">{t('showcase.subtitle')}</p>
+      </Reveal>
+      <div className="grid lg:grid-cols-[minmax(0,320px)_1fr] gap-8 items-start">
+        <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0">
+          {tabs.map((tab, i) => (
+            <button
+              key={tab.key}
+              onClick={() => setActive(i)}
+              className={`text-left shrink-0 lg:shrink w-64 lg:w-full rounded-2xl border p-4 transition-colors ${
+                active === i
+                  ? 'bg-coral-50 dark:bg-coral-500/10 border-coral-200 dark:border-coral-500/30'
+                  : 'bg-white dark:bg-transparent border-slate-200 dark:border-white/10 hover:border-coral-200 dark:hover:border-coral-500/20'
+              }`}
+            >
+              <div className="flex items-center gap-3 mb-1.5">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${active === i ? 'bg-coral-500 text-white' : 'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-white/60'}`}>
+                  <tab.icon size={18} />
+                </div>
+                <div className="font-display font-semibold text-slate-900 dark:text-white text-sm">{tab.label}</div>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-white/50 leading-relaxed">{tab.desc}</p>
+            </button>
+          ))}
+        </div>
+        <Reveal key={active} className="lg:sticky lg:top-24">
+          <Active.Mockup />
+        </Reveal>
       </div>
     </section>
   );
@@ -520,6 +773,83 @@ function Testimonials() {
   );
 }
 
+function VideoTestimonials() {
+  const { t } = useI18n();
+  // Three ready-to-fill video slots. Add a real `src` to each entry the
+  // day you have actual employee/customer videos — until then they show
+  // an honest "coming soon" state, never a fabricated clip or a fake
+  // named employee.
+  const slots = [
+    { title: 'Vie chez Faka' },
+    { title: 'Nos clients en parlent' },
+    { title: 'Dans les coulisses de LiAfrik' },
+  ];
+  return (
+    <section className="section py-24 border-t border-slate-200 dark:border-white/10 bg-sage-50 dark:bg-ink-900">
+      <Reveal className="text-center mb-12">
+        <h2 className="font-display text-3xl md:text-4xl font-semibold text-slate-900 dark:text-white tracking-tight">{t('video.title')}</h2>
+        <p className="mt-3 text-slate-500 dark:text-white/50 max-w-xl mx-auto">{t('video.subtitle')}</p>
+      </Reveal>
+      <div className="grid md:grid-cols-3 gap-5">
+        {slots.map((s, i) => (
+          <Reveal key={s.title} delay={i * 100}>
+            <VideoSlot title={s.title} />
+          </Reveal>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function FaqItem({ q, a, defaultOpen = false }: { q: string; a: string; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="card overflow-hidden">
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between gap-4 p-5 text-left">
+        <span className="font-medium text-slate-900 dark:text-white">{q}</span>
+        <span className={`shrink-0 w-7 h-7 rounded-full border border-slate-200 dark:border-white/15 flex items-center justify-center text-slate-500 dark:text-white/60 transition-transform ${open ? 'rotate-45' : ''}`}>
+          <Plus size={14} />
+        </span>
+      </button>
+      {open && <p className="px-5 pb-5 -mt-1 text-sm text-slate-600 dark:text-white/60 leading-relaxed">{a}</p>}
+    </div>
+  );
+}
+
+function Faq() {
+  const { t, lang } = useI18n();
+  // Same facts already documented in the in-app Help Center — reworded for
+  // a landing page, not new claims.
+  const items = [
+    { qFr: 'Faut-il une carte bancaire pour l\'essai gratuit ?', aFr: 'Non. L\'essai gratuit dure 7 jours, sans carte bancaire requise. Vous choisissez un plan seulement si vous décidez de continuer.', qEn: 'Do I need a card for the free trial?', aEn: 'No. The free trial lasts 7 days, no card required. You only pick a plan if you decide to continue.' },
+    { qFr: 'Quels moyens de paiement sont acceptés ?', aFr: 'Mobile Money / Orange Money via PayUnit, ainsi que les cartes bancaires internationales via Stripe.', qEn: 'What payment methods are accepted?', aEn: 'Mobile Money / Orange Money via PayUnit, as well as international bank cards via Stripe.' },
+    { qFr: 'Mes données sont-elles isolées de celles des autres entreprises ?', aFr: 'Oui, strictement, au niveau de la base de données (Row Level Security PostgreSQL) — aucune entreprise ne peut jamais accéder aux données d\'une autre.', qEn: 'Is my data isolated from other companies?', aEn: 'Yes, strictly, at the database level (PostgreSQL Row Level Security) — no company can ever access another company\'s data.' },
+    { qFr: 'Qui peut voir le bulletin de paie d\'un employé ?', aFr: 'Uniquement l\'employé concerné et les rôles RH/paie de son entreprise. Aucun collègue ne peut voir le bulletin d\'un autre.', qEn: 'Who can see an employee\'s payslip?', aEn: 'Only that employee and their company\'s HR/payroll roles. No coworker can see anyone else\'s payslip.' },
+    { qFr: 'Puis-je changer de plan à tout moment ?', aFr: 'Oui, depuis Abonnement, à tout moment. Les modules et la limite d\'employés s\'ajustent immédiatement après le paiement.', qEn: 'Can I change plans at any time?', aEn: 'Yes, from Subscription, at any time. Modules and the employee limit update immediately after payment.' },
+    { qFr: 'La plateforme est-elle disponible en anglais ?', aFr: 'Oui, toute la plateforme — landing, tableau de bord, emails — est bilingue FR/EN, avec un bouton pour basculer à tout moment.', qEn: 'Is the platform available in English?', aEn: 'Yes, the entire platform — landing page, dashboard, emails — is bilingual FR/EN, with a toggle to switch at any time.' },
+  ];
+  return (
+    <section id="faq" className="section py-24 border-t border-slate-200 dark:border-white/10 bg-white dark:bg-ink-900">
+      <Reveal className="text-center mb-12">
+        <h2 className="font-display text-3xl md:text-4xl font-semibold text-slate-900 dark:text-white tracking-tight">{t('faq.title')}</h2>
+        <p className="mt-3 text-slate-500 dark:text-white/50">{t('faq.subtitle')}</p>
+      </Reveal>
+      <div className="max-w-2xl mx-auto space-y-3">
+        {items.map((it, i) => (
+          <Reveal key={i} delay={i * 60}>
+            <FaqItem q={lang === 'fr' ? it.qFr : it.qEn} a={lang === 'fr' ? it.aFr : it.aEn} defaultOpen={i === 0} />
+          </Reveal>
+        ))}
+      </div>
+      <Reveal className="text-center mt-10">
+        <p className="text-sm text-slate-500 dark:text-white/50">
+          {t('faq.more')} <Link to="/help" className="text-coral-600 dark:text-coral-300 font-medium hover:underline">{t('footer.manual')}</Link>
+        </p>
+      </Reveal>
+    </section>
+  );
+}
+
 function CTASection() {
   const { t } = useI18n();
   return (
@@ -604,10 +934,14 @@ export default function Landing() {
       <Hero />
       <LogoCloud />
       <Features />
+      <FeatureShowcase />
+      <HowItWorks />
       <GlobalPresence />
       <Security />
       <Pricing />
       <Testimonials />
+      <VideoTestimonials />
+      <Faq />
       <CTASection />
       <Footer />
       <CookieBanner />

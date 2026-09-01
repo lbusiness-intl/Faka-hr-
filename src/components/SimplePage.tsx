@@ -14,8 +14,8 @@ const PAGES: Record<string, { icon: typeof Info; titleFr: string; titleEn: strin
     icon: Mail,
     titleFr: 'Contactez-nous',
     titleEn: 'Contact us',
-    bodyFr: `LiAfrik\nEmail : contact@faka-hr.com\nTéléphone : +237 6XX XXX XXX\nDouala, Cameroun\n\nPour le support technique : support@faka-hr.com\nPour les partenariats : partners@faka-hr.com`,
-    bodyEn: `LiAfrik\nEmail: contact@faka-hr.com\nPhone: +237 6XX XXX XXX\nDouala, Cameroon\n\nTechnical support: support@faka-hr.com\nPartnerships: partners@faka-hr.com`,
+    bodyFr: `LiAfrik\nEmail : contact@faka-hr.com\nDouala, Cameroun\n\nPour le support technique : support@faka-hr.com\nPour les partenariats : partners@faka-hr.com`,
+    bodyEn: `LiAfrik\nEmail: contact@faka-hr.com\nDouala, Cameroon\n\nTechnical support: support@faka-hr.com\nPartnerships: partners@faka-hr.com`,
   },
   privacy: {
     icon: Lock,
