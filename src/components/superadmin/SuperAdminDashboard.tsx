@@ -8,7 +8,7 @@ import { PLANS, getPlan, type PlanId } from '../../lib/plans';
 import { COUNTRIES } from '../../lib/geo';
 import {
   Building2, DollarSign, TrendingDown, Globe2, Ticket, LogOut, Home,
-  Crown, ShieldCheck, MapPin, Plus, Trash2, Mail, Trophy, Percent,
+  Crown, ShieldCheck, MapPin, Plus, Trash2, Mail, Trophy, Percent, UserPlus,
 } from 'lucide-react';
 import EmailCenter from './EmailCenter';
 import AutomationCenter from './AutomationCenter';
@@ -25,7 +25,7 @@ export default function SuperAdminDashboard() {
   const [tenants, setTenants] = useState<TenantRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [edit, setEdit] = useState<TenantRow | null>(null);
-  const [tab, setTab] = useState<'overview' | 'tenants' | 'sales' | 'invitations' | 'plans' | 'promotions' | 'geo' | 'email' | 'automation'>('overview');
+  const [tab, setTab] = useState<'overview' | 'tenants' | 'sales' | 'staff' | 'invitations' | 'plans' | 'promotions' | 'geo' | 'email' | 'automation'>('overview');
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
@@ -104,6 +104,7 @@ export default function SuperAdminDashboard() {
             { id: 'overview', label: 'Vue d\'ensemble' },
             { id: 'tenants', label: t('super.tenants') },
             { id: 'sales', label: 'Commerciaux' },
+            { id: 'staff', label: 'Équipe Faka' },
             { id: 'invitations', label: 'Invitations' },
             { id: 'plans', label: 'Plans' },
             { id: 'promotions', label: 'Promotions' },
@@ -230,6 +231,7 @@ export default function SuperAdminDashboard() {
             )}
 
             {tab === 'sales' && <SalesAgents tenants={tenants} />}
+            {tab === 'staff' && <Staff />}
             {tab === 'invitations' && <Invitations />}
             {tab === 'plans' && <PlanEditor />}
             {tab === 'promotions' && <Promotions />}
@@ -418,6 +420,136 @@ function SalesAgents({ tenants }: { tenants: TenantRow[] }) {
           <button onClick={() => setModal(false)} className="btn-ghost text-sm">Annuler</button>
           <button onClick={add} className="btn-primary text-sm">Enregistrer</button>
         </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ============================================================
+// Staff — platform team members with the super_admin role.
+// Every action here goes through the invite-employee edge function's
+// requireSuperAdmin() gate: nobody can list, invite or revoke without
+// already being a verified super admin (see migration 0011 for the
+// underlying RLS/trigger hardening this respects).
+// ============================================================
+type StaffMember = { id: string; email: string; full_name: string | null; created_at: string; last_sign_in_at: string | null };
+
+function Staff() {
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function callFn(body: Record<string, unknown>) {
+    const { data: sess } = await supabase.auth.getSession();
+    const token = sess.session?.access_token;
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-employee`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    return res.json();
+  }
+
+  async function load() {
+    setLoading(true);
+    const json = await callFn({ action: 'list_staff' });
+    if (json.ok) setStaff(json.staff);
+    setLoading(false);
+  }
+  useEffect(() => { load(); }, []);
+
+  async function invite() {
+    setError(null);
+    if (!email.trim()) { setError('Email requis'); return; }
+    setBusy(true);
+    const json = await callFn({ action: 'invite_staff', email: email.trim() });
+    setBusy(false);
+    if (!json.ok) { setError(`Échec de l'invitation : ${json.error}`); return; }
+    setInviteUrl(json.invite_url);
+    setEmail('');
+  }
+
+  async function revoke(m: StaffMember) {
+    if (!confirm(`Retirer l'accès Super Admin à ${m.email} ?`)) return;
+    const json = await callFn({ action: 'revoke_staff', userId: m.id });
+    if (!json.ok) { setError(`Échec du retrait : ${json.error}`); return; }
+    load();
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-coral-50 dark:bg-coral-500/10 border border-coral-100 dark:border-coral-500/30 flex items-center justify-center text-coral-600 dark:text-coral-300"><ShieldCheck size={20} /></div>
+          <div>
+            <h1 className="font-display text-xl font-semibold text-slate-900 dark:text-white">Équipe Faka</h1>
+            <p className="text-slate-500 dark:text-white/50 text-xs">Membres avec un accès Super Admin à la plateforme</p>
+          </div>
+        </div>
+        <button onClick={() => { setModal(true); setInviteUrl(null); setError(null); }} className="btn-primary text-sm"><UserPlus size={16} /> Inviter</button>
+      </div>
+
+      {error && !modal && (
+        <div className="card p-4 mb-6 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 text-sm text-rose-700 dark:text-rose-300 flex items-start justify-between gap-3">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-rose-400 hover:text-rose-600 shrink-0">✕</button>
+        </div>
+      )}
+
+      {loading ? <Spinner /> : staff.length === 0 ? (
+        <EmptyState icon={<ShieldCheck size={48} />} title="Aucun membre listé" hint="Invitez un premier membre de l'équipe Faka." />
+      ) : (
+        <div className="card overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-slate-400 dark:text-white/40 text-[11px] font-semibold uppercase tracking-wide border-b border-slate-100 dark:border-white/10">
+              <tr>
+                <th className="text-left p-4">Membre</th>
+                <th className="text-left p-4">Ajouté le</th>
+                <th className="text-left p-4">Dernière connexion</th>
+                <th className="text-left p-4"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {staff.map((m) => (
+                <tr key={m.id} className="border-b border-slate-100 dark:border-white/5">
+                  <td className="p-4">
+                    <div className="text-slate-900 dark:text-white font-medium">{m.full_name ?? m.email}</div>
+                    {m.full_name && <div className="text-xs text-slate-400">{m.email}</div>}
+                  </td>
+                  <td className="p-4 text-slate-400 text-xs">{new Date(m.created_at).toLocaleDateString()}</td>
+                  <td className="p-4 text-slate-400 text-xs">{m.last_sign_in_at ? new Date(m.last_sign_in_at).toLocaleDateString() : '—'}</td>
+                  <td className="p-4">
+                    <button onClick={() => revoke(m)} className="text-rose-500 hover:text-rose-400 text-xs"><Trash2 size={14} /></button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <Modal open={modal} onClose={() => setModal(false)} title="Inviter un membre de l'équipe">
+        {inviteUrl ? (
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600 dark:text-white/70">Invitation créée. Partagez ce lien avec la personne concernée (valable 72h) :</p>
+            <div className="input break-all text-xs select-all">{inviteUrl}</div>
+            <div className="flex justify-end"><button onClick={() => setModal(false)} className="btn-primary text-sm">Fermer</button></div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs text-slate-500 dark:text-white/50">La personne invitée obtiendra un accès Super Admin complet à toute la plateforme, sur tous les tenants.</p>
+            <div><label className="label">Email</label><input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="prenom.nom@liyahgroup.com" /></div>
+            {error && <p className="text-xs text-rose-600">{error}</p>}
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => setModal(false)} className="btn-ghost text-sm">Annuler</button>
+              <button onClick={invite} disabled={busy} className="btn-primary text-sm">{busy ? <Spinner className="w-4 h-4" /> : 'Envoyer l\'invitation'}</button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );
