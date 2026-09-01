@@ -360,7 +360,12 @@ Deno.serve(async (req: Request) => {
       // (migration 0011) only allows THAT row to be created by a caller
       // who was already a verified super admin — so granting it here,
       // for the invited user, does not create a new escalation path.
-      if (inv.role === "super_admin") {
+      // Defense in depth: a legitimate platform-staff invitation is
+      // never tied to a tenant. Requiring tenant_id === null here is a
+      // second, independent guard on top of the RLS policies on
+      // `invitations` (migrations 0011 and 0023) that already restrict
+      // who can write role = 'super_admin' in the first place.
+      if (inv.role === "super_admin" && !inv.tenant_id) {
         await adminClient.auth.admin.updateUserById(authUserId, {
           app_metadata: { role: "super_admin" },
         });
@@ -470,7 +475,12 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      if (inv.role === "super_admin") {
+      // Defense in depth: a legitimate platform-staff invitation is
+      // never tied to a tenant. Requiring tenant_id === null here is a
+      // second, independent guard on top of the RLS policies on
+      // `invitations` (migrations 0011 and 0023) that already restrict
+      // who can write role = 'super_admin' in the first place.
+      if (inv.role === "super_admin" && !inv.tenant_id) {
         await adminClient.auth.admin.updateUserById(authUserId, {
           app_metadata: { role: "super_admin" },
         });
