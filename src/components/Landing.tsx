@@ -538,13 +538,29 @@ function AnalyticsMockup() {
   );
 }
 
+// Real photo (provided by the user, bundled locally — no external hotlink)
+// with a floating illustrated data card overlapping it, matching the
+// reference composition (photo + floating 'Updates'-style card).
+function PhotoPanel({ src, alt, children }: { src: string; alt: string; children: React.ReactNode }) {
+  return (
+    <div className="relative">
+      <div className="rounded-2xl overflow-hidden shadow-2xl aspect-[4/5] md:aspect-[3/4]">
+        <img src={src} alt={alt} className="w-full h-full object-cover" loading="lazy" />
+      </div>
+      <div className="absolute -bottom-6 -right-4 md:right-4 w-[calc(100%-2rem)] max-w-sm rounded-2xl bg-white dark:bg-ink-800 shadow-popover border border-slate-200/60 dark:border-white/10 p-4">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function FeatureShowcase() {
   const { t } = useI18n();
   const tabs = [
-    { key: 'people', icon: Users, label: t('showcase.people'), desc: t('showcase.people.desc'), Mockup: EmployeesMockup },
-    { key: 'payroll', icon: Wallet, label: t('showcase.payroll'), desc: t('showcase.payroll.desc'), Mockup: PayrollMockup },
-    { key: 'time', icon: Clock, label: t('showcase.time'), desc: t('showcase.time.desc'), Mockup: LeaveMockup },
-    { key: 'analytics', icon: BarChart3, label: t('showcase.analytics'), desc: t('showcase.analytics.desc'), Mockup: AnalyticsMockup },
+    { key: 'people', icon: Users, label: t('showcase.people'), desc: t('showcase.people.desc'), Mockup: EmployeesMockup, photo: '/images/showcase/people.jpg' },
+    { key: 'payroll', icon: Wallet, label: t('showcase.payroll'), desc: t('showcase.payroll.desc'), Mockup: PayrollMockup, photo: '/images/showcase/payroll.jpg' },
+    { key: 'time', icon: Clock, label: t('showcase.time'), desc: t('showcase.time.desc'), Mockup: LeaveMockup, photo: '/images/showcase/time.jpg' },
+    { key: 'analytics', icon: BarChart3, label: t('showcase.analytics'), desc: t('showcase.analytics.desc'), Mockup: AnalyticsMockup, photo: '/images/showcase/analytics.jpg' },
   ];
   const [active, setActive] = useState(0);
   const Active = tabs[active];
@@ -567,16 +583,18 @@ function FeatureShowcase() {
           ))}
         </div>
       </Reveal>
-      <Reveal key={active} className="grid lg:grid-cols-2 gap-12 items-center">
-        <div>
+      <Reveal key={active} className="grid lg:grid-cols-2 gap-16 lg:gap-12 items-center">
+        <div className="order-2 lg:order-1">
           <h3 className="font-display text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{tabs[active].label}</h3>
           <p className="mt-4 text-lg text-slate-600 dark:text-white/60 leading-relaxed">{tabs[active].desc}</p>
           <a href="#pricing" className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-teal-600 hover:text-teal-700 dark:text-teal-400 transition">
             {t('showcase.learnmore')} <ArrowRight size={15} />
           </a>
         </div>
-        <div>
-          <Active.Mockup />
+        <div className="order-1 lg:order-2">
+          <PhotoPanel src={Active.photo} alt={Active.label}>
+            <Active.Mockup />
+          </PhotoPanel>
         </div>
       </Reveal>
     </section>
