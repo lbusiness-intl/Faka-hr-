@@ -427,7 +427,6 @@ function EmployeesMockup() {
     { name: 'Aïcha Diallo', role: 'Head of Sales', status: 'Active' },
     { name: 'Marc Foka', role: 'Payroll Manager', status: 'Active' },
     { name: 'Lea Ntamack', role: 'Recruiter', status: 'On leave' },
-    { name: 'Samir Toure', role: 'Support Lead', status: 'Active' },
   ];
   return (
     <div>
@@ -458,13 +457,13 @@ function PayrollMockup() {
     <div>
       <div className="text-sm font-semibold text-slate-900 dark:text-white mb-4">Run payroll · August 2026</div>
       <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="rounded-xl bg-slate-50 dark:bg-ink-800/50 border border-slate-200 dark:border-white/10 p-3">
+        <div className="rounded-xl bg-slate-50 dark:bg-ink-800/50 border border-slate-200 dark:border-white/10 p-3 min-w-0">
           <div className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">Net total</div>
-          <div className="text-lg font-bold text-slate-900 dark:text-white">182 400 000 XAF</div>
+          <div className="text-base font-bold text-slate-900 dark:text-white truncate">182M XAF</div>
         </div>
-        <div className="rounded-xl bg-slate-50 dark:bg-ink-800/50 border border-slate-200 dark:border-white/10 p-3">
+        <div className="rounded-xl bg-slate-50 dark:bg-ink-800/50 border border-slate-200 dark:border-white/10 p-3 min-w-0">
           <div className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">Employees</div>
-          <div className="text-lg font-bold text-slate-900 dark:text-white">248</div>
+          <div className="text-base font-bold text-slate-900 dark:text-white truncate">248</div>
         </div>
       </div>
       <div className="rounded-xl bg-slate-50 dark:bg-ink-800/50 border border-slate-200 dark:border-white/10 p-3 space-y-2.5">
@@ -499,10 +498,10 @@ function LeaveMockup() {
       <div className="rounded-xl bg-slate-50 dark:bg-ink-800/50 border border-slate-200 dark:border-white/10 p-3 flex items-center gap-3">
         <div className="w-8 h-8 rounded-full bg-coral-100 dark:bg-coral-500/15 flex items-center justify-center text-coral-600 dark:text-coral-400 font-bold text-[10px] shrink-0">LN</div>
         <div className="flex-1 min-w-0">
-          <div className="text-xs font-medium text-slate-800 dark:text-white/80">Lea Ntamack</div>
-          <div className="text-[10px] text-slate-400">Annual leave · Aug 12–14</div>
+          <div className="text-xs font-medium text-slate-800 dark:text-white/80 truncate">Lea Ntamack</div>
+          <div className="text-[10px] text-slate-400 truncate">Annual leave · Aug 12–14</div>
         </div>
-        <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">Approved</span>
+        <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 shrink-0">Approved</span>
       </div>
     </div>
   );
