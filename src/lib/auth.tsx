@@ -75,6 +75,7 @@ type AuthContextValue = {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: string | null; user: User | null }>;
+  signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   setActiveTenantId: (id: string) => void;
   refresh: () => Promise<void>;
@@ -154,6 +155,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null, user: data.user ?? null };
   }
 
+  async function signInWithGoogle() {
+    // redirectTo is deliberately just the origin (no #/hash route): the
+    // app's router reads window.location.hash for its own routes, and
+    // Supabase's OAuth callback needs window.location.search (?code=...,
+    // PKCE flow) to stay clean of that. AuthScreen already redirects a
+    // logged-in user to /dashboard once `user` becomes truthy, so no
+    // separate callback route is needed.
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
+    });
+    return { error: error?.message ?? null };
+  }
+
   async function signOut() {
     await supabase.auth.signOut();
     setMemberships([]);
@@ -181,6 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     signIn,
     signUp,
+    signInWithGoogle,
     signOut,
     setActiveTenantId,
     refresh,

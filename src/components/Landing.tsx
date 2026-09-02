@@ -543,11 +543,11 @@ function AnalyticsMockup() {
 // reference composition (photo + floating 'Updates'-style card).
 function PhotoPanel({ src, alt, children }: { src: string; alt: string; children: React.ReactNode }) {
   return (
-    <div className="relative">
+    <div className="relative pb-10 pr-6 md:pb-4 md:pr-0">
       <div className="rounded-2xl overflow-hidden shadow-2xl aspect-[4/3]">
         <img src={src} alt={alt} className="w-full h-full object-cover" loading="lazy" />
       </div>
-      <div className="absolute -bottom-6 -right-4 md:right-4 w-[calc(100%-2rem)] max-w-sm rounded-2xl bg-white dark:bg-ink-800 shadow-popover border border-slate-200/60 dark:border-white/10 p-4">
+      <div className="absolute bottom-0 right-0 w-64 md:w-72 rounded-xl bg-white dark:bg-ink-800 shadow-popover border border-slate-200/60 dark:border-white/10 p-3">
         {children}
       </div>
     </div>
