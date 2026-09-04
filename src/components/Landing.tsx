@@ -5,6 +5,7 @@ import {
   Briefcase, UserCog,
   TrendingUp, Clock, Download,
   Lock, KeyRound, History, FileLock2, MapPin, Play, Plus, Mail,
+  Facebook, Instagram, Linkedin, Youtube,
 } from 'lucide-react';
 import { useI18n } from '../lib/i18n';
 import { Link, navigate } from '../lib/router';
@@ -888,6 +889,22 @@ function CTASection() {
   );
 }
 
+function TikTokIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M16.6 5.82s.51.5 0 0A4.278 4.278 0 0 1 15.54 3h-3.09v12.4a2.592 2.592 0 0 1-2.59 2.5c-1.42 0-2.6-1.16-2.6-2.6 0-1.72 1.66-3.01 3.37-2.48V9.66c-3.45-.46-6.47 2.22-6.47 5.64 0 3.33 2.76 5.7 5.69 5.7 3.14 0 5.69-2.55 5.69-5.7V9.01a7.35 7.35 0 0 0 4.3 1.38V7.3s-1.88.09-3.24-1.48z" />
+    </svg>
+  );
+}
+
+const SOCIAL_LINKS = [
+  { key: 'tiktok', href: 'https://www.tiktok.com/@liyahgroup?_r=1&_t=ZS-9981XGgaxrE', Icon: TikTokIcon, label: 'TikTok' },
+  { key: 'facebook', href: 'https://www.facebook.com/share/1LMAGqsy3n/?mibextid=wwXIfr', Icon: Facebook, label: 'Facebook' },
+  { key: 'instagram', href: 'https://www.instagram.com/liafrik_tech?igsi=eXBjdTc5NG42Zml4&utm_source=qr', Icon: Instagram, label: 'Instagram' },
+  { key: 'linkedin', href: 'https://www.linkedin.com/company/liafrik/', Icon: Linkedin, label: 'LinkedIn' },
+  { key: 'youtube', href: 'https://youtube.com/@liyah-n?si=D-lXwovYubw3sdaf', Icon: Youtube, label: 'YouTube' },
+] as const;
+
 function Footer() {
   const { t } = useI18n();
   return (
@@ -896,7 +913,21 @@ function Footer() {
         <div className="md:col-span-2">
           <Logo />
           <p className="mt-4 text-slate-500 dark:text-white/50 text-sm max-w-sm">{t('app.tagline')}.</p>
-          <p className="mt-3 text-xs text-slate-400">Developed by LiAfrik</p>
+          <a href="https://liafrik.com" target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-xs text-slate-400 hover:text-coral-600 transition">Developed by LiAfrik</a>
+          <div className="mt-5 flex items-center gap-2">
+            {SOCIAL_LINKS.map((s) => (
+              <a
+                key={s.key}
+                href={s.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={s.label}
+                className="w-9 h-9 rounded-full border border-slate-200 dark:border-white/15 flex items-center justify-center text-slate-500 dark:text-white/60 hover:text-coral-600 hover:border-coral-200 dark:hover:border-coral-500/30 transition-colors"
+              >
+                <s.Icon size={16} />
+              </a>
+            ))}
+          </div>
         </div>
         <div>
           <div className="text-slate-900 dark:text-white/80 font-semibold text-sm mb-3">Product</div>
@@ -916,6 +947,9 @@ function Footer() {
             <li><Link to="/page/contact" className="hover:text-coral-600 transition">{t('footer.contact')}</Link></li>
             <li><Link to="/page/privacy" className="hover:text-coral-600 transition">{t('footer.privacy')}</Link></li>
             <li><Link to="/page/terms" className="hover:text-coral-600 transition">{t('footer.terms')}</Link></li>
+            <li><Link to="/page/cookies" className="hover:text-coral-600 transition">{t('footer.cookies')}</Link></li>
+            <li><Link to="/page/refund" className="hover:text-coral-600 transition">{t('footer.refund')}</Link></li>
+            <li><Link to="/page/legal" className="hover:text-coral-600 transition">{t('footer.legal')}</Link></li>
             <li><Link to="/page/security" className="hover:text-coral-600 transition">{t('footer.security')}</Link></li>
             <li><Link to="/page/status" className="hover:text-coral-600 transition">{t('footer.status')}</Link></li>
           </ul>

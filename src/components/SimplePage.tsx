@@ -45,6 +45,27 @@ const PAGES: Record<string, { icon: typeof Info; titleFr: string; titleEn: strin
     bodyFr: `Tous les systèmes sont opérationnels.\n\n• Application web : Opérationnel\n• Base de données : Opérationnel\n• Edge Functions : Opérationnel\n• Paiements Stripe : Opérationnel\n\nDernière mise à jour : ${new Date().toLocaleDateString('fr-FR')}`,
     bodyEn: `All systems are operational.\n\n• Web Application: Operational\n• Database: Operational\n• Edge Functions: Operational\n• Stripe Payments: Operational\n\nLast updated: ${new Date().toLocaleDateString('en-US')}`,
   },
+  cookies: {
+    icon: Lock,
+    titleFr: 'Politique de cookies',
+    titleEn: 'Cookie Policy',
+    bodyFr: `Faka utilise un nombre limité de cookies et de stockage local :\n\n• Cookies essentiels : session de connexion, préférence de langue, préférence de thème (clair/sombre) — nécessaires au fonctionnement du site, toujours actifs.\n• Cookies de mesure d'audience : aucun à ce jour.\n• Cookies publicitaires : aucun — Faka n'affiche aucune publicité et ne partage aucune donnée avec des régies publicitaires.\n\nVous pouvez gérer votre consentement via le bandeau affiché lors de votre première visite, ou en effaçant les données de votre navigateur pour ce site à tout moment.\n\nPour toute question : privacy@faka-hr.com`,
+    bodyEn: `Faka uses a limited number of cookies and local storage entries:\n\n• Essential cookies: login session, language preference, theme preference (light/dark) — required for the site to function, always active.\n• Audience-measurement cookies: none at this time.\n• Advertising cookies: none — Faka does not display ads and does not share data with ad networks.\n\nYou can manage your consent via the banner shown on your first visit, or by clearing your browser data for this site at any time.\n\nFor any question: privacy@faka-hr.com`,
+  },
+  refund: {
+    icon: FileText,
+    titleFr: 'Politique de remboursement',
+    titleEn: 'Refund Policy',
+    bodyFr: `• Essai gratuit : 7 jours, sans carte bancaire requise, sans engagement.\n• Abonnements mensuels : vous pouvez annuler à tout moment depuis Abonnement ; l'accès reste actif jusqu'à la fin de la période déjà payée, sans remboursement au prorata de la période en cours.\n• Abonnements annuels : en cas d'annulation en cours d'année, aucun remboursement automatique n'est effectué pour la période restante, sauf accord exprès de LiAfrik.\n• Erreur de facturation ou double paiement : contactez-nous sous 30 jours, un remboursement complet sera effectué après vérification.\n• Les remboursements approuvés sont crédités sur le moyen de paiement d'origine (carte, Mobile Money) sous 5 à 10 jours ouvrés selon votre fournisseur de paiement.\n\nPour toute demande : billing@faka-hr.com`,
+    bodyEn: `• Free trial: 7 days, no card required, no commitment.\n• Monthly subscriptions: cancel any time from Subscription; access remains active until the end of the period already paid for, with no prorated refund for the current period.\n• Annual subscriptions: cancelling mid-year does not trigger an automatic refund for the remaining period, unless expressly agreed by LiAfrik.\n• Billing error or duplicate charge: contact us within 30 days, a full refund will be issued after verification.\n• Approved refunds are credited to the original payment method (card, Mobile Money) within 5–10 business days depending on your payment provider.\n\nFor any request: billing@faka-hr.com`,
+  },
+  legal: {
+    icon: Info,
+    titleFr: 'Mentions légales',
+    titleEn: 'Legal Notice',
+    bodyFr: `Éditeur du site\nFaka est édité par LiAfrik, basée à Douala, Cameroun.\nContact : contact@faka-hr.com\n\nHébergement\nLes données applicatives sont hébergées par Supabase (infrastructure cloud). Les paiements sont traités par des prestataires tiers certifiés (Stripe, PayUnit).\n\nPropriété intellectuelle\nLa marque Faka, son logo et l'ensemble des contenus de ce site sont la propriété de LiAfrik, sauf mention contraire.\n\nNote : les informations d'immatriculation légale complètes (SIRET/RCCM, forme juridique, capital social) seront ajoutées à cette page dès communication par LiAfrik.`,
+    bodyEn: `Publisher\nFaka is published by LiAfrik, based in Douala, Cameroon.\nContact: contact@faka-hr.com\n\nHosting\nApplication data is hosted by Supabase (cloud infrastructure). Payments are processed by certified third-party providers (Stripe, PayUnit).\n\nIntellectual property\nThe Faka trademark, its logo, and all content on this site are the property of LiAfrik, unless otherwise stated.\n\nNote: full legal registration details (business registry number, legal form, share capital) will be added to this page once provided by LiAfrik.`,
+  },
 };
 
 export default function SimplePage() {
