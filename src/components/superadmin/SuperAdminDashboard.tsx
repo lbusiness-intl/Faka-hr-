@@ -16,6 +16,7 @@ import AutomationCenter from './AutomationCenter';
 type TenantRow = {
   id: string; name: string; country: string; currency: string; plan: string;
   status: string; created_at: string; trial_ends_at: string | null;
+  current_period_end: string | null;
   sales_code: string | null; employee_limit: number;
 };
 
@@ -253,14 +254,46 @@ function EditTenantModal({ tenant, onClose, onSave }: {
 }) {
   const [plan, setPlan] = useState(tenant?.plan ?? 'starter');
   const [status, setStatus] = useState(tenant?.status ?? 'trial');
+  const [endDate, setEndDate] = useState('');
+  const [extendAmount, setExtendAmount] = useState(1);
+  const [extendUnit, setExtendUnit] = useState<'days' | 'months' | 'years'>('months');
+
   useEffect(() => {
     setPlan(tenant?.plan ?? 'starter');
     setStatus(tenant?.status ?? 'trial');
+    const current = tenant?.status === 'trial' ? tenant?.trial_ends_at : tenant?.current_period_end;
+    setEndDate(current ? current.slice(0, 10) : '');
   }, [tenant]);
   if (!tenant) return null;
+
+  // Which date field this tenant's access is actually gated on, given the
+  // *currently selected* status in this form — trial uses trial_ends_at,
+  // anything else uses current_period_end (same fields tenant_is_active()
+  // and the app's own isBlocked checks read).
+  const dateField: 'trial_ends_at' | 'current_period_end' = status === 'trial' ? 'trial_ends_at' : 'current_period_end';
+  const currentEndDate = endDate ? new Date(endDate) : new Date();
+
+  function quickExtend(amount: number, unit: 'days' | 'months' | 'years') {
+    const base = endDate ? new Date(endDate) : new Date();
+    const next = new Date(base);
+    if (unit === 'days') next.setDate(next.getDate() + amount);
+    if (unit === 'months') next.setMonth(next.getMonth() + amount);
+    if (unit === 'years') next.setFullYear(next.getFullYear() + amount);
+    setEndDate(next.toISOString().slice(0, 10));
+  }
+
+  function save() {
+    const patch: Partial<TenantRow> = { plan, status };
+    if (endDate) {
+      const iso = new Date(`${endDate}T23:59:59`).toISOString();
+      patch[dateField] = iso;
+    }
+    onSave(tenant.id, patch);
+  }
+
   return (
     <Modal open={true} onClose={onClose} title={`Gérer — ${tenant.name}`}>
-      <div className="space-y-3">
+      <div className="space-y-4">
         <div>
           <label className="label">Plan</label>
           <select className="input" value={plan} onChange={(e) => setPlan(e.target.value)}>
@@ -275,10 +308,44 @@ function EditTenantModal({ tenant, onClose, onSave }: {
             <option value="suspended" className="bg-white dark:bg-ink-700">suspended</option>
           </select>
         </div>
+
+        <div className="pt-2 border-t border-slate-200 dark:border-white/10">
+          <label className="label">
+            {status === 'trial' ? "Fin de l'essai" : "Fin de la période payée"} (immédiat, synchronisé à l'enregistrement)
+          </label>
+          <input type="date" className="input" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          <p className="text-xs text-slate-400 mt-1">
+            {endDate ? `Nouvelle date : ${currentEndDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}` : 'Aucune date définie'}
+          </p>
+
+          <div className="flex flex-wrap gap-2 mt-3">
+            <button type="button" onClick={() => quickExtend(7, 'days')} className="btn-soft text-xs">+7 jours</button>
+            <button type="button" onClick={() => quickExtend(1, 'months')} className="btn-soft text-xs">+1 mois</button>
+            <button type="button" onClick={() => quickExtend(3, 'months')} className="btn-soft text-xs">+3 mois</button>
+            <button type="button" onClick={() => quickExtend(1, 'years')} className="btn-soft text-xs">+1 an</button>
+          </div>
+
+          <div className="flex items-center gap-2 mt-3">
+            <span className="text-sm text-slate-500 dark:text-white/50">Ajouter</span>
+            <input
+              type="number"
+              min={1}
+              value={extendAmount}
+              onChange={(e) => setExtendAmount(Math.max(1, Number(e.target.value)))}
+              className="input w-20"
+            />
+            <select value={extendUnit} onChange={(e) => setExtendUnit(e.target.value as typeof extendUnit)} className="input flex-1">
+              <option value="days" className="bg-white dark:bg-ink-700">jour(s)</option>
+              <option value="months" className="bg-white dark:bg-ink-700">mois</option>
+              <option value="years" className="bg-white dark:bg-ink-700">année(s)</option>
+            </select>
+            <button type="button" onClick={() => quickExtend(extendAmount, extendUnit)} className="btn-soft text-xs shrink-0">Ajouter</button>
+          </div>
+        </div>
       </div>
       <div className="flex justify-end gap-2 mt-5">
         <button onClick={onClose} className="btn-ghost text-sm">Annuler</button>
-        <button onClick={() => onSave(tenant.id, { plan, status })} className="btn-primary text-sm">Enregistrer</button>
+        <button onClick={save} className="btn-primary text-sm">Enregistrer</button>
       </div>
     </Modal>
   );
