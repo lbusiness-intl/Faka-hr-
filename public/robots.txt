@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /onboarding
+Disallow: /accept-invite
+Disallow: /activate
+
+Sitemap: https://faka-hr.com/sitemap.xml
