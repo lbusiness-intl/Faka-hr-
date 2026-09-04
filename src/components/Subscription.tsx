@@ -6,6 +6,7 @@ import { PLANS, getPlan, type PlanId } from '../lib/plans';
 import { Spinner, Badge } from './ui';
 import { Link } from '../lib/router';
 import { Check, Receipt, Zap } from 'lucide-react';
+import { openPaddleCheckout, paddlePriceIdForPlan, isPaddleConfigured } from '../lib/paddle';
 
 type Invoice = {
   id: string;
@@ -101,6 +102,31 @@ export default function Subscription() {
     }
   }
 
+  async function startPaddleCheckout(newPlan: PlanId) {
+    setError(null);
+    const priceId = paddlePriceIdForPlan(newPlan);
+    if (!priceId) {
+      setError('CHECKOUT_NOT_CONFIGURED: ce plan n\'a pas encore de prix Paddle configuré.');
+      return;
+    }
+    setPaying(newPlan);
+    try {
+      await openPaddleCheckout({
+        priceId,
+        tenantId: activeTenant.id,
+        customerEmail: user?.email,
+        successUrl: `${window.location.origin}/#/dashboard/admin/subscription`,
+      });
+      // Paddle's overlay checkout takes over from here. The tenant's plan
+      // updates once the paddle-webhook edge function processes Paddle's
+      // server-to-server notification — never from this client code.
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPaying(null);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-ink-900">
       <div className="section py-10 max-w-5xl">
@@ -177,6 +203,15 @@ export default function Subscription() {
                     className="mt-2 w-full rounded-xl px-3 py-2 text-xs font-medium text-slate-500 dark:text-white/50 hover:text-slate-700 dark:hover:text-white/80 transition"
                   >
                     {t('sub.paynow')} (carte bancaire) →
+                  </button>
+                )}
+                {!current && isPaddleConfigured && (
+                  <button
+                    onClick={() => startPaddleCheckout(p.id)}
+                    disabled={paying !== null}
+                    className="mt-1 w-full rounded-xl px-3 py-2 text-xs font-medium text-slate-500 dark:text-white/50 hover:text-slate-700 dark:hover:text-white/80 transition"
+                  >
+                    {t('sub.paynow')} (Paddle) →
                   </button>
                 )}
               </div>
