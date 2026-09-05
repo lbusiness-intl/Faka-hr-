@@ -405,24 +405,6 @@ function HowItWorks() {
 
 // Compact browser-chrome wrapper shared by every mockup panel below, so
 // they all read as the same product.
-function MockupFrame({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="card p-0 overflow-hidden shadow-2xl border border-slate-200/60 dark:border-white/10">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-ink-800/60">
-        <div className="flex gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-rose-400/70" />
-          <div className="w-3 h-3 rounded-full bg-amber-400/70" />
-          <div className="w-3 h-3 rounded-full bg-emerald-400/70" />
-        </div>
-        <div className="ml-3 flex-1 rounded-md bg-white dark:bg-ink-700/50 border border-slate-200 dark:border-white/10 px-3 py-1 text-[10px] text-slate-400">
-          faka.app/dashboard
-        </div>
-      </div>
-      <div className="p-5 bg-white dark:bg-ink-900 min-h-[320px]">{children}</div>
-    </div>
-  );
-}
-
 function EmployeesMockup() {
   const rows = [
     { name: 'Aïcha Diallo', role: 'Head of Sales', status: 'Active' },
