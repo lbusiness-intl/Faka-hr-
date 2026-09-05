@@ -44,6 +44,7 @@ export default function InviteWizard({ open, onClose, onDone }: {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [sending, setSending] = useState(false);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [emailSent, setEmailSent] = useState(false);
@@ -128,6 +129,7 @@ export default function InviteWizard({ open, onClose, onDone }: {
       const json = await res.json();
       if (!res.ok || json.ok === false) throw new Error(mapInviteError(json.error, json.detail, res.status));
       setInviteLink(json.invite_url ?? `${window.location.origin}/#/accept-invite?token=${json.token}`);
+      setInviteCode(json.token ? String(json.token).slice(0, 8).toUpperCase() : null);
       setEmailSent(Boolean(json.email_sent));
       setEmailWarning(json.email_sent ? null : (json.email_error ?? "L'email n'a pas pu être envoyé automatiquement."));
       onDone();
@@ -316,6 +318,14 @@ export default function InviteWizard({ open, onClose, onDone }: {
               {copied ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
             </button>
           </div>
+          {inviteCode && (
+            <div className="rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 p-3 text-center">
+              <p className="text-xs text-slate-500 dark:text-white/50 mb-1">
+                Si vous préférez communiquer un code plutôt que le lien (la personne le saisira sur la page "J'ai reçu une invitation") :
+              </p>
+              <span className="font-mono text-lg font-bold tracking-widest text-coral-600 dark:text-coral-400">{inviteCode}</span>
+            </div>
+          )}
         </div>
       )}
 

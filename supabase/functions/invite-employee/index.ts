@@ -414,7 +414,7 @@ Deno.serve(async (req: Request) => {
           .maybeSingle();
         if (error || !data) return json({ ok: false, error: "NOT_FOUND" }, 404);
         // If a code was provided, validate it (code = first 8 chars of token)
-        if (code && data.token && !data.token.startsWith(code)) {
+        if (code && data.token && !data.token.toLowerCase().startsWith(code.toLowerCase().trim())) {
           return json({ ok: false, error: "CODE_INVALID" }, 400);
         }
         inv = data;
