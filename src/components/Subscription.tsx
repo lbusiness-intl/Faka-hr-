@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { PLANS, getPlan, type PlanId } from '../lib/plans';
 import { Spinner, Badge } from './ui';
 import { Link } from '../lib/router';
-import { Check, Receipt, Zap } from 'lucide-react';
+import { Check, Receipt, Zap, CreditCard as CreditCardIcon } from 'lucide-react';
 import { openPaddleCheckout, paddlePriceIdForPlan, isPaddleConfigured } from '../lib/paddle';
 
 type Invoice = {
@@ -67,13 +67,18 @@ export default function Subscription() {
   }
 
 
-  async function startCheckout(newPlan: PlanId, provider: 'stripe' | 'payunit') {
+  async function startCheckout(newPlan: PlanId, provider: 'stripe' | 'payunit' | 'flutterwave' | 'paystack') {
     if (!activeTenant || !user) return;
     setPaying(newPlan);
     setError(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const fnName = provider === 'payunit' ? 'create-payunit-checkout' : 'create-checkout-session';
+      const fnName = {
+        payunit: 'create-payunit-checkout',
+        flutterwave: 'create-flutterwave-checkout',
+        paystack: 'create-paystack-checkout',
+        stripe: 'create-checkout-session',
+      }[provider];
       const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${fnName}`;
       const res = await fetch(fnUrl, {
         method: 'POST',
@@ -85,7 +90,7 @@ export default function Subscription() {
       });
       const json = await res.json();
       if (!res.ok || json.ok === false) {
-        if (json.error === 'CHECKOUT_NOT_CONFIGURED' || json.error === 'PAYUNIT_NOT_CONFIGURED') {
+        if (['CHECKOUT_NOT_CONFIGURED', 'PAYUNIT_NOT_CONFIGURED', 'FLUTTERWAVE_NOT_CONFIGURED', 'PAYSTACK_NOT_CONFIGURED'].includes(json.error)) {
           setError(t('sub.checkout.not_configured'));
         } else {
           setError(json.detail || json.error || `HTTP ${res.status}`);
@@ -197,22 +202,25 @@ export default function Subscription() {
                   {paying === p.id ? <Spinner /> : current ? 'Plan actuel' : `${t('sub.paynow')} (Mobile Money) →`}
                 </button>
                 {!current && (
-                  <button
-                    onClick={() => startCheckout(p.id, 'stripe')}
-                    disabled={paying !== null}
-                    className="mt-2 w-full rounded-xl px-3 py-2 text-xs font-medium text-slate-500 dark:text-white/50 hover:text-slate-700 dark:hover:text-white/80 transition"
-                  >
-                    {t('sub.paynow')} (carte bancaire) →
-                  </button>
-                )}
-                {!current && isPaddleConfigured && (
-                  <button
-                    onClick={() => startPaddleCheckout(p.id)}
-                    disabled={paying !== null}
-                    className="mt-1 w-full rounded-xl px-3 py-2 text-xs font-medium text-slate-500 dark:text-white/50 hover:text-slate-700 dark:hover:text-white/80 transition"
-                  >
-                    {t('sub.paynow')} (Paddle) →
-                  </button>
+                  <div className="mt-3">
+                    <p className="text-[11px] text-center text-slate-400 dark:text-white/40 mb-1.5">{t('sub.other_methods')}</p>
+                    <div className="flex items-center justify-center gap-1.5">
+                      <button onClick={() => startCheckout(p.id, 'stripe')} disabled={paying !== null} title="Carte bancaire (Stripe)" className="w-8 h-8 rounded-full border border-slate-200 dark:border-white/10 flex items-center justify-center text-slate-500 dark:text-white/50 hover:text-slate-800 dark:hover:text-white hover:border-slate-300 dark:hover:border-white/30 transition">
+                        <CreditCardIcon size={14} />
+                      </button>
+                      {isPaddleConfigured && (
+                        <button onClick={() => startPaddleCheckout(p.id)} disabled={paying !== null} title="Paddle" className="w-8 h-8 rounded-full border border-slate-200 dark:border-white/10 flex items-center justify-center text-slate-500 dark:text-white/50 hover:text-slate-800 dark:hover:text-white hover:border-slate-300 dark:hover:border-white/30 transition text-[10px] font-bold">
+                          P
+                        </button>
+                      )}
+                      <button onClick={() => startCheckout(p.id, 'flutterwave')} disabled={paying !== null} title="Flutterwave" className="w-8 h-8 rounded-full border border-slate-200 dark:border-white/10 flex items-center justify-center text-slate-500 dark:text-white/50 hover:text-slate-800 dark:hover:text-white hover:border-slate-300 dark:hover:border-white/30 transition text-[10px] font-bold">
+                        F
+                      </button>
+                      <button onClick={() => startCheckout(p.id, 'paystack')} disabled={paying !== null} title="Paystack" className="w-8 h-8 rounded-full border border-slate-200 dark:border-white/10 flex items-center justify-center text-slate-500 dark:text-white/50 hover:text-slate-800 dark:hover:text-white hover:border-slate-300 dark:hover:border-white/30 transition text-[10px] font-bold">
+                        PS
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             );
