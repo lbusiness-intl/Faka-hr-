@@ -273,7 +273,66 @@ Deno.serve(async (req: Request) => {
         details: { email, role, branch_id, department_id },
       });
 
-      return json({ ok: true, token: invToken, invite_url: inviteUrl });
+      // Get company name for the email
+      const { data: tenantRow } = await adminClient
+        .from("tenants")
+        .select("name")
+        .eq("id", tenantId)
+        .maybeSingle();
+      const companyName = tenantRow?.name ?? "Faka HRMS";
+
+      // Queue the invitation email and trigger immediate delivery instead
+      // of waiting for someone to manually process the queue — invitations
+      // are time-sensitive. Failure to send here is non-fatal: the invite
+      // link itself still works and can be shared/copied manually, and the
+      // email will still be retried the next time the queue is processed.
+      const inviteHtml = `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px">
+        <h2 style="color:#1e293b">Vous êtes invité(e) à rejoindre ${companyName}</h2>
+        <p style="color:#334155;font-size:15px;line-height:1.6">
+          Bonjour${first_name ? " " + first_name : ""},<br/><br/>
+          Vous avez été invité(e) à rejoindre l'espace RH de <strong>${companyName}</strong> sur Faka.
+          Cliquez sur le bouton ci-dessous pour activer votre compte et créer votre mot de passe.
+        </p>
+        <p style="margin:28px 0">
+          <a href="${inviteUrl}" style="background:#E23A50;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Activer mon compte</a>
+        </p>
+        <p style="color:#94a3b8;font-size:13px">Ce lien expire dans 72 heures. Si vous ne vous attendiez pas à cet email, vous pouvez l'ignorer.</p>
+      </div>`;
+
+      const { data: queued, error: queueErr } = await adminClient.from("email_queue").insert({
+        tenant_id: tenantId,
+        to_email: email.toLowerCase(),
+        subject: `Invitation à rejoindre ${companyName}`,
+        html_body: inviteHtml,
+        text_body: `Vous êtes invité(e) à rejoindre ${companyName}. Activez votre compte : ${inviteUrl}`,
+        template_key: "invitation",
+        status: "pending",
+      }).select("id").single();
+
+      let emailSent = false;
+      let emailError: string | null = null;
+      if (!queueErr && queued) {
+        try {
+          const sendRes = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-email`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              apikey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+            },
+            body: JSON.stringify({ action: "process_queue" }),
+          });
+          const sendJson = await sendRes.json();
+          emailSent = sendRes.ok && sendJson?.sent > 0;
+          if (!emailSent) emailError = sendJson?.error ?? "email not confirmed sent (check tenant email configuration)";
+        } catch (e) {
+          emailError = e instanceof Error ? e.message : String(e);
+        }
+      } else {
+        emailError = queueErr?.message ?? "failed to queue email";
+      }
+
+      return json({ ok: true, token: invToken, invite_url: inviteUrl, email_sent: emailSent, email_error: emailError });
     }
 
     // ── accept ───────────────────────────────────────────────────────────────
