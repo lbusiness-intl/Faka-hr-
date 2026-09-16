@@ -12,6 +12,7 @@ import { Link, navigate, useRoute } from '../lib/router';
 import { ALL_MODULES, getPlan, isModuleUnlocked, type ModuleKey, type PlanId } from '../lib/plans';
 import { Modal, Badge } from './ui';
 import { NotificationBell } from './NotificationBell';
+import { AiAssistant } from './AiAssistant';
 
 type NavItem = { key: ModuleKey; icon: typeof LayoutDashboard; label: string; section?: string };
 
@@ -319,6 +320,10 @@ export function DashboardShell({ children, role }: { children: ReactNode; role: 
           )}
         </main>
       </div>
+
+      {/* Hidden while the tenant is blocked (expired trial / suspended) so
+          the assistant can't be used as a way around a paywalled workspace. */}
+      {!(isBlocked && role !== 'super') && role !== 'super' && <AiAssistant />}
 
       <Modal open={lockedModule !== null} onClose={() => setLockedModule(null)} title={
         <span className="flex items-center gap-2"><Lock size={18} className="text-coral-500" /> {t('lock.title', { plan: plan.name })}</span>
