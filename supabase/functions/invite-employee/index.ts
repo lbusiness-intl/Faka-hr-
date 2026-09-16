@@ -164,7 +164,11 @@ Deno.serve(async (req: Request) => {
         .eq("user_id", user.id)
         .eq("status", "active")
         .maybeSingle();
-      const isTenantAdmin = membership && ["admin","hr_manager","hr_assistant"].includes(membership.role);
+      // "super_admin" is a legitimate tenant_memberships role value:
+      // ensure_super_admin_role() assigns it to protected founder accounts.
+      // Omitting it here meant a founder was refused permission to invite
+      // anyone into their own company.
+      const isTenantAdmin = membership && ["admin","hr_manager","hr_assistant","super_admin"].includes(membership.role);
       if (!isSuperAdmin && !isTenantAdmin) {
         return json({ ok: false, error: "FORBIDDEN" }, 403);
       }

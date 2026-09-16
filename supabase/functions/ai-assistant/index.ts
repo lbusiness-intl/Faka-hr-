@@ -19,7 +19,7 @@
 //    leave balance or a payroll figure is worse than no assistant.
 //
 // Required Supabase Edge Function secret:
-//   ANTHROPIC_API_KEY   from console.anthropic.com
+//   GEMINI_API_KEY   from aistudio.google.com/apikey
 // Without it, this returns AI_NOT_CONFIGURED and the UI hides the
 // assistant entirely rather than showing a broken feature.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -45,7 +45,7 @@ Deno.serve(async (req: Request) => {
     });
 
   try {
-    const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+    const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) {
       return json({ ok: false, error: "AI_NOT_CONFIGURED" }, 503);
     }
@@ -175,23 +175,24 @@ Answer using ONLY the CONTEXT below, which contains this user's real, permission
 CONTEXT:
 ${JSON.stringify(context, null, 2)}`;
 
-    const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
+    // Gemini: the system prompt goes in systemInstruction, and the roles
+    // are "user"/"model" (not "assistant"), so the conversation is mapped
+    // accordingly before sending.
+    const aiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents: messages.slice(-12).map((m: { role: string; content: string }) => ({
+            role: m.role === "assistant" ? "model" : "user",
+            parts: [{ text: String(m.content ?? "").slice(0, 4000) }],
+          })),
+          generationConfig: { maxOutputTokens: 1024, temperature: 0.3 },
+        }),
       },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1024,
-        system: systemPrompt,
-        messages: messages.slice(-12).map((m: { role: string; content: string }) => ({
-          role: m.role === "assistant" ? "assistant" : "user",
-          content: String(m.content ?? "").slice(0, 4000),
-        })),
-      }),
-    });
+    );
 
     if (!aiRes.ok) {
       const detail = await aiRes.text();
@@ -199,10 +200,9 @@ ${JSON.stringify(context, null, 2)}`;
     }
 
     const aiJson = await aiRes.json();
-    const reply = (aiJson.content ?? [])
-      .filter((b: { type: string }) => b.type === "text")
-      .map((b: { text: string }) => b.text)
-      .join("\n")
+    const reply = (aiJson.candidates?.[0]?.content?.parts ?? [])
+      .map((pt: { text?: string }) => pt.text ?? "")
+      .join("")
       .trim();
 
     return json({ ok: true, reply: reply || "Je n'ai pas pu générer de réponse." });
